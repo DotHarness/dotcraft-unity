@@ -1,0 +1,27 @@
+{
+    "name": "com.dotcraft.unityclient",
+    "version": "0.1.6",
+    "displayName": "dotcraft-unity",
+    "description": "Unity Editor client for DotCraft using Agent Client Protocol (ACP).",
+    "unity": "2022.3",
+    "documentationUrl": "https://github.com/DotHarness/dotcraft-unity",
+    "licensesUrl": "https://github.com/DotHarness/dotcraft-unity/blob/main/LICENSE",
+    "keywords": [
+        "ai",
+        "agent",
+        "assistant",
+        "acp",
+        "dotcraft",
+        "unity"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DotHarness/dotcraft-unity.git"
+    },
+    "author": {
+        "name": "DotHarness",
+        "url": "https://github.com/DotHarness"
+    },
+    "dependencies": {},
+    "samples": []
+}
