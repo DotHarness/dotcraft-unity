@@ -13,6 +13,9 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UIElements;
 using UObject = UnityEngine.Object;
+#if !UNITY_6000_3_OR_NEWER
+using UnityEditor.UIElements;
+#endif
 
 namespace DotCraft.Editor.Window
 {
