@@ -20,15 +20,16 @@ dotcraft-unity is the Unity editor client for [DotCraft](https://github.com/DotH
 ## Get Started
 
 1. Install and configure [DotCraft](https://github.com/DotHarness/dotcraft).
-2. In Unity, install `System.Text.Json 9.0.10` via [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity).
-3. Open **Window → Package Manager** and add this Git URL:
+2. Open **Window → Package Manager** and add this Git URL:
 
    ```text
    https://github.com/DotHarness/dotcraft-unity.git
    ```
 
-4. Open **Tools → DotCraft Assistant**.
-5. Click **Connect**, then start a conversation from the Unity Editor.
+   Unity resolves the official `com.unity.nuget.newtonsoft-json` dependency automatically.
+
+3. Open **Tools → DotCraft Assistant**.
+4. Click **Connect**, then start a conversation from the Unity Editor.
 
 Minimum Unity version: **2022.3**, recommended version: **Unity 6**.
 

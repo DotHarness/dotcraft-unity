@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.Settings;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -49,13 +50,6 @@ namespace DotCraft.Editor.UI
         private VisualElement _typingIndicator;
         private VisualElement _reasoningSpinner;
         private Label _reasoningLabel;
-
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true,
-            WriteIndented = true
-        };
 
         public ChatPanel(ScrollView container)
         {
@@ -352,7 +346,7 @@ namespace DotCraft.Editor.UI
             {
                 try
                 {
-                    var contentJson = JsonSerializer.Serialize(update.Content, JsonOptions);
+                    var contentJson = DotCraftJson.SerializeIndented(update.Content);
                     toolCall.SetOutput(contentJson);
                 }
                 catch { }
@@ -417,7 +411,7 @@ namespace DotCraft.Editor.UI
             {
                 try
                 {
-                    var contentJson = JsonSerializer.Serialize(update.Content, JsonOptions);
+                    var contentJson = DotCraftJson.SerializeIndented(update.Content);
                     target.AppendOutput(contentJson);
                 }
                 catch { }
@@ -447,16 +441,20 @@ namespace DotCraft.Editor.UI
         {
             if (content == null) return "";
 
-            if (content is JsonElement json)
+            if (content is JToken json)
             {
-                if (json.ValueKind == JsonValueKind.Object)
+                if (json.Type == JTokenType.Object)
                 {
-                    if (json.TryGetProperty("text", out var textProp))
+                    var textProp = json["text"];
+                    if (textProp != null)
                     {
-                        return textProp.GetString() ?? "";
+                        return textProp.ToObject<string>() ?? "";
                     }
                 }
-                return json.ToString();
+
+                return json.Type == JTokenType.String
+                    ? json.ToObject<string>() ?? ""
+                    : json.ToString(Formatting.None);
             }
 
             return content.ToString();

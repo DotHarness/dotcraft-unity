@@ -1,0 +1,21 @@
+{
+    "name": "DotCraft.Editor.Tests",
+    "rootNamespace": "DotCraft.Editor.Tests",
+    "references": [
+        "DotCraft.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "noEngineReferences": false
+}

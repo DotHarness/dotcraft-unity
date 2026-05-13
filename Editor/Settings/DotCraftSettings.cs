@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using DotCraft.Editor.Protocol;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -16,44 +17,39 @@ namespace DotCraft.Editor.Settings
     public sealed class McpServerEntry
     {
         /// <summary>Display name for the server (used as the MCP server name in the ACP protocol).</summary>
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
         /// <summary>Whether this server is included when creating or loading sessions.</summary>
-        [JsonPropertyName("enabled")]
+        [JsonProperty("enabled")]
         public bool Enabled { get; set; } = true;
 
         /// <summary>Transport type: "stdio" or "http".</summary>
-        [JsonPropertyName("transport")]
+        [JsonProperty("transport")]
         public string Transport { get; set; } = "stdio";
 
         // stdio-specific fields
 
         /// <summary>Executable command (stdio transport only).</summary>
-        [JsonPropertyName("command")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("command", NullValueHandling = NullValueHandling.Ignore)]
         public string Command { get; set; }
 
         /// <summary>Command-line arguments (stdio transport only).</summary>
-        [JsonPropertyName("arguments")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("arguments", NullValueHandling = NullValueHandling.Ignore)]
         public List<string> Arguments { get; set; }
 
         /// <summary>Environment variables to inject into the server process (stdio transport only).</summary>
-        [JsonPropertyName("environmentVariables")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("environmentVariables", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> EnvironmentVariables { get; set; }
 
         // http-specific fields
 
         /// <summary>Server URL (http transport only).</summary>
-        [JsonPropertyName("url")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("url", NullValueHandling = NullValueHandling.Ignore)]
         public string Url { get; set; }
 
         /// <summary>HTTP headers (http transport only).</summary>
-        [JsonPropertyName("headers")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("headers", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> Headers { get; set; }
     }
 
@@ -68,13 +64,6 @@ namespace DotCraft.Editor.Settings
         public const string AgentConnectionCustomAcp = "customAcp";
         public const string DotCraftAppServerLocalHub = "localHub";
         public const string DotCraftAppServerRemote = "remote";
-
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        };
 
         private static DotCraftSettings _instance;
         private static readonly string SettingsPath = "UserSettings/DotCraftSettings.json";
@@ -96,96 +85,96 @@ namespace DotCraft.Editor.Settings
         /// "dotcraft" uses DotCraft-specific Hub discovery before starting the ACP bridge.
         /// "customAcp" preserves the raw command/arguments startup path for other ACP agents.
         /// </summary>
-        [JsonPropertyName("agentConnection")]
+        [JsonProperty("agentConnection")]
         public string AgentConnection { get; set; } = AgentConnectionDotCraft;
 
         /// <summary>
         /// DotCraft AppServer discovery mode when AgentConnection is "dotcraft".
         /// </summary>
-        [JsonPropertyName("dotCraftAppServer")]
+        [JsonProperty("dotCraftAppServer")]
         public string DotCraftAppServer { get; set; } = DotCraftAppServerLocalHub;
 
         /// <summary>
         /// Command to execute DotCraft (e.g., "dotnet" or full path to executable).
         /// </summary>
-        [JsonPropertyName("dotCraftCommand")]
+        [JsonProperty("dotCraftCommand")]
         public string DotCraftCommand { get; set; } = "dotcraft";
 
         /// <summary>
         /// Arguments passed to DotCraft command.
         /// Example: "run --project /path/to/DotCraft -- --acp"
         /// </summary>
-        [JsonPropertyName("dotCraftArguments")]
+        [JsonProperty("dotCraftArguments")]
         public string DotCraftArguments { get; set; } = "-acp";
 
         /// <summary>
         /// Remote AppServer WebSocket URL used by DotCraft remote mode.
         /// </summary>
-        [JsonPropertyName("remoteAppServerUrl")]
+        [JsonProperty("remoteAppServerUrl")]
         public string RemoteAppServerUrl { get; set; } = "";
 
         /// <summary>
         /// Optional token used by DotCraft remote AppServer mode.
         /// </summary>
-        [JsonPropertyName("remoteAppServerToken")]
+        [JsonProperty("remoteAppServerToken")]
         public string RemoteAppServerToken { get; set; } = "";
 
         /// <summary>
         /// Working directory for DotCraft process. Defaults to Unity project root.
         /// </summary>
-        [JsonPropertyName("workspacePath")]
+        [JsonProperty("workspacePath")]
         public string WorkspacePath { get; set; } = "";
 
         /// <summary>
         /// Environment variables to inject into DotCraft process.
         /// Use for API keys and other configuration.
         /// </summary>
-        [JsonPropertyName("environmentVariables")]
+        [JsonProperty("environmentVariables")]
         public Dictionary<string, string> EnvironmentVariables { get; set; } = new();
 
         /// <summary>
         /// Automatically reconnect after Domain Reload.
         /// </summary>
-        [JsonPropertyName("autoReconnect")]
+        [JsonProperty("autoReconnect")]
         public bool AutoReconnect { get; set; } = true;
 
         /// <summary>
         /// Enable verbose logging for debugging.
         /// </summary>
-        [JsonPropertyName("verboseLogging")]
+        [JsonProperty("verboseLogging")]
         public bool VerboseLogging { get; set; } = false;
 
         /// <summary>
         /// Show agent reasoning text in the chat UI.
         /// When disabled, the chat still shows lightweight thinking status rows.
         /// </summary>
-        [JsonPropertyName("showThinkingContent")]
+        [JsonProperty("showThinkingContent")]
         public bool ShowThinkingContent { get; set; } = false;
 
         /// <summary>
         /// Timeout in seconds for ACP requests.
         /// </summary>
-        [JsonPropertyName("requestTimeoutSeconds")]
+        [JsonProperty("requestTimeoutSeconds")]
         public int RequestTimeoutSeconds { get; set; } = 30;
 
         /// <summary>
         /// Maximum number of messages to keep in chat history.
         /// </summary>
-        [JsonPropertyName("maxHistoryMessages")]
+        [JsonProperty("maxHistoryMessages")]
         public int MaxHistoryMessages { get; set; } = 1000;
 
         /// <summary>
         /// Declare built-in Unity runtime tools and enable their _unity/* handlers.
         /// Disable if using external Unity integration.
         /// </summary>
-        [JsonPropertyName("enableBuiltinUnityTools")]
+        [JsonProperty("enableBuiltinUnityTools")]
         public bool EnableBuiltinUnityTools { get; set; } = true;
 
         /// <summary>
         /// MCP servers to inject into every new DotCraft session via the ACP mcpServers field.
         /// These supplement any servers already configured in .craft/config.json.
         /// </summary>
-        [JsonPropertyName("mcpServers")]
+        [JsonProperty("mcpServers")]
         public List<McpServerEntry> McpServers { get; set; } = new();
 
         /// <summary>
@@ -207,11 +196,7 @@ namespace DotCraft.Editor.Settings
                 try
                 {
                     var json = File.ReadAllText(SettingsPath);
-                    var hasAgentConnection = HasJsonProperty(json, "agentConnection");
-                    var settings = JsonSerializer.Deserialize<DotCraftSettings>(json, JsonOptions);
-                    settings ??= new DotCraftSettings();
-                    settings.NormalizeAfterLoad(hasAgentConnection);
-                    return settings;
+                    return FromJson(json);
                 }
                 catch (Exception ex)
                 {
@@ -222,13 +207,21 @@ namespace DotCraft.Editor.Settings
             return new DotCraftSettings();
         }
 
+        internal static DotCraftSettings FromJson(string json)
+        {
+            var hasAgentConnection = HasJsonProperty(json, "agentConnection");
+            var settings = DotCraftJson.Deserialize<DotCraftSettings>(json) ?? new DotCraftSettings();
+            settings.NormalizeAfterLoad(hasAgentConnection);
+            return settings;
+        }
+
+        internal string ToJson() => DotCraftJson.SerializeIndented(this);
+
         private static bool HasJsonProperty(string json, string propertyName)
         {
             try
             {
-                using var doc = JsonDocument.Parse(json);
-                return doc.RootElement.ValueKind == JsonValueKind.Object
-                       && doc.RootElement.TryGetProperty(propertyName, out _);
+                return JObject.Parse(json).Property(propertyName) != null;
             }
             catch
             {
@@ -280,8 +273,7 @@ namespace DotCraft.Editor.Settings
                     Directory.CreateDirectory(directory);
                 }
 
-                var json = JsonSerializer.Serialize(this, JsonOptions);
-                File.WriteAllText(SettingsPath, json);
+                File.WriteAllText(SettingsPath, ToJson());
             }
             catch (Exception ex)
             {

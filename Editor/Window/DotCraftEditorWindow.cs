@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
 using DotCraft.Editor.Connection;
 using DotCraft.Editor.Extensions;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.Settings;
 using DotCraft.Editor.UI;
+using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -805,15 +805,15 @@ namespace DotCraft.Editor.Window
         private void HandleModeUpdate(AcpSessionUpdate update)
         {
             string modeText = null;
-            if (update.Content is JsonElement json)
+            if (update.Content is JToken json)
             {
-                if (json.ValueKind == JsonValueKind.Object && json.TryGetProperty("text", out var textProp))
+                if (json.Type == JTokenType.Object && json["text"] is JToken textProp)
                 {
-                    modeText = textProp.GetString();
+                    modeText = textProp.ToObject<string>();
                 }
-                else if (json.ValueKind == JsonValueKind.String)
+                else if (json.Type == JTokenType.String)
                 {
-                    modeText = json.GetString();
+                    modeText = json.ToObject<string>();
                 }
             }
             else if (update.Content is string text)

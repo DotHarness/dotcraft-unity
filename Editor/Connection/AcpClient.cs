@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DotCraft.Editor.Extensions;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.Settings;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace DotCraft.Editor.Connection
@@ -25,12 +25,6 @@ namespace DotCraft.Editor.Connection
         private string _sessionId;
         private bool _isConnected;
         private bool _isRunning;
-
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true
-        };
 
         /// <summary>
         /// Current session ID.
@@ -400,7 +394,7 @@ namespace DotCraft.Editor.Connection
                     ct
                 );
 
-                var typed = result.Deserialize<SessionSetConfigOptionResult>(JsonOptions);
+                var typed = DotCraftJson.ToObject<SessionSetConfigOptionResult>(result);
                 if (typed?.ConfigOptions != null)
                 {
                     ConfigOptions = typed.ConfigOptions;
@@ -430,7 +424,7 @@ namespace DotCraft.Editor.Connection
                     ct
                 );
 
-                var typed = result.Deserialize<SessionListResult>(JsonOptions);
+                var typed = DotCraftJson.ToObject<SessionListResult>(result);
                 return typed?.Sessions;
             }
             catch
@@ -455,7 +449,7 @@ namespace DotCraft.Editor.Connection
                     ct
                 );
 
-                _ = result.Deserialize<SessionDeleteResult>(JsonOptions);
+                _ = DotCraftJson.ToObject<SessionDeleteResult>(result);
                 return true;
             }
             catch
@@ -469,7 +463,7 @@ namespace DotCraft.Editor.Connection
             // Permission request handler
             _transport.RegisterHandler(AcpMethods.RequestPermission, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<RequestPermissionParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<RequestPermissionParams>(paramsJson);
                 var tcs = new TaskCompletionSource<RequestPermissionResult>();
 
                 OnPermissionRequest?.Invoke(@params, result => tcs.TrySetResult(result));
@@ -480,44 +474,44 @@ namespace DotCraft.Editor.Connection
             // File handlers
             _transport.RegisterHandler(AcpMethods.FsReadTextFile, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<FsReadTextFileParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<FsReadTextFileParams>(paramsJson);
                 return await HandleReadTextFileAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.FsWriteTextFile, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<FsWriteTextFileParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<FsWriteTextFileParams>(paramsJson);
                 return await HandleWriteTextFileAsync(@params);
             });
 
             // Terminal handlers
             _transport.RegisterHandler(AcpMethods.TerminalCreate, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalCreateParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalCreateParams>(paramsJson);
                 return await HandleTerminalCreateAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalGetOutput, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalGetOutputParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalGetOutputParams>(paramsJson);
                 return await HandleTerminalGetOutputAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalWaitForExit, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalWaitForExitParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalWaitForExitParams>(paramsJson);
                 return await HandleTerminalWaitForExitAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalKill, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalKillParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalKillParams>(paramsJson);
                 return await HandleTerminalKillAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalRelease, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalReleaseParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalReleaseParams>(paramsJson);
                 return await HandleTerminalReleaseAsync(@params);
             });
 
@@ -561,7 +555,7 @@ namespace DotCraft.Editor.Connection
             };
 
             var result = await _transport.SendRequestAsync(AcpMethods.Initialize, @params, ct);
-            return result.Deserialize<InitializeResult>(JsonOptions);
+            return DotCraftJson.ToObject<InitializeResult>(result);
         }
 
         private static List<AcpRuntimeToolDescriptor> BuildBuiltinUnityRuntimeTools()
@@ -665,7 +659,7 @@ namespace DotCraft.Editor.Connection
             };
 
             var result = await _transport.SendRequestAsync(AcpMethods.SessionNew, @params, ct);
-            return result.Deserialize<SessionNewResult>(JsonOptions);
+            return DotCraftJson.ToObject<SessionNewResult>(result);
         }
 
         private async Task<SessionLoadResult> LoadSessionAsync(string sessionId, CancellationToken ct)
@@ -678,7 +672,7 @@ namespace DotCraft.Editor.Connection
             };
 
             var result = await _transport.SendRequestAsync(AcpMethods.SessionLoad, @params, ct);
-            return result.Deserialize<SessionLoadResult>(JsonOptions);
+            return DotCraftJson.ToObject<SessionLoadResult>(result);
         }
 
         /// <summary>
@@ -754,9 +748,9 @@ namespace DotCraft.Editor.Connection
             }
         }
 
-        private void HandleSessionUpdate(JsonElement paramsJson)
+        private void HandleSessionUpdate(JToken paramsJson)
         {
-            var @params = paramsJson.Deserialize<SessionUpdateParams>(JsonOptions);
+            var @params = DotCraftJson.ToObject<SessionUpdateParams>(paramsJson);
             var update = @params?.Update;
             if (update == null) return;
 

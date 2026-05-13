@@ -21,15 +21,16 @@ dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 的 Unity 
 ## 快速开始
 
 1. 安装并配置 [DotCraft](https://github.com/DotHarness/dotcraft)。
-2. 在 Unity 中通过 [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity) 安装 `System.Text.Json 9.0.10`。
-3. 打开 **Window → Package Manager**，添加这个 Git URL：
+2. 打开 **Window → Package Manager**，添加这个 Git URL：
 
    ```text
    https://github.com/DotHarness/dotcraft-unity.git
    ```
 
-4. 打开 **Tools → DotCraft Assistant**。
-5. 点击 **Connect**，然后在 Unity 编辑器中开始对话。
+   Unity 会自动解析官方 `com.unity.nuget.newtonsoft-json` 依赖。
+
+3. 打开 **Tools → DotCraft Assistant**。
+4. 点击 **Connect**，然后在 Unity 编辑器中开始对话。
 
 最低 Unity 版本：**2022.3**，推荐版本 **Unity 6**。
 

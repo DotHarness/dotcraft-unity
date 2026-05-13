@@ -2,11 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.Settings;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace DotCraft.Editor.Connection
@@ -24,35 +25,29 @@ namespace DotCraft.Editor.Connection
         private bool _isRunning;
 
         // Pending requests awaiting response (Client→Agent)
-        private readonly ConcurrentDictionary<int, TaskCompletionSource<JsonElement>> _pendingRequests = new();
+        private readonly ConcurrentDictionary<int, TaskCompletionSource<JToken>> _pendingRequests = new();
 
         // Incoming Agent→Client requests queue
         private readonly SemaphoreSlim _incomingSemaphore = new(0);
 
         // Request handlers
-        private readonly ConcurrentDictionary<string, Func<JsonElement, Task<object>>> _requestHandlers = new();
+        private readonly ConcurrentDictionary<string, Func<JToken, Task<object>>> _requestHandlers = new();
 
         // Extension method handlers keyed by prefix (e.g. "_unity/")
-        private readonly ConcurrentDictionary<string, Func<string, JsonElement, Task<object>>> _extensionHandlers = new();
+        private readonly ConcurrentDictionary<string, Func<string, JToken, Task<object>>> _extensionHandlers = new();
 
         private Task _readerLoopTask;
         private CancellationTokenSource _readerCts;
 
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        };
-
         /// <summary>
         /// Event raised when a session/update notification is received.
         /// </summary>
-        public event Action<JsonElement> OnSessionUpdate;
+        public event Action<JToken> OnSessionUpdate;
 
         /// <summary>
         /// Event raised when any notification is received.
         /// </summary>
-        public event Action<string, JsonElement> OnNotification;
+        public event Action<string, JToken> OnNotification;
 
         /// <summary>
         /// Event raised when transport encounters an error.
@@ -129,7 +124,7 @@ namespace DotCraft.Editor.Connection
         /// <summary>
         /// Registers a handler for Agent→Client requests.
         /// </summary>
-        public void RegisterHandler(string method, Func<JsonElement, Task<object>> handler)
+        public void RegisterHandler(string method, Func<JToken, Task<object>> handler)
         {
             _requestHandlers[method] = handler;
         }
@@ -138,7 +133,7 @@ namespace DotCraft.Editor.Connection
         /// Registers a handler for extension methods matching the given prefix (e.g. "_unity/").
         /// The method name is passed as a separate parameter instead of being injected into params.
         /// </summary>
-        public void RegisterExtensionHandler(string prefix, Func<string, JsonElement, Task<object>> handler)
+        public void RegisterExtensionHandler(string prefix, Func<string, JToken, Task<object>> handler)
         {
             _extensionHandlers[prefix] = handler;
         }
@@ -154,13 +149,13 @@ namespace DotCraft.Editor.Connection
         /// <summary>
         /// Sends a request to the Agent and awaits the response.
         /// </summary>
-        public async Task<JsonElement> SendRequestAsync(string method, object @params, CancellationToken ct = default, TimeSpan? timeout = null)
+        public async Task<JToken> SendRequestAsync(string method, object @params, CancellationToken ct = default, TimeSpan? timeout = null)
         {
             if (_writer == null)
                 throw new InvalidOperationException("Transport not initialized.");
 
             var id = Interlocked.Increment(ref _nextOutgoingId);
-            var tcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tcs = new TaskCompletionSource<JToken>(TaskCreationOptions.RunContinuationsAsynchronously);
             _pendingRequests[id] = tcs;
 
             try
@@ -202,7 +197,7 @@ namespace DotCraft.Editor.Connection
         /// <summary>
         /// Sends a response to an Agent→Client request.
         /// </summary>
-        public void SendResponse(JsonElement? id, object result)
+        public void SendResponse(JToken id, object result)
         {
             if (_writer == null) return;
 
@@ -213,7 +208,7 @@ namespace DotCraft.Editor.Connection
         /// <summary>
         /// Sends an error response to an Agent→Client request.
         /// </summary>
-        public void SendError(JsonElement? id, int code, string message, object data = null)
+        public void SendError(JToken id, int code, string message, object data = null)
         {
             if (_writer == null) return;
 
@@ -261,12 +256,12 @@ namespace DotCraft.Editor.Connection
             }
         }
 
-        private void ProcessMessage(string line)
+        internal void ProcessMessage(string line)
         {
-            JsonElement root;
+            JObject root;
             try
             {
-                root = JsonSerializer.Deserialize<JsonElement>(line, JsonOptions);
+                root = JObject.Parse(line);
             }
             catch (JsonException)
             {
@@ -279,36 +274,39 @@ namespace DotCraft.Editor.Connection
             }
 
             // Check if this is a response to one of our requests
-            if (root.TryGetProperty("id", out var idProp) &&
-                !root.TryGetProperty("method", out _) &&
-                idProp.ValueKind == JsonValueKind.Number)
+            var idProp = root["id"];
+            if (idProp != null &&
+                root["method"] == null &&
+                idProp.Type == JTokenType.Integer)
             {
-                var id = idProp.GetInt32();
+                var id = idProp.ToObject<int>();
                 if (_pendingRequests.TryRemove(id, out var tcs))
                 {
-                    if (root.TryGetProperty("result", out var resultProp))
+                    var resultProp = root["result"];
+                    var errorProp = root["error"];
+                    if (resultProp != null)
                     {
                         tcs.TrySetResult(resultProp);
                     }
-                    else if (root.TryGetProperty("error", out var errorProp))
+                    else if (errorProp != null)
                     {
-                        tcs.TrySetException(new AcpTransportException(errorProp.ToString()));
+                        tcs.TrySetException(new AcpTransportException(errorProp.ToString(Formatting.None)));
                     }
                     else
                     {
-                        tcs.TrySetResult(default);
+                        tcs.TrySetResult(null);
                     }
                 }
                 return;
             }
 
             // Check if this is a request from the Agent
-            if (root.TryGetProperty("method", out var methodProp))
+            var methodProp = root["method"];
+            if (methodProp != null)
             {
-                var method = methodProp.GetString();
-                var id = root.TryGetProperty("id", out idProp) ? idProp : (JsonElement?)null;
-                var hasParams = root.TryGetProperty("params", out var paramsProp);
-                var @params = hasParams ? paramsProp : (JsonElement?)null;
+                var method = methodProp.ToObject<string>();
+                var id = root["id"];
+                var @params = root["params"];
 
                 // Check if it's a notification (no id)
                 if (id == null)
@@ -318,34 +316,34 @@ namespace DotCraft.Editor.Connection
                 else
                 {
                     // It's a request - need to respond
-                    HandleRequestAsync(method, @params, id.Value).Forget();
+                    HandleRequestAsync(method, @params, id).Forget();
                 }
             }
         }
 
-        private void HandleNotification(string method, JsonElement? @params)
+        private void HandleNotification(string method, JToken @params)
         {
-            if (method == AcpMethods.SessionUpdate && @params.HasValue)
+            if (method == AcpMethods.SessionUpdate && @params != null)
             {
-                OnSessionUpdate?.Invoke(@params.Value);
+                OnSessionUpdate?.Invoke(@params);
             }
 
-            OnNotification?.Invoke(method, @params ?? default);
+            OnNotification?.Invoke(method, @params);
         }
 
-        private async Task HandleRequestAsync(string method, JsonElement? @params, JsonElement id)
+        private async Task HandleRequestAsync(string method, JToken @params, JToken id)
         {
             try
             {
                 if (_requestHandlers.TryGetValue(method, out var handler))
                 {
-                    var result = await handler(@params ?? default);
+                    var result = await handler(ParamsOrEmptyObject(@params));
                     SendResponse(id, result);
                 }
                 else if (TryGetExtensionHandler(method, out var extHandler))
                 {
                     // Extension method handling - pass method name separately
-                    var result = await extHandler(method, @params ?? default);
+                    var result = await extHandler(method, ParamsOrEmptyObject(@params));
                     SendResponse(id, result);
                 }
                 else
@@ -359,7 +357,16 @@ namespace DotCraft.Editor.Connection
             }
         }
 
-        private bool TryGetExtensionHandler(string method, out Func<string, JsonElement, Task<object>> handler)
+        private static JToken ParamsOrEmptyObject(JToken parameters)
+        {
+            return parameters == null
+                   || parameters.Type == JTokenType.Null
+                   || parameters.Type == JTokenType.Undefined
+                ? new JObject()
+                : parameters;
+        }
+
+        private bool TryGetExtensionHandler(string method, out Func<string, JToken, Task<object>> handler)
         {
             foreach (var kvp in _extensionHandlers)
             {
@@ -376,7 +383,7 @@ namespace DotCraft.Editor.Connection
 
         private void WriteLine(object message)
         {
-            var json = JsonSerializer.Serialize(message, JsonOptions);
+            var json = DotCraftJson.Serialize(message);
 
             if (DotCraftSettings.Instance.VerboseLogging)
             {
