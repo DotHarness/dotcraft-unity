@@ -50,6 +50,76 @@ namespace DotCraft.Editor.Protocol
         [JsonPropertyName("extensions")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string[] Extensions { get; set; }
+
+        [JsonPropertyName("_meta")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public ClientCapabilitiesMeta Meta { get; set; }
+    }
+
+    public sealed class ClientCapabilitiesMeta
+    {
+        [JsonPropertyName("dotcraft")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public DotCraftClientCapabilities DotCraft { get; set; }
+    }
+
+    public sealed class DotCraftClientCapabilities
+    {
+        /// <summary>
+        /// Runtime tools implemented by this ACP client and exposed through DotCraft dynamic tools.
+        /// </summary>
+        [JsonPropertyName("runtimeTools")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public List<AcpRuntimeToolDescriptor> RuntimeTools { get; set; }
+    }
+
+    public sealed class AcpRuntimeToolDescriptor
+    {
+        [JsonPropertyName("namespace")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string Namespace { get; set; }
+
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = "";
+
+        [JsonPropertyName("description")]
+        public string Description { get; set; } = "";
+
+        [JsonPropertyName("inputSchema")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public object InputSchema { get; set; }
+
+        [JsonPropertyName("acpMethod")]
+        public string AcpMethod { get; set; } = "";
+
+        [JsonPropertyName("kind")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string Kind { get; set; }
+
+        [JsonPropertyName("deferLoading")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public bool? DeferLoading { get; set; }
+
+        [JsonPropertyName("approval")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public AcpRuntimeToolApprovalDescriptor Approval { get; set; }
+    }
+
+    public sealed class AcpRuntimeToolApprovalDescriptor
+    {
+        [JsonPropertyName("kind")]
+        public string Kind { get; set; } = "";
+
+        [JsonPropertyName("targetArgument")]
+        public string TargetArgument { get; set; } = "";
+
+        [JsonPropertyName("operation")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string Operation { get; set; }
+
+        [JsonPropertyName("operationArgument")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string OperationArgument { get; set; }
     }
 
     public sealed class FsCapabilities

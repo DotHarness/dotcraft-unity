@@ -522,7 +522,7 @@ namespace DotCraft.Editor.Connection
             });
 
             // Extension method handler for _unity/*
-            // Method name is passed separately - no longer injected into params
+            // Method name is passed separately from params.
             // Only register if built-in Unity tools are enabled
             if (_settings.EnableBuiltinUnityTools)
             {
@@ -542,7 +542,16 @@ namespace DotCraft.Editor.Connection
                 {
                     Fs = FsCapabilities.All,
                     Terminal = TerminalCapabilities.All,
-                    Extensions = _settings.EnableBuiltinUnityTools ? new[] { "_unity" } : Array.Empty<string>()
+                    Extensions = _settings.EnableBuiltinUnityTools ? new[] { "_unity" } : Array.Empty<string>(),
+                    Meta = _settings.EnableBuiltinUnityTools
+                        ? new ClientCapabilitiesMeta
+                        {
+                            DotCraft = new DotCraftClientCapabilities
+                            {
+                                RuntimeTools = BuildBuiltinUnityRuntimeTools()
+                            }
+                        }
+                        : null
                 },
                 ClientInfo = new ClientInfo
                 {
@@ -553,6 +562,98 @@ namespace DotCraft.Editor.Connection
 
             var result = await _transport.SendRequestAsync(AcpMethods.Initialize, @params, ct);
             return result.Deserialize<InitializeResult>(JsonOptions);
+        }
+
+        private static List<AcpRuntimeToolDescriptor> BuildBuiltinUnityRuntimeTools()
+        {
+            return new List<AcpRuntimeToolDescriptor>
+            {
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_scene_query",
+                    Description = "Query Unity scene hierarchy with optional component details.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["query"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional case-insensitive text to match against GameObject names or paths."
+                        },
+                        ["includeComponents"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Include component type names for each returned GameObject."
+                        },
+                        ["maxDepth"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Maximum hierarchy depth to include."
+                        }
+                    }),
+                    AcpMethod = "_unity/scene_query",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                },
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_get_selection",
+                    Description = "Read the current Unity Editor selection.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>()),
+                    AcpMethod = "_unity/get_selection",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                },
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_get_console_logs",
+                    Description = "Retrieve recent Unity Console log entries.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["types"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "array",
+                            ["description"] = "Optional log types to include.",
+                            ["items"] = new Dictionary<string, object>
+                            {
+                                ["type"] = "string",
+                                ["enum"] = new[] { "error", "warning", "log" }
+                            }
+                        },
+                        ["limit"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Maximum number of recent entries to return."
+                        }
+                    }),
+                    AcpMethod = "_unity/get_console_logs",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                },
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_get_project_info",
+                    Description = "Read Unity version, project name, project path, and package information.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>()),
+                    AcpMethod = "_unity/get_project_info",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                }
+            };
+        }
+
+        private static Dictionary<string, object> ObjectSchema(Dictionary<string, object> properties)
+        {
+            return new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = properties
+            };
         }
 
         private async Task<SessionNewResult> NewSessionAsync(CancellationToken ct)

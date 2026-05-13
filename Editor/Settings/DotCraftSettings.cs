@@ -175,7 +175,7 @@ namespace DotCraft.Editor.Settings
         public int MaxHistoryMessages { get; set; } = 1000;
 
         /// <summary>
-        /// Enable built-in Unity tools (_unity/* extension methods).
+        /// Declare built-in Unity runtime tools and enable their _unity/* handlers.
         /// Disable if using external Unity integration.
         /// </summary>
         [JsonPropertyName("enableBuiltinUnityTools")]

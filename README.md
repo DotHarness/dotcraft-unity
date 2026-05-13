@@ -47,13 +47,13 @@ Open **Edit → Project Settings → DotCraft** to configure the client.
 | **Auto Reconnect** | `true` | Reconnect after Unity Domain Reload. |
 | **Verbose Logging** | `false` | Print DotCraft stderr to the Unity Console. |
 | **Show Thinking Content** | `false` | Show agent reasoning text in expandable chat rows. When disabled, only lightweight thinking status is shown. |
-| **Enable Builtin Unity Tools** | `true` | Enable the built-in `_unity/*` read-only tools. |
+| **Enable Builtin Unity Tools** | `true` | Declare the built-in read-only Unity runtime tools and enable their `_unity/*` handlers. |
 
 For API keys, prefer environment variables in Project Settings instead of committing secrets to project files.
 
 ## Built-in Tools
 
-dotcraft-unity exposes four read-only Unity tools to DotCraft:
+dotcraft-unity declares four read-only Unity runtime tools to DotCraft during ACP initialization:
 
 | Tool | Description |
 |------|-------------|
@@ -62,7 +62,7 @@ dotcraft-unity exposes four read-only Unity tools to DotCraft:
 | `unity_get_console_logs` | Retrieve recent Unity Console log entries. |
 | `unity_get_project_info` | Read Unity version, project name, and package information. |
 
-These tools help DotCraft understand the current scene and project state. For full Unity editing automation, combine DotCraft with a dedicated Unity tool package such as [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) or [unity-mcp](https://github.com/CoplayDev/unity-mcp).
+These tools help DotCraft understand the current scene and project state. The model-visible tool descriptors live in this Unity client; the `_unity/*` ACP methods are private callbacks used to execute them. For full Unity editing automation, combine DotCraft with a dedicated Unity tool package such as [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) or [unity-mcp](https://github.com/CoplayDev/unity-mcp).
 
 ## Troubleshooting
 
@@ -71,7 +71,7 @@ These tools help DotCraft understand the current scene and project state. For fu
 | `Failed to start DotCraft process` | `dotcraft` is not on `PATH` | Install DotCraft and add it to `PATH`, or set a full path in **Command**. |
 | Stuck at `Connecting...` | DotCraft failed during startup | Enable **Verbose Logging** and check the Unity Console. |
 | Disconnects after script compilation | Auto reconnect is disabled | Enable **Auto Reconnect** in Project Settings. |
-| Tools are unavailable | The ACP client did not advertise `_unity` extensions | Make sure the DotCraft ACP process starts successfully. |
+| Tools are unavailable | Runtime tool descriptors were not declared or accepted | Enable **Builtin Unity Tools** and use a DotCraft version that supports runtime dynamic tools over ACP. |
 
 ## Contributing
 
