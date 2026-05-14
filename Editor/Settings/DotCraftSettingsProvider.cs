@@ -72,7 +72,7 @@ namespace DotCraft.Editor.Settings
 
         public override void OnGUI(string searchContext)
         {
-            // Using IMGUI fallback for compatibility
+            // Draw the Project Settings panel with IMGUI.
             EditorGUI.BeginChangeCheck();
 
             EditorGUILayout.Space(10);
@@ -177,8 +177,7 @@ namespace DotCraft.Editor.Settings
 
                 _settings.EnableBuiltinUnityTools = EditorGUILayout.Toggle(
                     new GUIContent("Enable Builtin Tools",
-                        "Enable built-in _unity/* extension methods for reading Unity state. " +
-                        "Disable if using external Unity integration."),
+                        "Declare built-in read-only Unity runtime tools and enable their _unity/* handlers."),
                     _settings.EnableBuiltinUnityTools);
 
                 EditorGUI.indentLevel--;
@@ -300,12 +299,12 @@ namespace DotCraft.Editor.Settings
             EditorGUI.indentLevel--;
         }
 
-        private static int IndexOfOrDefault(string[] options, string value, string fallback)
+        private static int IndexOfOrDefault(string[] options, string value, string defaultValue)
         {
             var index = Array.IndexOf(options, value);
             if (index >= 0)
                 return index;
-            index = Array.IndexOf(options, fallback);
+            index = Array.IndexOf(options, defaultValue);
             return index >= 0 ? index : 0;
         }
 

@@ -4,10 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using DotCraft.Editor.Protocol;
 using DotCraft.Editor.Settings;
 using Debug = UnityEngine.Debug;
 
@@ -22,13 +21,6 @@ namespace DotCraft.Editor.Connection
         private const int StartupTimeoutMs = 15000;
         private const int PollIntervalMs = 200;
         private static readonly HttpClient Http = new();
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-        };
-
         /// <summary>
         /// Ensures a Hub-managed AppServer exists for the workspace and returns its WebSocket endpoint.
         /// </summary>
@@ -105,7 +97,7 @@ namespace DotCraft.Editor.Connection
             try
             {
                 var json = File.ReadAllText(lockPath);
-                var info = JsonSerializer.Deserialize<HubLockInfo>(json, JsonOptions);
+                var info = DotCraftJson.Deserialize<HubLockInfo>(json);
                 if (info == null
                     || info.Pid <= 0
                     || string.IsNullOrWhiteSpace(info.ApiBaseUrl)
@@ -159,7 +151,7 @@ namespace DotCraft.Editor.Connection
             string workspacePath,
             CancellationToken ct)
         {
-            var body = JsonSerializer.Serialize(new
+            var body = DotCraftJson.Serialize(new
             {
                 workspacePath,
                 client = new
@@ -168,7 +160,7 @@ namespace DotCraft.Editor.Connection
                     version = "0.1.0"
                 },
                 startIfMissing = true
-            }, JsonOptions);
+            });
 
             using var request = new HttpRequestMessage(HttpMethod.Post, $"{hub.ApiBaseUrl}/v1/appservers/ensure");
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", hub.Token);
@@ -179,7 +171,7 @@ namespace DotCraft.Editor.Connection
             if (!response.IsSuccessStatusCode)
                 throw CreateHubException(response, text);
 
-            return JsonSerializer.Deserialize<HubAppServerResponse>(text, JsonOptions)
+            return DotCraftJson.Deserialize<HubAppServerResponse>(text)
                    ?? throw new InvalidOperationException("Hub returned an empty AppServer response.");
         }
 
@@ -187,7 +179,7 @@ namespace DotCraft.Editor.Connection
         {
             try
             {
-                var error = JsonSerializer.Deserialize<HubErrorResponse>(body, JsonOptions);
+                var error = DotCraftJson.Deserialize<HubErrorResponse>(body);
                 if (error?.Error != null
                     && (!string.IsNullOrWhiteSpace(error.Error.Code) || !string.IsNullOrWhiteSpace(error.Error.Message)))
                 {

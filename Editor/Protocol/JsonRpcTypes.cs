@@ -1,5 +1,5 @@
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace DotCraft.Editor.Protocol
 {
@@ -10,20 +10,20 @@ namespace DotCraft.Editor.Protocol
     /// </summary>
     public sealed class JsonRpcRequest
     {
-        [JsonPropertyName("jsonrpc")]
+        [JsonProperty("jsonrpc")]
         public string JsonRpc { get; set; } = "2.0";
 
-        [JsonPropertyName("id")]
-        public JsonElement? Id { get; set; }
+        [JsonProperty("id")]
+        public JToken Id { get; set; }
 
-        [JsonPropertyName("method")]
+        [JsonProperty("method")]
         public string Method { get; set; } = "";
 
-        [JsonPropertyName("params")]
-        public JsonElement? Params { get; set; }
+        [JsonProperty("params")]
+        public JToken Params { get; set; }
 
         [JsonIgnore]
-        public bool IsNotification => Id is null || Id.Value.ValueKind == JsonValueKind.Undefined;
+        public bool IsNotification => Id == null || Id.Type == JTokenType.Null || Id.Type == JTokenType.Undefined;
     }
 
     /// <summary>
@@ -31,18 +31,16 @@ namespace DotCraft.Editor.Protocol
     /// </summary>
     public sealed class JsonRpcResponse
     {
-        [JsonPropertyName("jsonrpc")]
+        [JsonProperty("jsonrpc")]
         public string JsonRpc { get; set; } = "2.0";
 
-        [JsonPropertyName("id")]
-        public JsonElement? Id { get; set; }
+        [JsonProperty("id")]
+        public JToken Id { get; set; }
 
-        [JsonPropertyName("result")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("result", NullValueHandling = NullValueHandling.Ignore)]
         public object Result { get; set; }
 
-        [JsonPropertyName("error")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("error", NullValueHandling = NullValueHandling.Ignore)]
         public JsonRpcError Error { get; set; }
     }
 
@@ -51,14 +49,13 @@ namespace DotCraft.Editor.Protocol
     /// </summary>
     public sealed class JsonRpcError
     {
-        [JsonPropertyName("code")]
+        [JsonProperty("code")]
         public int Code { get; set; }
 
-        [JsonPropertyName("message")]
+        [JsonProperty("message")]
         public string Message { get; set; } = "";
 
-        [JsonPropertyName("data")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
         public object Data { get; set; }
     }
 
@@ -67,14 +64,13 @@ namespace DotCraft.Editor.Protocol
     /// </summary>
     public sealed class JsonRpcNotification
     {
-        [JsonPropertyName("jsonrpc")]
+        [JsonProperty("jsonrpc")]
         public string JsonRpc { get; set; } = "2.0";
 
-        [JsonPropertyName("method")]
+        [JsonProperty("method")]
         public string Method { get; set; } = "";
 
-        [JsonPropertyName("params")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("params", NullValueHandling = NullValueHandling.Ignore)]
         public object Params { get; set; }
     }
 

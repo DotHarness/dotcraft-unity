@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DotCraft.Editor.Extensions;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.Settings;
+using Newtonsoft.Json.Linq;
 using UnityEngine;
 
 namespace DotCraft.Editor.Connection
@@ -25,12 +25,6 @@ namespace DotCraft.Editor.Connection
         private string _sessionId;
         private bool _isConnected;
         private bool _isRunning;
-
-        private static readonly JsonSerializerOptions JsonOptions = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true
-        };
 
         /// <summary>
         /// Current session ID.
@@ -400,7 +394,7 @@ namespace DotCraft.Editor.Connection
                     ct
                 );
 
-                var typed = result.Deserialize<SessionSetConfigOptionResult>(JsonOptions);
+                var typed = DotCraftJson.ToObject<SessionSetConfigOptionResult>(result);
                 if (typed?.ConfigOptions != null)
                 {
                     ConfigOptions = typed.ConfigOptions;
@@ -430,7 +424,7 @@ namespace DotCraft.Editor.Connection
                     ct
                 );
 
-                var typed = result.Deserialize<SessionListResult>(JsonOptions);
+                var typed = DotCraftJson.ToObject<SessionListResult>(result);
                 return typed?.Sessions;
             }
             catch
@@ -455,7 +449,7 @@ namespace DotCraft.Editor.Connection
                     ct
                 );
 
-                _ = result.Deserialize<SessionDeleteResult>(JsonOptions);
+                _ = DotCraftJson.ToObject<SessionDeleteResult>(result);
                 return true;
             }
             catch
@@ -469,7 +463,7 @@ namespace DotCraft.Editor.Connection
             // Permission request handler
             _transport.RegisterHandler(AcpMethods.RequestPermission, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<RequestPermissionParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<RequestPermissionParams>(paramsJson);
                 var tcs = new TaskCompletionSource<RequestPermissionResult>();
 
                 OnPermissionRequest?.Invoke(@params, result => tcs.TrySetResult(result));
@@ -480,49 +474,49 @@ namespace DotCraft.Editor.Connection
             // File handlers
             _transport.RegisterHandler(AcpMethods.FsReadTextFile, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<FsReadTextFileParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<FsReadTextFileParams>(paramsJson);
                 return await HandleReadTextFileAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.FsWriteTextFile, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<FsWriteTextFileParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<FsWriteTextFileParams>(paramsJson);
                 return await HandleWriteTextFileAsync(@params);
             });
 
             // Terminal handlers
             _transport.RegisterHandler(AcpMethods.TerminalCreate, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalCreateParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalCreateParams>(paramsJson);
                 return await HandleTerminalCreateAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalGetOutput, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalGetOutputParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalGetOutputParams>(paramsJson);
                 return await HandleTerminalGetOutputAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalWaitForExit, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalWaitForExitParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalWaitForExitParams>(paramsJson);
                 return await HandleTerminalWaitForExitAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalKill, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalKillParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalKillParams>(paramsJson);
                 return await HandleTerminalKillAsync(@params);
             });
 
             _transport.RegisterHandler(AcpMethods.TerminalRelease, async (paramsJson) =>
             {
-                var @params = paramsJson.Deserialize<TerminalReleaseParams>(JsonOptions);
+                var @params = DotCraftJson.ToObject<TerminalReleaseParams>(paramsJson);
                 return await HandleTerminalReleaseAsync(@params);
             });
 
             // Extension method handler for _unity/*
-            // Method name is passed separately - no longer injected into params
+            // Method name is passed separately from params.
             // Only register if built-in Unity tools are enabled
             if (_settings.EnableBuiltinUnityTools)
             {
@@ -542,7 +536,16 @@ namespace DotCraft.Editor.Connection
                 {
                     Fs = FsCapabilities.All,
                     Terminal = TerminalCapabilities.All,
-                    Extensions = _settings.EnableBuiltinUnityTools ? new[] { "_unity" } : Array.Empty<string>()
+                    Extensions = _settings.EnableBuiltinUnityTools ? new[] { "_unity" } : Array.Empty<string>(),
+                    Meta = _settings.EnableBuiltinUnityTools
+                        ? new ClientCapabilitiesMeta
+                        {
+                            DotCraft = new DotCraftClientCapabilities
+                            {
+                                RuntimeTools = BuildBuiltinUnityRuntimeTools()
+                            }
+                        }
+                        : null
                 },
                 ClientInfo = new ClientInfo
                 {
@@ -552,7 +555,99 @@ namespace DotCraft.Editor.Connection
             };
 
             var result = await _transport.SendRequestAsync(AcpMethods.Initialize, @params, ct);
-            return result.Deserialize<InitializeResult>(JsonOptions);
+            return DotCraftJson.ToObject<InitializeResult>(result);
+        }
+
+        private static List<AcpRuntimeToolDescriptor> BuildBuiltinUnityRuntimeTools()
+        {
+            return new List<AcpRuntimeToolDescriptor>
+            {
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_scene_query",
+                    Description = "Query Unity scene hierarchy with optional component details.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["query"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Optional case-insensitive text to match against GameObject names or paths."
+                        },
+                        ["includeComponents"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "boolean",
+                            ["description"] = "Include component type names for each returned GameObject."
+                        },
+                        ["maxDepth"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Maximum hierarchy depth to include."
+                        }
+                    }),
+                    AcpMethod = "_unity/scene_query",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                },
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_get_selection",
+                    Description = "Read the current Unity Editor selection.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>()),
+                    AcpMethod = "_unity/get_selection",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                },
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_get_console_logs",
+                    Description = "Retrieve recent Unity Console log entries.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>
+                    {
+                        ["types"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "array",
+                            ["description"] = "Optional log types to include.",
+                            ["items"] = new Dictionary<string, object>
+                            {
+                                ["type"] = "string",
+                                ["enum"] = new[] { "error", "warning", "log" }
+                            }
+                        },
+                        ["limit"] = new Dictionary<string, object>
+                        {
+                            ["type"] = "integer",
+                            ["minimum"] = 1,
+                            ["description"] = "Maximum number of recent entries to return."
+                        }
+                    }),
+                    AcpMethod = "_unity/get_console_logs",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                },
+                new AcpRuntimeToolDescriptor
+                {
+                    Namespace = "unity",
+                    Name = "unity_get_project_info",
+                    Description = "Read Unity version, project name, project path, and package information.",
+                    InputSchema = ObjectSchema(new Dictionary<string, object>()),
+                    AcpMethod = "_unity/get_project_info",
+                    Kind = AcpToolKind.Unity,
+                    DeferLoading = true
+                }
+            };
+        }
+
+        private static Dictionary<string, object> ObjectSchema(Dictionary<string, object> properties)
+        {
+            return new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = properties
+            };
         }
 
         private async Task<SessionNewResult> NewSessionAsync(CancellationToken ct)
@@ -564,7 +659,7 @@ namespace DotCraft.Editor.Connection
             };
 
             var result = await _transport.SendRequestAsync(AcpMethods.SessionNew, @params, ct);
-            return result.Deserialize<SessionNewResult>(JsonOptions);
+            return DotCraftJson.ToObject<SessionNewResult>(result);
         }
 
         private async Task<SessionLoadResult> LoadSessionAsync(string sessionId, CancellationToken ct)
@@ -577,7 +672,7 @@ namespace DotCraft.Editor.Connection
             };
 
             var result = await _transport.SendRequestAsync(AcpMethods.SessionLoad, @params, ct);
-            return result.Deserialize<SessionLoadResult>(JsonOptions);
+            return DotCraftJson.ToObject<SessionLoadResult>(result);
         }
 
         /// <summary>
@@ -653,9 +748,9 @@ namespace DotCraft.Editor.Connection
             }
         }
 
-        private void HandleSessionUpdate(JsonElement paramsJson)
+        private void HandleSessionUpdate(JToken paramsJson)
         {
-            var @params = paramsJson.Deserialize<SessionUpdateParams>(JsonOptions);
+            var @params = DotCraftJson.ToObject<SessionUpdateParams>(paramsJson);
             var update = @params?.Update;
             if (update == null) return;
 

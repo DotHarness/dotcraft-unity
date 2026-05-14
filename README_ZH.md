@@ -21,15 +21,16 @@ dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 的 Unity 
 ## 快速开始
 
 1. 安装并配置 [DotCraft](https://github.com/DotHarness/dotcraft)。
-2. 在 Unity 中通过 [NuGetForUnity](https://github.com/GlitchEnzo/NuGetForUnity) 安装 `System.Text.Json 9.0.10`。
-3. 打开 **Window → Package Manager**，添加这个 Git URL：
+2. 打开 **Window → Package Manager**，添加这个 Git URL：
 
    ```text
    https://github.com/DotHarness/dotcraft-unity.git
    ```
 
-4. 打开 **Tools → DotCraft Assistant**。
-5. 点击 **Connect**，然后在 Unity 编辑器中开始对话。
+   Unity 会自动解析官方 `com.unity.nuget.newtonsoft-json` 依赖。
+
+3. 打开 **Tools → DotCraft Assistant**。
+4. 点击 **Connect**，然后在 Unity 编辑器中开始对话。
 
 最低 Unity 版本：**2022.3**，推荐版本 **Unity 6**。
 
@@ -48,13 +49,13 @@ dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 的 Unity 
 | **Auto Reconnect** | `true` | Unity Domain Reload 后自动重连。 |
 | **Verbose Logging** | `false` | 将 DotCraft stderr 输出到 Unity Console。 |
 | **Show Thinking Content** | `false` | 在可展开的聊天行中显示 agent 思考内容。关闭时仅显示轻量的思考状态。 |
-| **Enable Builtin Unity Tools** | `true` | 启用内置 `_unity/*` 只读工具。 |
+| **Enable Builtin Unity Tools** | `true` | 声明内置只读 Unity 运行时工具，并启用对应的 `_unity/*` 处理器。 |
 
 配置 API key 时，建议使用 Project Settings 里的环境变量，不要把密钥提交到项目文件。
 
 ## 内置工具
 
-dotcraft-unity 向 DotCraft 暴露四个只读 Unity 工具：
+dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明四个只读 Unity 运行时工具：
 
 | 工具 | 描述 |
 |------|------|
@@ -63,7 +64,7 @@ dotcraft-unity 向 DotCraft 暴露四个只读 Unity 工具：
 | `unity_get_console_logs` | 获取最近的 Unity Console 日志。 |
 | `unity_get_project_info` | 读取 Unity 版本、项目名称和包信息。 |
 
-这些工具帮助 DotCraft 理解当前场景与项目状态。如需完整 Unity 编辑自动化能力，可以将 DotCraft 与 [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) 或 [unity-mcp](https://github.com/CoplayDev/unity-mcp) 等专用 Unity 工具包配合使用。
+这些工具帮助 DotCraft 理解当前场景与项目状态。模型可见的工具描述符位于这个 Unity 客户端中；`_unity/*` ACP 方法只是执行这些工具时使用的私有回调。如需完整 Unity 编辑自动化能力，可以将 DotCraft 与 [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) 或 [unity-mcp](https://github.com/CoplayDev/unity-mcp) 等专用 Unity 工具包配合使用。
 
 ## 故障排除
 
@@ -72,7 +73,7 @@ dotcraft-unity 向 DotCraft 暴露四个只读 Unity 工具：
 | `Failed to start DotCraft process` | `dotcraft` 不在 `PATH` 中 | 安装 DotCraft 并加入 `PATH`，或在 **Command** 中设置完整路径。 |
 | 卡在 `Connecting...` | DotCraft 启动失败 | 启用 **Verbose Logging** 并查看 Unity Console。 |
 | 脚本编译后断开连接 | 自动重连已关闭 | 在 Project Settings 中启用 **Auto Reconnect**。 |
-| 工具不可用 | ACP 客户端没有声明 `_unity` 扩展 | 确保 DotCraft ACP 进程成功启动。 |
+| 工具不可用 | 运行时工具描述符没有声明或没有被接受 | 启用 **Builtin Unity Tools**，并使用支持 ACP runtime dynamic tools 的 DotCraft 版本。 |
 
 ## 贡献代码
 

@@ -3,8 +3,8 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
 using System.Threading.Tasks;
+using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -18,7 +18,7 @@ namespace DotCraft.Editor.Extensions
     /// </summary>
     public sealed class ExtensionMethodRouter
     {
-        private readonly ConcurrentDictionary<string, Func<JsonElement, Task<object>>> _handlers = new();
+        private readonly ConcurrentDictionary<string, Func<JToken, Task<object>>> _handlers = new();
 
         public ExtensionMethodRouter()
         {
@@ -28,7 +28,7 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Registers a handler for an extension method.
         /// </summary>
-        public void RegisterHandler(string method, Func<JsonElement, Task<object>> handler)
+        public void RegisterHandler(string method, Func<JToken, Task<object>> handler)
         {
             _handlers[method] = handler;
         }
@@ -36,7 +36,7 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Registers a synchronous handler for an extension method.
         /// </summary>
-        public void RegisterHandler(string method, Func<JsonElement, object> handler)
+        public void RegisterHandler(string method, Func<JToken, object> handler)
         {
             _handlers[method] = paramsJson => Task.FromResult(handler(paramsJson));
         }
@@ -44,7 +44,7 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Handles an extension method request.
         /// </summary>
-        public async Task<object> HandleAsync(string method, JsonElement paramsJson)
+        public async Task<object> HandleAsync(string method, JToken paramsJson)
         {
             if (!_handlers.TryGetValue(method, out var handler))
             {
@@ -92,11 +92,11 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Queries the Unity scene hierarchy and returns GameObject information.
         /// </summary>
-        public static Task<object> HandleSceneQuery(JsonElement paramsJson)
+        public static Task<object> HandleSceneQuery(JToken paramsJson)
         {
-            var query = paramsJson.TryGetProperty("query", out var q) ? q.GetString() : null;
-            var includeComponents = paramsJson.TryGetProperty("includeComponents", out var ic) && ic.GetBoolean();
-            var maxDepth = paramsJson.TryGetProperty("maxDepth", out var md) ? md.GetInt32() : 10;
+            var query = paramsJson?["query"]?.ToObject<string>();
+            var includeComponents = paramsJson?["includeComponents"]?.ToObject<bool>() ?? false;
+            var maxDepth = paramsJson?["maxDepth"]?.ToObject<int>() ?? 10;
 
             var results = new List<object>();
 
@@ -193,7 +193,7 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Gets the currently selected objects in the Unity Editor.
         /// </summary>
-        public static Task<object> HandleGetSelection(JsonElement _)
+        public static Task<object> HandleGetSelection(JToken _)
         {
             var selected = Selection.gameObjects;
             var results = new List<GameObjectInfo>();
@@ -306,13 +306,11 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Gets recent Unity console log entries.
         /// </summary>
-        public static Task<object> HandleGetConsoleLogs(JsonElement paramsJson)
+        public static Task<object> HandleGetConsoleLogs(JToken paramsJson)
         {
-            var types = paramsJson.TryGetProperty("types", out var t)
-                ? t.Deserialize<string[]>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                : null;
+            var types = paramsJson?["types"]?.ToObject<string[]>();
 
-            var limit = paramsJson.TryGetProperty("limit", out var l) ? l.GetInt32() : 50;
+            var limit = paramsJson?["limit"]?.ToObject<int>() ?? 50;
 
             var logs = UnityConsoleLogCollector.GetLogs(types, limit);
 
@@ -332,7 +330,7 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Gets Unity project information including version and installed packages.
         /// </summary>
-        public static Task<object> HandleGetProjectInfo(JsonElement _)
+        public static Task<object> HandleGetProjectInfo(JToken _)
         {
             var info = new
             {
@@ -360,11 +358,11 @@ namespace DotCraft.Editor.Extensions
                 if (File.Exists(manifestPath))
                 {
                     var json = File.ReadAllText(manifestPath);
-                    var doc = JsonDocument.Parse(json);
+                    var doc = JObject.Parse(json);
 
-                    if (doc.RootElement.TryGetProperty("dependencies", out var deps))
+                    if (doc["dependencies"] is JObject deps)
                     {
-                        foreach (var prop in deps.EnumerateObject())
+                        foreach (var prop in deps.Properties())
                         {
                             packages.Add(prop.Name);
                         }

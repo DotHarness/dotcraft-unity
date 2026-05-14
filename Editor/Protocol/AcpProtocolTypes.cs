@@ -1,6 +1,6 @@
 using System.Collections.Generic;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace DotCraft.Editor.Protocol
 {
@@ -11,35 +11,35 @@ namespace DotCraft.Editor.Protocol
     /// </summary>
     public sealed class InitializeParams
     {
-        [JsonPropertyName("protocolVersion")]
+        [JsonProperty("protocolVersion")]
         public int ProtocolVersion { get; set; }
 
-        [JsonPropertyName("clientCapabilities")]
+        [JsonProperty("clientCapabilities")]
         public ClientCapabilities ClientCapabilities { get; set; }
 
-        [JsonPropertyName("clientInfo")]
+        [JsonProperty("clientInfo")]
         public ClientInfo ClientInfo { get; set; }
     }
 
     public sealed class ClientInfo
     {
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("title")]
+        [JsonProperty("title")]
         public string Title { get; set; }
 
-        [JsonPropertyName("version")]
+        [JsonProperty("version")]
         public string Version { get; set; }
     }
 
     public sealed class ClientCapabilities
     {
-        [JsonPropertyName("fs")]
+        [JsonProperty("fs")]
         [JsonConverter(typeof(BoolOrObjectConverter<FsCapabilities>))]
         public FsCapabilities Fs { get; set; }
 
-        [JsonPropertyName("terminal")]
+        [JsonProperty("terminal")]
         [JsonConverter(typeof(BoolOrObjectConverter<TerminalCapabilities>))]
         public TerminalCapabilities Terminal { get; set; }
 
@@ -47,17 +47,76 @@ namespace DotCraft.Editor.Protocol
         /// Extension method prefixes supported by this client (e.g. ["_unity"]).
         /// The agent uses this list to decide which extension tool families to register.
         /// </summary>
-        [JsonPropertyName("extensions")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("extensions", NullValueHandling = NullValueHandling.Ignore)]
         public string[] Extensions { get; set; }
+
+        [JsonProperty("_meta", NullValueHandling = NullValueHandling.Ignore)]
+        public ClientCapabilitiesMeta Meta { get; set; }
+    }
+
+    public sealed class ClientCapabilitiesMeta
+    {
+        [JsonProperty("dotcraft", NullValueHandling = NullValueHandling.Ignore)]
+        public DotCraftClientCapabilities DotCraft { get; set; }
+    }
+
+    public sealed class DotCraftClientCapabilities
+    {
+        /// <summary>
+        /// Runtime tools implemented by this ACP client and exposed through DotCraft dynamic tools.
+        /// </summary>
+        [JsonProperty("runtimeTools", NullValueHandling = NullValueHandling.Ignore)]
+        public List<AcpRuntimeToolDescriptor> RuntimeTools { get; set; }
+    }
+
+    public sealed class AcpRuntimeToolDescriptor
+    {
+        [JsonProperty("namespace", NullValueHandling = NullValueHandling.Ignore)]
+        public string Namespace { get; set; }
+
+        [JsonProperty("name")]
+        public string Name { get; set; } = "";
+
+        [JsonProperty("description")]
+        public string Description { get; set; } = "";
+
+        [JsonProperty("inputSchema", NullValueHandling = NullValueHandling.Ignore)]
+        public object InputSchema { get; set; }
+
+        [JsonProperty("acpMethod")]
+        public string AcpMethod { get; set; } = "";
+
+        [JsonProperty("kind", NullValueHandling = NullValueHandling.Ignore)]
+        public string Kind { get; set; }
+
+        [JsonProperty("deferLoading", NullValueHandling = NullValueHandling.Ignore)]
+        public bool? DeferLoading { get; set; }
+
+        [JsonProperty("approval", NullValueHandling = NullValueHandling.Ignore)]
+        public AcpRuntimeToolApprovalDescriptor Approval { get; set; }
+    }
+
+    public sealed class AcpRuntimeToolApprovalDescriptor
+    {
+        [JsonProperty("kind")]
+        public string Kind { get; set; } = "";
+
+        [JsonProperty("targetArgument")]
+        public string TargetArgument { get; set; } = "";
+
+        [JsonProperty("operation", NullValueHandling = NullValueHandling.Ignore)]
+        public string Operation { get; set; }
+
+        [JsonProperty("operationArgument", NullValueHandling = NullValueHandling.Ignore)]
+        public string OperationArgument { get; set; }
     }
 
     public sealed class FsCapabilities
     {
-        [JsonPropertyName("readTextFile")]
+        [JsonProperty("readTextFile")]
         public bool ReadTextFile { get; set; }
 
-        [JsonPropertyName("writeTextFile")]
+        [JsonProperty("writeTextFile")]
         public bool WriteTextFile { get; set; }
 
         public static FsCapabilities All => new() { ReadTextFile = true, WriteTextFile = true };
@@ -65,7 +124,7 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class TerminalCapabilities
     {
-        [JsonPropertyName("create")]
+        [JsonProperty("create")]
         public bool Create { get; set; }
 
         public static TerminalCapabilities All => new() { Create = true };
@@ -76,41 +135,48 @@ namespace DotCraft.Editor.Protocol
     /// </summary>
     public sealed class BoolOrObjectConverter<T> : JsonConverter<T> where T : class
     {
-        public override T Read(ref Utf8JsonReader reader, System.Type typeToConvert, JsonSerializerOptions options)
+        public override T ReadJson(
+            JsonReader reader,
+            System.Type objectType,
+            T existingValue,
+            bool hasExistingValue,
+            JsonSerializer serializer)
         {
-            if (reader.TokenType == JsonTokenType.True)
+            if (reader.TokenType == JsonToken.Boolean)
             {
-                var allProp = typeToConvert.GetProperty("All",
+                if (reader.Value is bool enabled && !enabled)
+                    return null;
+
+                var allProp = objectType.GetProperty("All",
                     System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
                 return allProp?.GetValue(null) as T
                        ?? System.Activator.CreateInstance<T>();
             }
 
-            if (reader.TokenType == JsonTokenType.False || reader.TokenType == JsonTokenType.Null)
+            if (reader.TokenType == JsonToken.Null || reader.TokenType == JsonToken.Undefined)
                 return null;
 
-            return JsonSerializer.Deserialize<T>(ref reader, options);
+            return JToken.Load(reader).ToObject<T>(serializer);
         }
 
-        public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+        public override void WriteJson(JsonWriter writer, T value, JsonSerializer serializer)
         {
-            JsonSerializer.Serialize(writer, value, options);
+            serializer.Serialize(writer, value);
         }
     }
 
     public sealed class InitializeResult
     {
-        [JsonPropertyName("protocolVersion")]
+        [JsonProperty("protocolVersion")]
         public int ProtocolVersion { get; set; }
 
-        [JsonPropertyName("agentCapabilities")]
+        [JsonProperty("agentCapabilities")]
         public AgentCapabilities AgentCapabilities { get; set; } = new();
 
-        [JsonPropertyName("agentInfo")]
+        [JsonProperty("agentInfo")]
         public AgentInfo AgentInfo { get; set; } = new();
 
-        [JsonPropertyName("authMethods")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("authMethods", NullValueHandling = NullValueHandling.Ignore)]
         public AuthMethod[] AuthMethods { get; set; }
     }
 
@@ -120,82 +186,79 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class AuthMethod
     {
-        [JsonPropertyName("id")]
+        [JsonProperty("id")]
         public string Id { get; set; } = "";
 
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("description")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
         public string Description { get; set; }
     }
 
     public sealed class AuthenticateParams
     {
-        [JsonPropertyName("methodId")]
+        [JsonProperty("methodId")]
         public string MethodId { get; set; } = "";
     }
 
     public sealed class AuthenticateResult
     {
-        [JsonPropertyName("success")]
+        [JsonProperty("success")]
         public bool Success { get; set; }
     }
 
     public sealed class AgentCapabilities
     {
-        [JsonPropertyName("loadSession")]
+        [JsonProperty("loadSession")]
         public bool LoadSession { get; set; }
 
-        [JsonPropertyName("listSessions")]
+        [JsonProperty("listSessions")]
         public bool ListSessions { get; set; }
 
-        [JsonPropertyName("promptCapabilities")]
+        [JsonProperty("promptCapabilities")]
         public PromptCapabilities PromptCapabilities { get; set; }
 
-        [JsonPropertyName("_meta")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("_meta", NullValueHandling = NullValueHandling.Ignore)]
         public AgentCapabilitiesMeta Meta { get; set; }
     }
 
     public sealed class AgentCapabilitiesMeta
     {
-        [JsonPropertyName("dotcraft")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("dotcraft", NullValueHandling = NullValueHandling.Ignore)]
         public DotCraftAgentCapabilities DotCraft { get; set; }
     }
 
     public sealed class DotCraftAgentCapabilities
     {
-        [JsonPropertyName("sessionDelete")]
+        [JsonProperty("sessionDelete")]
         public bool SessionDelete { get; set; }
     }
 
     public sealed class PromptCapabilities
     {
-        [JsonPropertyName("text")]
+        [JsonProperty("text")]
         public bool Text { get; set; } = true;
 
-        [JsonPropertyName("image")]
+        [JsonProperty("image")]
         public bool Image { get; set; }
 
-        [JsonPropertyName("audio")]
+        [JsonProperty("audio")]
         public bool Audio { get; set; }
 
-        [JsonPropertyName("embeddedContext")]
+        [JsonProperty("embeddedContext")]
         public bool EmbeddedContext { get; set; }
     }
 
     public sealed class AgentInfo
     {
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("title")]
+        [JsonProperty("title")]
         public string Title { get; set; }
 
-        [JsonPropertyName("version")]
+        [JsonProperty("version")]
         public string Version { get; set; }
     }
 
@@ -206,69 +269,62 @@ namespace DotCraft.Editor.Protocol
     /// <summary>ACP spec: env entry for MCP server (array of name/value).</summary>
     public sealed class AcpEnvVariable
     {
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("value")]
+        [JsonProperty("value")]
         public string Value { get; set; } = "";
     }
 
     /// <summary>ACP spec: HTTP header for MCP server (array of name/value).</summary>
     public sealed class AcpHttpHeader
     {
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("value")]
+        [JsonProperty("value")]
         public string Value { get; set; } = "";
     }
 
     public sealed class SessionNewParams
     {
-        [JsonPropertyName("cwd")]
+        [JsonProperty("cwd")]
         public string Cwd { get; set; }
 
-        [JsonPropertyName("mcpServers")]
+        [JsonProperty("mcpServers")]
         public List<AcpMcpServer> McpServers { get; set; }
     }
 
     public sealed class AcpMcpServer
     {
-        [JsonPropertyName("type")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("type", NullValueHandling = NullValueHandling.Ignore)]
         public string Type { get; set; }
 
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("command")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("command", NullValueHandling = NullValueHandling.Ignore)]
         public string Command { get; set; }
 
-        [JsonPropertyName("args")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("args", NullValueHandling = NullValueHandling.Ignore)]
         public List<string> Args { get; set; }
 
-        [JsonPropertyName("env")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("env", NullValueHandling = NullValueHandling.Ignore)]
         public List<AcpEnvVariable> Env { get; set; }
 
-        [JsonPropertyName("url")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("url", NullValueHandling = NullValueHandling.Ignore)]
         public string Url { get; set; }
 
-        [JsonPropertyName("headers")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("headers", NullValueHandling = NullValueHandling.Ignore)]
         public List<AcpHttpHeader> Headers { get; set; }
     }
 
     public sealed class SessionNewResult
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("configOptions")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("configOptions", NullValueHandling = NullValueHandling.Ignore)]
         public List<ConfigOption> ConfigOptions { get; set; }
     }
 
@@ -278,23 +334,22 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class SessionLoadParams
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("cwd")]
+        [JsonProperty("cwd")]
         public string Cwd { get; set; }
 
-        [JsonPropertyName("mcpServers")]
+        [JsonProperty("mcpServers")]
         public List<AcpMcpServer> McpServers { get; set; }
     }
 
     public sealed class SessionLoadResult
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("configOptions")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("configOptions", NullValueHandling = NullValueHandling.Ignore)]
         public List<ConfigOption> ConfigOptions { get; set; }
     }
 
@@ -304,35 +359,34 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class SessionListParams
     {
-        [JsonPropertyName("cwd")]
+        [JsonProperty("cwd")]
         public string Cwd { get; set; }
 
-        [JsonPropertyName("cursor")]
+        [JsonProperty("cursor")]
         public string Cursor { get; set; }
     }
 
     public sealed class SessionListResult
     {
-        [JsonPropertyName("sessions")]
+        [JsonProperty("sessions")]
         public List<SessionListEntry> Sessions { get; set; } = new();
 
-        [JsonPropertyName("nextCursor")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("nextCursor", NullValueHandling = NullValueHandling.Ignore)]
         public string NextCursor { get; set; }
     }
 
     public sealed class SessionListEntry
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("title")]
+        [JsonProperty("title")]
         public string Title { get; set; }
 
-        [JsonPropertyName("updatedAt")]
+        [JsonProperty("updatedAt")]
         public string UpdatedAt { get; set; }
 
-        [JsonPropertyName("cwd")]
+        [JsonProperty("cwd")]
         public string Cwd { get; set; }
     }
 
@@ -342,7 +396,7 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class SessionDeleteParams
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
     }
 
@@ -356,55 +410,49 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class SessionPromptParams
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("prompt")]
+        [JsonProperty("prompt")]
         public List<AcpContentBlock> Prompt { get; set; } = new();
 
-        [JsonPropertyName("command")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("command", NullValueHandling = NullValueHandling.Ignore)]
         public string Command { get; set; }
     }
 
     public sealed class AcpContentBlock
     {
-        [JsonPropertyName("type")]
+        [JsonProperty("type")]
         public string Type { get; set; } = "text";
 
-        [JsonPropertyName("text")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("text", NullValueHandling = NullValueHandling.Ignore)]
         public string Text { get; set; }
 
-        [JsonPropertyName("data")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("data", NullValueHandling = NullValueHandling.Ignore)]
         public string Data { get; set; }
 
-        [JsonPropertyName("mimeType")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("mimeType", NullValueHandling = NullValueHandling.Ignore)]
         public string MimeType { get; set; }
 
-        [JsonPropertyName("resource")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("resource", NullValueHandling = NullValueHandling.Ignore)]
         public AcpEmbeddedResource Resource { get; set; }
     }
 
     public sealed class AcpEmbeddedResource
     {
-        [JsonPropertyName("uri")]
+        [JsonProperty("uri")]
         public string Uri { get; set; } = "";
 
-        [JsonPropertyName("mimeType")]
+        [JsonProperty("mimeType")]
         public string MimeType { get; set; }
 
-        [JsonPropertyName("text")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("text", NullValueHandling = NullValueHandling.Ignore)]
         public string Text { get; set; }
     }
 
     public sealed class SessionPromptResult
     {
-        [JsonPropertyName("stopReason")]
+        [JsonProperty("stopReason")]
         public string StopReason { get; set; } = "end_turn";
     }
 
@@ -414,70 +462,61 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class SessionUpdateParams
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("update")]
+        [JsonProperty("update")]
         public AcpSessionUpdate Update { get; set; } = new();
     }
 
     public sealed class AcpSessionUpdate
     {
-        [JsonPropertyName("sessionUpdate")]
+        [JsonProperty("sessionUpdate")]
         public string SessionUpdate { get; set; } = "";
 
-        [JsonPropertyName("content")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("content", NullValueHandling = NullValueHandling.Ignore)]
         public object Content { get; set; }
 
-        [JsonPropertyName("toolCallId")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("toolCallId", NullValueHandling = NullValueHandling.Ignore)]
         public string ToolCallId { get; set; }
 
-        [JsonPropertyName("title")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("title", NullValueHandling = NullValueHandling.Ignore)]
         public string Title { get; set; }
 
-        [JsonPropertyName("kind")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("kind", NullValueHandling = NullValueHandling.Ignore)]
         public string Kind { get; set; }
 
-        [JsonPropertyName("status")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("status", NullValueHandling = NullValueHandling.Ignore)]
         public string Status { get; set; }
 
-        [JsonPropertyName("fileLocations")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("fileLocations", NullValueHandling = NullValueHandling.Ignore)]
         public List<AcpFileLocation> FileLocations { get; set; }
 
-        [JsonPropertyName("entries")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("entries", NullValueHandling = NullValueHandling.Ignore)]
         public List<AcpPlanEntry> Entries { get; set; }
 
-        [JsonPropertyName("commands")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("commands", NullValueHandling = NullValueHandling.Ignore)]
         public List<AcpSlashCommand> Commands { get; set; }
 
-        [JsonPropertyName("configOptions")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("configOptions", NullValueHandling = NullValueHandling.Ignore)]
         public List<ConfigOption> ConfigOptions { get; set; }
     }
 
     public sealed class AcpFileLocation
     {
-        [JsonPropertyName("uri")]
+        [JsonProperty("uri")]
         public string Uri { get; set; } = "";
     }
 
     public sealed class AcpPlanEntry
     {
-        [JsonPropertyName("content")]
+        [JsonProperty("content")]
         public string Content { get; set; } = "";
 
-        [JsonPropertyName("priority")]
+        [JsonProperty("priority")]
         public string Priority { get; set; } = AcpPlanEntryPriority.Medium;
 
-        [JsonPropertyName("status")]
+        [JsonProperty("status")]
         public string Status { get; set; } = AcpToolStatus.Pending;
     }
 
@@ -487,19 +526,19 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class SessionSetConfigOptionParams
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("configId")]
+        [JsonProperty("configId")]
         public string ConfigId { get; set; } = "";
 
-        [JsonPropertyName("value")]
+        [JsonProperty("value")]
         public string Value { get; set; } = "";
     }
 
     public sealed class SessionSetConfigOptionResult
     {
-        [JsonPropertyName("configOptions")]
+        [JsonProperty("configOptions")]
         public List<ConfigOption> ConfigOptions { get; set; } = new();
     }
 
@@ -509,7 +548,7 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class SessionCancelParams
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
     }
 
@@ -519,59 +558,55 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class RequestPermissionParams
     {
-        [JsonPropertyName("sessionId")]
+        [JsonProperty("sessionId")]
         public string SessionId { get; set; } = "";
 
-        [JsonPropertyName("toolCall")]
+        [JsonProperty("toolCall")]
         public AcpToolCallInfo ToolCall { get; set; } = new();
 
-        [JsonPropertyName("options")]
+        [JsonProperty("options")]
         public List<PermissionOption> Options { get; set; } = new();
     }
 
     public sealed class AcpToolCallInfo
     {
-        [JsonPropertyName("toolCallId")]
+        [JsonProperty("toolCallId")]
         public string ToolCallId { get; set; } = "";
 
-        [JsonPropertyName("title")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("title", NullValueHandling = NullValueHandling.Ignore)]
         public string Title { get; set; }
 
-        [JsonPropertyName("kind")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("kind", NullValueHandling = NullValueHandling.Ignore)]
         public string Kind { get; set; }
 
-        [JsonPropertyName("status")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("status", NullValueHandling = NullValueHandling.Ignore)]
         public string Status { get; set; }
     }
 
     public sealed class PermissionOption
     {
-        [JsonPropertyName("optionId")]
+        [JsonProperty("optionId")]
         public string OptionId { get; set; } = "";
 
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("kind")]
+        [JsonProperty("kind")]
         public string Kind { get; set; } = "";
     }
 
     public sealed class RequestPermissionResult
     {
-        [JsonPropertyName("outcome")]
+        [JsonProperty("outcome")]
         public PermissionOutcome Outcome { get; set; } = new();
     }
 
     public sealed class PermissionOutcome
     {
-        [JsonPropertyName("outcome")]
+        [JsonProperty("outcome")]
         public string Outcome { get; set; } = "";
 
-        [JsonPropertyName("optionId")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("optionId", NullValueHandling = NullValueHandling.Ignore)]
         public string OptionId { get; set; }
     }
 
@@ -581,21 +616,19 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class FsReadTextFileParams
     {
-        [JsonPropertyName("path")]
+        [JsonProperty("path")]
         public string Path { get; set; } = "";
 
-        [JsonPropertyName("offset")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("offset", NullValueHandling = NullValueHandling.Ignore)]
         public int? Offset { get; set; }
 
-        [JsonPropertyName("limit")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("limit", NullValueHandling = NullValueHandling.Ignore)]
         public int? Limit { get; set; }
     }
 
     public sealed class FsReadTextFileResult
     {
-        [JsonPropertyName("content")]
+        [JsonProperty("content")]
         public string Content { get; set; } = "";
     }
 
@@ -605,16 +638,16 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class FsWriteTextFileParams
     {
-        [JsonPropertyName("path")]
+        [JsonProperty("path")]
         public string Path { get; set; } = "";
 
-        [JsonPropertyName("content")]
+        [JsonProperty("content")]
         public string Content { get; set; } = "";
     }
 
     public sealed class FsWriteTextFileResult
     {
-        [JsonPropertyName("success")]
+        [JsonProperty("success")]
         public bool Success { get; set; }
     }
 
@@ -624,59 +657,55 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class TerminalCreateParams
     {
-        [JsonPropertyName("command")]
+        [JsonProperty("command")]
         public string Command { get; set; } = "";
 
-        [JsonPropertyName("cwd")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("cwd", NullValueHandling = NullValueHandling.Ignore)]
         public string Cwd { get; set; }
 
-        [JsonPropertyName("env")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("env", NullValueHandling = NullValueHandling.Ignore)]
         public Dictionary<string, string> Env { get; set; }
     }
 
     public sealed class TerminalCreateResult
     {
-        [JsonPropertyName("terminalId")]
+        [JsonProperty("terminalId")]
         public string TerminalId { get; set; } = "";
     }
 
     public sealed class TerminalGetOutputParams
     {
-        [JsonPropertyName("terminalId")]
+        [JsonProperty("terminalId")]
         public string TerminalId { get; set; } = "";
     }
 
     public sealed class TerminalGetOutputResult
     {
-        [JsonPropertyName("output")]
+        [JsonProperty("output")]
         public string Output { get; set; } = "";
 
-        [JsonPropertyName("exitCode")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("exitCode", NullValueHandling = NullValueHandling.Ignore)]
         public int? ExitCode { get; set; }
     }
 
     public sealed class TerminalWaitForExitParams
     {
-        [JsonPropertyName("terminalId")]
+        [JsonProperty("terminalId")]
         public string TerminalId { get; set; } = "";
 
-        [JsonPropertyName("timeout")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("timeout", NullValueHandling = NullValueHandling.Ignore)]
         public int? Timeout { get; set; }
     }
 
     public sealed class TerminalKillParams
     {
-        [JsonPropertyName("terminalId")]
+        [JsonProperty("terminalId")]
         public string TerminalId { get; set; } = "";
     }
 
     public sealed class TerminalReleaseParams
     {
-        [JsonPropertyName("terminalId")]
+        [JsonProperty("terminalId")]
         public string TerminalId { get; set; } = "";
     }
 
@@ -686,15 +715,13 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class AcpSlashCommand
     {
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("description")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
         public string Description { get; set; }
 
-        [JsonPropertyName("inputHint")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("inputHint", NullValueHandling = NullValueHandling.Ignore)]
         public string InputHint { get; set; }
     }
 
@@ -704,40 +731,37 @@ namespace DotCraft.Editor.Protocol
 
     public sealed class ConfigOption
     {
-        [JsonPropertyName("id")]
+        [JsonProperty("id")]
         public string Id { get; set; } = "";
 
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("description")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
         public string Description { get; set; }
 
-        [JsonPropertyName("category")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("category", NullValueHandling = NullValueHandling.Ignore)]
         public string Category { get; set; }
 
-        [JsonPropertyName("type")]
+        [JsonProperty("type")]
         public string Type { get; set; } = "select";
 
-        [JsonPropertyName("currentValue")]
+        [JsonProperty("currentValue")]
         public string CurrentValue { get; set; } = "";
 
-        [JsonPropertyName("options")]
+        [JsonProperty("options")]
         public List<ConfigOptionValue> Options { get; set; } = new();
     }
 
     public sealed class ConfigOptionValue
     {
-        [JsonPropertyName("value")]
+        [JsonProperty("value")]
         public string Value { get; set; } = "";
 
-        [JsonPropertyName("name")]
+        [JsonProperty("name")]
         public string Name { get; set; } = "";
 
-        [JsonPropertyName("description")]
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        [JsonProperty("description", NullValueHandling = NullValueHandling.Ignore)]
         public string Description { get; set; }
     }
 
