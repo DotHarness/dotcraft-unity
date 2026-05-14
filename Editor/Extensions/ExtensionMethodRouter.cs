@@ -10,6 +10,7 @@ using Newtonsoft.Json.Linq;
 using DotCraft.Editor.RuntimeTools;
 using UnityEditor;
 using UnityEngine;
+using UComponent = UnityEngine.Component;
 
 namespace DotCraft.Editor.Extensions
 {
@@ -184,7 +185,7 @@ namespace DotCraft.Editor.Extensions
             if (includeComponents)
             {
                 var components = new List<string>();
-                foreach (var comp in go.GetComponents<Component>())
+                foreach (var comp in go.GetComponents<UComponent>())
                 {
                     if (comp != null)
                     {
