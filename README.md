@@ -48,7 +48,8 @@ Open **Edit → Project Settings → DotCraft** to configure the client.
 | **Auto Reconnect** | `true` | Reconnect after Unity Domain Reload. |
 | **Verbose Logging** | `false` | Print DotCraft stderr to the Unity Console. |
 | **Show Thinking Content** | `false` | Show agent reasoning text in expandable chat rows. When disabled, only lightweight thinking status is shown. |
-| **Enable Builtin Unity Tools** | `true` | Declare the built-in read-only Unity runtime tools and enable their `_unity/*` handlers. |
+| **Enable Builtin Unity Tools** | `true` | Declare the built-in read-only Unity runtime tools and enable their `_unity/*` handlers when using the `DotCraft` connection profile. |
+| **Plugin Tools** | disabled | Attribute-discovered plugin runtime tools. Each tool must be enabled explicitly in **Unity Tools → Plugin Tools (DotCraft only)**. |
 
 For API keys, prefer environment variables in Project Settings instead of committing secrets to project files.
 
@@ -64,6 +65,28 @@ dotcraft-unity declares four read-only Unity runtime tools to DotCraft during AC
 | `unity_get_project_info` | Read Unity version, project name, and package information. |
 
 These tools help DotCraft understand the current scene and project state. The model-visible tool descriptors live in this Unity client; the `_unity/*` ACP methods are private callbacks used to execute them. For full Unity editing automation, combine DotCraft with a dedicated Unity tool package such as [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) or [unity-mcp](https://github.com/CoplayDev/unity-mcp).
+
+## Plugin Runtime Tools
+
+Other Unity Editor plugins can expose DotCraft-only runtime tools by marking static methods with `DotCraftRuntimeToolAttribute`. New plugin tools are discovered in **Edit → Project Settings → DotCraft → Unity Tools**, default to disabled, and are injected only for the `DotCraft` connection profile.
+
+```csharp
+using System.ComponentModel;
+using DotCraft.Editor.Protocol;
+using DotCraft.Editor.RuntimeTools;
+
+public static class ExampleDotCraftTools
+{
+    [Description("Return a greeting from an example Unity plugin.")]
+    [DotCraftRuntimeTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
+    public static object Greet([Description("Name to greet.")] string name = "Unity")
+    {
+        return new { message = $"Hello, {name}." };
+    }
+}
+```
+
+Method parameters are converted to a JSON Schema with Newtonsoft.Json naming rules. See [Documentation~/dynamic-tools.md](./Documentation~/dynamic-tools.md) for the full registration contract.
 
 ## Troubleshooting
 

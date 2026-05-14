@@ -63,12 +63,10 @@ namespace DotCraft.Editor.Window
         private Button _settingsButton;
         private Button _attachButton;
         private Button _sessionButton;
-        private VisualElement _modeSelector;
 
         // State
         private AcpClient _client;
         private ChatPanel _chatPanel;
-        private List<AcpSessionUpdate> _messages = new();
         private readonly List<UObject> _attachedAssets = new();
         private readonly List<string> _availableModes = new() { "(none)" };
         private int _selectedModeIndex;
@@ -223,7 +221,6 @@ namespace DotCraft.Editor.Window
             _attachButton = _root.Q<Button>("attach-button");
             _sessionButton = _root.Q<Button>("session-button");
             _newSessionButton = _root.Q<Button>("new-session-button");
-            _modeSelector = _root.Q<VisualElement>("mode-selector");
 
             SetEditorIcon(_settingsButton, "d_SettingsIcon", "SettingsIcon", "Settings");
 

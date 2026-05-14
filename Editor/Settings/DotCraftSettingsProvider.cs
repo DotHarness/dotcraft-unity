@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
+using System.Linq;
+using DotCraft.Editor.RuntimeTools;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -16,6 +17,7 @@ namespace DotCraft.Editor.Settings
         private const string SettingsPath = "Project/DotCraft";
         private DotCraftSettings _settings;
         private VisualElement _rootElement;
+        private RuntimeToolCatalogSnapshot _runtimeToolCatalog;
 
         private SerializedObject _serializedObject;
         private SerializedProperty _dotCraftCommand;
@@ -53,7 +55,7 @@ namespace DotCraft.Editor.Settings
         [SettingsProvider]
         public static SettingsProvider CreateSettingsProvider()
         {
-            var provider = new DotCraftSettingsProvider(SettingsPath, SettingsScope.Project);
+            var provider = new DotCraftSettingsProvider(SettingsPath);
             return provider;
         }
 
@@ -61,6 +63,7 @@ namespace DotCraft.Editor.Settings
         {
             _settings = DotCraftSettings.Instance;
             _rootElement = rootElement;
+            RefreshRuntimeToolCatalog();
             base.OnActivate(searchContext, rootElement);
         }
 
@@ -170,18 +173,7 @@ namespace DotCraft.Editor.Settings
 
             EditorGUILayout.Space(10);
 
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("Unity Tools", EditorStyles.boldLabel);
-                EditorGUI.indentLevel++;
-
-                _settings.EnableBuiltinUnityTools = EditorGUILayout.Toggle(
-                    new GUIContent("Enable Builtin Tools",
-                        "Declare built-in read-only Unity runtime tools and enable their _unity/* handlers."),
-                    _settings.EnableBuiltinUnityTools);
-
-                EditorGUI.indentLevel--;
-            }
+            DrawUnityToolsSection();
 
             EditorGUILayout.Space(10);
 
@@ -306,6 +298,99 @@ namespace DotCraft.Editor.Settings
                 return index;
             index = Array.IndexOf(options, defaultValue);
             return index >= 0 ? index : 0;
+        }
+
+        private void DrawUnityToolsSection()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("Unity Tools", EditorStyles.boldLabel);
+
+                if (_settings.AgentConnection != DotCraftSettings.AgentConnectionDotCraft)
+                {
+                    EditorGUILayout.HelpBox(
+                        "Runtime dynamic tools are DotCraft-only and are not declared for Custom ACP agents.",
+                        MessageType.Info);
+                }
+
+                EditorGUI.indentLevel++;
+
+                _settings.EnableBuiltinUnityTools = EditorGUILayout.Toggle(
+                    new GUIContent("Enable Builtin Tools",
+                        "Declare built-in read-only Unity runtime tools and enable their _unity/* handlers. DotCraft connection only."),
+                    _settings.EnableBuiltinUnityTools);
+
+                EditorGUILayout.Space(6);
+                EditorGUILayout.LabelField("Plugin Tools (DotCraft only)", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(
+                    "Methods marked with DotCraftRuntimeToolAttribute are discovered here. New plugin tools default to disabled.",
+                    MessageType.Info);
+
+                _runtimeToolCatalog ??= RuntimeToolCatalog.Discover();
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Space(EditorGUI.indentLevel * 15);
+                    if (GUILayout.Button("Refresh Plugin Tools", GUILayout.Width(150)))
+                        RefreshRuntimeToolCatalog();
+                }
+
+                var pluginTools = _runtimeToolCatalog.Tools
+                    .Where(tool => tool.Source == RuntimeToolSource.Plugin)
+                    .ToList();
+
+                if (pluginTools.Count == 0)
+                {
+                    EditorGUILayout.LabelField("No plugin runtime tools discovered.", EditorStyles.miniLabel);
+                }
+                else
+                {
+                    foreach (var tool in pluginTools)
+                    {
+                        EditorGUILayout.Space(4);
+                        using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                        {
+                            var enabled = _settings.DynamicToolEnabledById.TryGetValue(tool.Id, out var stored)
+                                          && stored;
+                            var nextEnabled = EditorGUILayout.ToggleLeft(
+                                new GUIContent(
+                                    tool.DisplayName,
+                                    $"Tool id: {tool.Id}\nACP method: {tool.Descriptor.AcpMethod}"),
+                                enabled);
+
+                            if (nextEnabled != enabled)
+                            {
+                                if (nextEnabled)
+                                    _settings.DynamicToolEnabledById[tool.Id] = true;
+                                else
+                                    _settings.DynamicToolEnabledById.Remove(tool.Id);
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(tool.Descriptor.Description))
+                            {
+                                EditorGUILayout.LabelField(
+                                    tool.Descriptor.Description,
+                                    EditorStyles.wordWrappedMiniLabel);
+                            }
+                        }
+                    }
+                }
+
+                if (_runtimeToolCatalog.Diagnostics.Count > 0)
+                {
+                    EditorGUILayout.HelpBox(
+                        string.Join("\n", _runtimeToolCatalog.Diagnostics.Take(6)) +
+                        (_runtimeToolCatalog.Diagnostics.Count > 6 ? "\n..." : ""),
+                        MessageType.Warning);
+                }
+
+                EditorGUI.indentLevel--;
+            }
+        }
+
+        private void RefreshRuntimeToolCatalog()
+        {
+            _runtimeToolCatalog = RuntimeToolCatalog.Discover();
         }
 
         private void DrawMcpServersSection()

@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using DotCraft.Editor.Protocol;
 using Newtonsoft.Json.Linq;
+using DotCraft.Editor.RuntimeTools;
 using UnityEditor;
 using UnityEngine;
 
@@ -19,11 +22,7 @@ namespace DotCraft.Editor.Extensions
     public sealed class ExtensionMethodRouter
     {
         private readonly ConcurrentDictionary<string, Func<JToken, Task<object>>> _handlers = new();
-
-        public ExtensionMethodRouter()
-        {
-            RegisterBuiltinHandlers();
-        }
+        private readonly HashSet<string> _dynamicRuntimeMethods = new();
 
         /// <summary>
         /// Registers a handler for an extension method.
@@ -68,18 +67,27 @@ namespace DotCraft.Editor.Extensions
         /// </summary>
         public bool HasHandler(string method) => _handlers.ContainsKey(method);
 
-        private void RegisterBuiltinHandlers()
+        /// <summary>
+        /// Registers the currently enabled attribute-discovered runtime tools.
+        /// Previous dynamic runtime handlers are removed first so reconnect uses the latest settings.
+        /// </summary>
+        internal void RegisterRuntimeTools(IEnumerable<RuntimeToolDefinition> runtimeTools)
         {
-            // Scene handlers (read-only)
-            RegisterHandler("_unity/scene_query", UnitySceneHandlers.HandleSceneQuery);
-            RegisterHandler("_unity/get_selection", UnitySceneHandlers.HandleGetSelection);
+            foreach (var method in _dynamicRuntimeMethods)
+                _handlers.TryRemove(method, out _);
+            _dynamicRuntimeMethods.Clear();
 
-            // Console handlers (read-only)
-            RegisterHandler("_unity/get_console_logs", UnityEditorHandlers.HandleGetConsoleLogs);
+            if (runtimeTools == null)
+                return;
 
-            // Project handlers (read-only)
-            RegisterHandler("_unity/get_project_info", UnityProjectHandlers.HandleGetProjectInfo);
+            foreach (var runtimeTool in runtimeTools)
+            {
+                var acpMethod = runtimeTool.Descriptor.AcpMethod;
+                RegisterHandler(acpMethod, paramsJson => RuntimeToolInvoker.InvokeAsync(runtimeTool, paramsJson));
+                _dynamicRuntimeMethods.Add(acpMethod);
+            }
         }
+
     }
 
     #region Scene Handlers
@@ -92,12 +100,21 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Queries the Unity scene hierarchy and returns GameObject information.
         /// </summary>
-        public static Task<object> HandleSceneQuery(JToken paramsJson)
+        [Description("Query Unity scene hierarchy with optional component details.")]
+        [DotCraftRuntimeTool(
+            Namespace = "unity",
+            Name = "unity_scene_query",
+            Kind = AcpToolKind.Unity)]
+        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/scene_query")]
+        public static Task<object> HandleSceneQuery(
+            [Description("Optional case-insensitive text to match against GameObject names or paths.")]
+            string query = null,
+            [Description("Include component type names for each returned GameObject.")]
+            bool includeComponents = false,
+            [Description("Maximum hierarchy depth to include.")]
+            [DotCraftRuntimeToolSchemaHint(Minimum = 1)]
+            int maxDepth = 10)
         {
-            var query = paramsJson?["query"]?.ToObject<string>();
-            var includeComponents = paramsJson?["includeComponents"]?.ToObject<bool>() ?? false;
-            var maxDepth = paramsJson?["maxDepth"]?.ToObject<int>() ?? 10;
-
             var results = new List<object>();
 
             for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
@@ -193,7 +210,13 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Gets the currently selected objects in the Unity Editor.
         /// </summary>
-        public static Task<object> HandleGetSelection(JToken _)
+        [Description("Read the current Unity Editor selection.")]
+        [DotCraftRuntimeTool(
+            Namespace = "unity",
+            Name = "unity_get_selection",
+            Kind = AcpToolKind.Unity)]
+        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/get_selection")]
+        public static Task<object> HandleGetSelection()
         {
             var selected = Selection.gameObjects;
             var results = new List<GameObjectInfo>();
@@ -306,12 +329,20 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Gets recent Unity console log entries.
         /// </summary>
-        public static Task<object> HandleGetConsoleLogs(JToken paramsJson)
+        [Description("Retrieve recent Unity Console log entries.")]
+        [DotCraftRuntimeTool(
+            Namespace = "unity",
+            Name = "unity_get_console_logs",
+            Kind = AcpToolKind.Unity)]
+        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/get_console_logs")]
+        public static Task<object> HandleGetConsoleLogs(
+            [Description("Optional log types to include.")]
+            [DotCraftRuntimeToolSchemaHint(EnumValues = new string[] { "error", "warning", "log" })]
+            string[] types = null,
+            [Description("Maximum number of recent entries to return.")]
+            [DotCraftRuntimeToolSchemaHint(Minimum = 1)]
+            int limit = 50)
         {
-            var types = paramsJson?["types"]?.ToObject<string[]>();
-
-            var limit = paramsJson?["limit"]?.ToObject<int>() ?? 50;
-
             var logs = UnityConsoleLogCollector.GetLogs(types, limit);
 
             return Task.FromResult<object>(new { logs });
@@ -330,7 +361,13 @@ namespace DotCraft.Editor.Extensions
         /// <summary>
         /// Gets Unity project information including version and installed packages.
         /// </summary>
-        public static Task<object> HandleGetProjectInfo(JToken _)
+        [Description("Read Unity version, project name, project path, and package information.")]
+        [DotCraftRuntimeTool(
+            Namespace = "unity",
+            Name = "unity_get_project_info",
+            Kind = AcpToolKind.Unity)]
+        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/get_project_info")]
+        public static Task<object> HandleGetProjectInfo()
         {
             var info = new
             {

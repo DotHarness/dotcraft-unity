@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DotCraft.Editor.Extensions;
 using DotCraft.Editor.Protocol;
+using DotCraft.Editor.RuntimeTools;
 using DotCraft.Editor.Settings;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
@@ -25,6 +26,7 @@ namespace DotCraft.Editor.Connection
         private string _sessionId;
         private bool _isConnected;
         private bool _isRunning;
+        private List<AcpRuntimeToolDescriptor> _activeRuntimeToolDescriptors = new();
 
         /// <summary>
         /// Current session ID.
@@ -145,6 +147,7 @@ namespace DotCraft.Editor.Connection
                     _processManager.Process.StandardOutput.BaseStream,
                     _processManager.Process.StandardInput.BaseStream
                 );
+                PrepareRuntimeTools();
 
                 // Register request handlers
                 RegisterHandlers();
@@ -225,6 +228,7 @@ namespace DotCraft.Editor.Connection
                     _processManager.Process.StandardOutput.BaseStream,
                     _processManager.Process.StandardInput.BaseStream
                 );
+                PrepareRuntimeTools();
 
                 RegisterHandlers();
                 _transport.StartReaderLoop();
@@ -515,10 +519,12 @@ namespace DotCraft.Editor.Connection
                 return await HandleTerminalReleaseAsync(@params);
             });
 
-            // Extension method handler for _unity/*
+            _transport.UnregisterExtensionHandler("_unity/");
+            _transport.UnregisterExtensionHandler("_unity/dynamic/");
+
+            // Extension method handler for DotCraft runtime dynamic tools.
             // Method name is passed separately from params.
-            // Only register if built-in Unity tools are enabled
-            if (_settings.EnableBuiltinUnityTools)
+            if (_activeRuntimeToolDescriptors.Count > 0)
             {
                 _transport.RegisterExtensionHandler("_unity/", async (method, paramsJson) =>
                 {
@@ -529,6 +535,9 @@ namespace DotCraft.Editor.Connection
 
         private async Task<InitializeResult> InitializeAsync(CancellationToken ct)
         {
+            var runtimeTools = _activeRuntimeToolDescriptors.Count > 0
+                ? _activeRuntimeToolDescriptors
+                : null;
             var @params = new InitializeParams
             {
                 ProtocolVersion = 1,
@@ -536,13 +545,13 @@ namespace DotCraft.Editor.Connection
                 {
                     Fs = FsCapabilities.All,
                     Terminal = TerminalCapabilities.All,
-                    Extensions = _settings.EnableBuiltinUnityTools ? new[] { "_unity" } : Array.Empty<string>(),
-                    Meta = _settings.EnableBuiltinUnityTools
+                    Extensions = runtimeTools != null ? new[] { "_unity" } : null,
+                    Meta = runtimeTools != null
                         ? new ClientCapabilitiesMeta
                         {
                             DotCraft = new DotCraftClientCapabilities
                             {
-                                RuntimeTools = BuildBuiltinUnityRuntimeTools()
+                                RuntimeTools = runtimeTools
                             }
                         }
                         : null
@@ -558,96 +567,30 @@ namespace DotCraft.Editor.Connection
             return DotCraftJson.ToObject<InitializeResult>(result);
         }
 
-        private static List<AcpRuntimeToolDescriptor> BuildBuiltinUnityRuntimeTools()
+        private void PrepareRuntimeTools()
         {
-            return new List<AcpRuntimeToolDescriptor>
-            {
-                new AcpRuntimeToolDescriptor
-                {
-                    Namespace = "unity",
-                    Name = "unity_scene_query",
-                    Description = "Query Unity scene hierarchy with optional component details.",
-                    InputSchema = ObjectSchema(new Dictionary<string, object>
-                    {
-                        ["query"] = new Dictionary<string, object>
-                        {
-                            ["type"] = "string",
-                            ["description"] = "Optional case-insensitive text to match against GameObject names or paths."
-                        },
-                        ["includeComponents"] = new Dictionary<string, object>
-                        {
-                            ["type"] = "boolean",
-                            ["description"] = "Include component type names for each returned GameObject."
-                        },
-                        ["maxDepth"] = new Dictionary<string, object>
-                        {
-                            ["type"] = "integer",
-                            ["minimum"] = 1,
-                            ["description"] = "Maximum hierarchy depth to include."
-                        }
-                    }),
-                    AcpMethod = "_unity/scene_query",
-                    Kind = AcpToolKind.Unity,
-                    DeferLoading = true
-                },
-                new AcpRuntimeToolDescriptor
-                {
-                    Namespace = "unity",
-                    Name = "unity_get_selection",
-                    Description = "Read the current Unity Editor selection.",
-                    InputSchema = ObjectSchema(new Dictionary<string, object>()),
-                    AcpMethod = "_unity/get_selection",
-                    Kind = AcpToolKind.Unity,
-                    DeferLoading = true
-                },
-                new AcpRuntimeToolDescriptor
-                {
-                    Namespace = "unity",
-                    Name = "unity_get_console_logs",
-                    Description = "Retrieve recent Unity Console log entries.",
-                    InputSchema = ObjectSchema(new Dictionary<string, object>
-                    {
-                        ["types"] = new Dictionary<string, object>
-                        {
-                            ["type"] = "array",
-                            ["description"] = "Optional log types to include.",
-                            ["items"] = new Dictionary<string, object>
-                            {
-                                ["type"] = "string",
-                                ["enum"] = new[] { "error", "warning", "log" }
-                            }
-                        },
-                        ["limit"] = new Dictionary<string, object>
-                        {
-                            ["type"] = "integer",
-                            ["minimum"] = 1,
-                            ["description"] = "Maximum number of recent entries to return."
-                        }
-                    }),
-                    AcpMethod = "_unity/get_console_logs",
-                    Kind = AcpToolKind.Unity,
-                    DeferLoading = true
-                },
-                new AcpRuntimeToolDescriptor
-                {
-                    Namespace = "unity",
-                    Name = "unity_get_project_info",
-                    Description = "Read Unity version, project name, project path, and package information.",
-                    InputSchema = ObjectSchema(new Dictionary<string, object>()),
-                    AcpMethod = "_unity/get_project_info",
-                    Kind = AcpToolKind.Unity,
-                    DeferLoading = true
-                }
-            };
-        }
+            _activeRuntimeToolDescriptors = new List<AcpRuntimeToolDescriptor>();
+            _extensionRouter.RegisterRuntimeTools(Array.Empty<RuntimeToolDefinition>());
 
-        private static Dictionary<string, object> ObjectSchema(Dictionary<string, object> properties)
-        {
-            return new Dictionary<string, object>
+            if (_settings.AgentConnection != DotCraftSettings.AgentConnectionDotCraft)
+                return;
+
+            var snapshot = RuntimeToolCatalog.Discover();
+            var resolved = RuntimeToolCatalog.ResolveEnabledTools(
+                snapshot,
+                _settings.EnableBuiltinUnityTools,
+                id => _settings.DynamicToolEnabledById.TryGetValue(id, out var enabled) && enabled);
+            _extensionRouter.RegisterRuntimeTools(resolved.Tools);
+            _activeRuntimeToolDescriptors.AddRange(resolved.Tools.Select(tool => tool.Descriptor));
+
+            if (_settings.VerboseLogging)
             {
-                ["type"] = "object",
-                ["properties"] = properties
-            };
+                foreach (var diagnostic in resolved.Diagnostics)
+                    Debug.LogWarning($"[DotCraft] Runtime tool discovery: {diagnostic}");
+
+                if (_activeRuntimeToolDescriptors.Count > 0)
+                    Debug.Log($"[DotCraft] Declaring {_activeRuntimeToolDescriptors.Count} DotCraft runtime tool(s).");
+            }
         }
 
         private async Task<SessionNewResult> NewSessionAsync(CancellationToken ct)

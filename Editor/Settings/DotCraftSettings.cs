@@ -4,7 +4,6 @@ using System.IO;
 using DotCraft.Editor.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using UnityEditor;
 using UnityEngine;
 
 namespace DotCraft.Editor.Settings
@@ -142,14 +141,14 @@ namespace DotCraft.Editor.Settings
         /// Enable verbose logging for debugging.
         /// </summary>
         [JsonProperty("verboseLogging")]
-        public bool VerboseLogging { get; set; } = false;
+        public bool VerboseLogging { get; set; }
 
         /// <summary>
         /// Show agent reasoning text in the chat UI.
         /// When disabled, the chat still shows lightweight thinking status rows.
         /// </summary>
         [JsonProperty("showThinkingContent")]
-        public bool ShowThinkingContent { get; set; } = false;
+        public bool ShowThinkingContent { get; set; }
 
         /// <summary>
         /// Timeout in seconds for ACP requests.
@@ -169,6 +168,13 @@ namespace DotCraft.Editor.Settings
         /// </summary>
         [JsonProperty("enableBuiltinUnityTools")]
         public bool EnableBuiltinUnityTools { get; set; } = true;
+
+        /// <summary>
+        /// Per-tool enablement for attribute-discovered DotCraft runtime tools.
+        /// Unknown tools default to disabled to keep model tool surface and token use explicit.
+        /// </summary>
+        [JsonProperty("dynamicToolEnabledById")]
+        public Dictionary<string, bool> DynamicToolEnabledById { get; set; } = new();
 
         /// <summary>
         /// MCP servers to inject into every new DotCraft session via the ACP mcpServers field.
@@ -237,6 +243,7 @@ namespace DotCraft.Editor.Settings
             RemoteAppServerUrl ??= "";
             RemoteAppServerToken ??= "";
             EnvironmentVariables ??= new Dictionary<string, string>();
+            DynamicToolEnabledById ??= new Dictionary<string, bool>();
             McpServers ??= new List<McpServerEntry>();
 
             if (!hasAgentConnection)
@@ -378,6 +385,7 @@ namespace DotCraft.Editor.Settings
             RequestTimeoutSeconds = 30;
             MaxHistoryMessages = 1000;
             EnableBuiltinUnityTools = true;
+            DynamicToolEnabledById = new Dictionary<string, bool>();
             McpServers = new List<McpServerEntry>();
         }
     }
