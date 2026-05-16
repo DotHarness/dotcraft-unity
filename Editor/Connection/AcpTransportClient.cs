@@ -139,6 +139,14 @@ namespace DotCraft.Editor.Connection
         }
 
         /// <summary>
+        /// Unregisters an extension method prefix handler.
+        /// </summary>
+        public void UnregisterExtensionHandler(string prefix)
+        {
+            _extensionHandlers.TryRemove(prefix, out _);
+        }
+
+        /// <summary>
         /// Unregisters a handler.
         /// </summary>
         public void UnregisterHandler(string method)

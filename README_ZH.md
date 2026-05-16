@@ -49,7 +49,8 @@ dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 的 Unity 
 | **Auto Reconnect** | `true` | Unity Domain Reload 后自动重连。 |
 | **Verbose Logging** | `false` | 将 DotCraft stderr 输出到 Unity Console。 |
 | **Show Thinking Content** | `false` | 在可展开的聊天行中显示 agent 思考内容。关闭时仅显示轻量的思考状态。 |
-| **Enable Builtin Unity Tools** | `true` | 声明内置只读 Unity 运行时工具，并启用对应的 `_unity/*` 处理器。 |
+| **Enable Builtin Unity Tools** | `true` | 在 `DotCraft` 连接模式下声明内置只读 Unity 运行时工具，并启用对应的 `_unity/*` 处理器。 |
+| **Plugin Tools** | 关闭 | 通过 attribute 发现的插件运行时工具。每个工具都需要在 **Unity Tools → Plugin Tools (DotCraft only)** 中显式开启。 |
 
 配置 API key 时，建议使用 Project Settings 里的环境变量，不要把密钥提交到项目文件。
 
@@ -65,6 +66,28 @@ dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明四个只读 Unity 运�
 | `unity_get_project_info` | 读取 Unity 版本、项目名称和包信息。 |
 
 这些工具帮助 DotCraft 理解当前场景与项目状态。模型可见的工具描述符位于这个 Unity 客户端中；`_unity/*` ACP 方法只是执行这些工具时使用的私有回调。如需完整 Unity 编辑自动化能力，可以将 DotCraft 与 [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) 或 [unity-mcp](https://github.com/CoplayDev/unity-mcp) 等专用 Unity 工具包配合使用。
+
+## 插件运行时工具
+
+其他 Unity Editor 插件可以通过给静态方法添加 `AgentToolAttribute`，向 DotCraft 暴露仅 DotCraft 可用的运行时工具。新插件工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭，并且只会在 `DotCraft` 连接模式下注入。
+
+```csharp
+using System.ComponentModel;
+using DotCraft.Editor.Protocol;
+using DotCraft.Editor.RuntimeTools;
+
+public static class ExampleDotCraftTools
+{
+    [Description("Return a greeting from an example Unity plugin.")]
+    [AgentTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
+    public static object Greet([Description("Name to greet.")] string name = "Unity")
+    {
+        return new { message = $"Hello, {name}." };
+    }
+}
+```
+
+方法参数会使用 Newtonsoft.Json 命名规则转换成 JSON Schema。完整注册契约见 [Documentation~/dynamic-tools.md](./Documentation~/dynamic-tools.md)。
 
 ## 故障排除
 
