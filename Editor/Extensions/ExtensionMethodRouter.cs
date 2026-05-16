@@ -106,7 +106,6 @@ namespace DotCraft.Editor.Extensions
             Namespace = "unity",
             Name = "unity_scene_query",
             Kind = AcpToolKind.Unity)]
-        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/scene_query")]
         public static Task<object> HandleSceneQuery(
             [Description("Optional case-insensitive text to match against GameObject names or paths.")]
             string query = null,
@@ -216,7 +215,6 @@ namespace DotCraft.Editor.Extensions
             Namespace = "unity",
             Name = "unity_get_selection",
             Kind = AcpToolKind.Unity)]
-        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/get_selection")]
         public static Task<object> HandleGetSelection()
         {
             var selected = Selection.gameObjects;
@@ -335,7 +333,6 @@ namespace DotCraft.Editor.Extensions
             Namespace = "unity",
             Name = "unity_get_console_logs",
             Kind = AcpToolKind.Unity)]
-        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/get_console_logs")]
         public static Task<object> HandleGetConsoleLogs(
             [Description("Optional log types to include.")]
             [AgentToolSchemaHint(EnumValues = new string[] { "error", "warning", "log" })]
@@ -367,7 +364,6 @@ namespace DotCraft.Editor.Extensions
             Namespace = "unity",
             Name = "unity_get_project_info",
             Kind = AcpToolKind.Unity)]
-        [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/get_project_info")]
         public static Task<object> HandleGetProjectInfo()
         {
             var info = new

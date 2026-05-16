@@ -138,10 +138,9 @@ namespace DotCraft.Editor.RuntimeTools
             if (!TryBuildApproval(attribute, inputSchema, out var approval, out diagnostic))
                 return false;
 
-            var id = BuildStableId(method);
             var source = GetSource(method);
-            var builtinOverride = method.GetCustomAttribute<DotCraftBuiltinRuntimeToolAttribute>(false);
-            var acpMethod = NormalizeOptional(builtinOverride?.AcpMethod) ?? $"_unity/dynamic/{name}_{HashId(id)}";
+            var id = BuildStableId(method);
+            var acpMethod = BuildAcpMethod(source, @namespace, name, id);
             var descriptor = new AcpRuntimeToolDescriptor
             {
                 Namespace = @namespace,
@@ -263,6 +262,35 @@ namespace DotCraft.Editor.RuntimeTools
             return ReferenceEquals(method.Module.Assembly, typeof(AgentToolAttribute).Assembly)
                 ? RuntimeToolSource.Builtin
                 : RuntimeToolSource.Plugin;
+        }
+
+        private static string BuildAcpMethod(RuntimeToolSource source, string @namespace, string name, string id)
+        {
+            // Built-in Unity tools keep stable _unity/* callbacks derived from their model-visible names.
+            if (source == RuntimeToolSource.Builtin
+                && TryBuildBuiltinUnityAcpMethod(@namespace, name, out var builtinAcpMethod))
+            {
+                return builtinAcpMethod;
+            }
+
+            return $"_unity/dynamic/{name}_{HashId(id)}";
+        }
+
+        private static bool TryBuildBuiltinUnityAcpMethod(string @namespace, string name, out string acpMethod)
+        {
+            acpMethod = null;
+            const string unityNamespace = "unity";
+            const string toolNamePrefix = "unity_";
+
+            if (!string.Equals(@namespace, unityNamespace, StringComparison.Ordinal)
+                || !name.StartsWith(toolNamePrefix, StringComparison.Ordinal)
+                || name.Length == toolNamePrefix.Length)
+            {
+                return false;
+            }
+
+            acpMethod = $"_unity/{name.Substring(toolNamePrefix.Length)}";
+            return true;
         }
 
         private static string BuildStableId(MethodInfo method)
