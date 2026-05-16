@@ -323,7 +323,7 @@ namespace DotCraft.Editor.Settings
                 EditorGUILayout.Space(6);
                 EditorGUILayout.LabelField("Plugin Tools (DotCraft only)", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(
-                    "Methods marked with DotCraftRuntimeToolAttribute are discovered here. New plugin tools default to disabled.",
+                    "Methods marked with AgentToolAttribute are discovered here. New plugin tools default to disabled.",
                     MessageType.Info);
 
                 _runtimeToolCatalog ??= RuntimeToolCatalog.Discover();

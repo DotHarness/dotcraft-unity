@@ -102,7 +102,7 @@ namespace DotCraft.Editor.Extensions
         /// Queries the Unity scene hierarchy and returns GameObject information.
         /// </summary>
         [Description("Query Unity scene hierarchy with optional component details.")]
-        [DotCraftRuntimeTool(
+        [AgentTool(
             Namespace = "unity",
             Name = "unity_scene_query",
             Kind = AcpToolKind.Unity)]
@@ -113,7 +113,7 @@ namespace DotCraft.Editor.Extensions
             [Description("Include component type names for each returned GameObject.")]
             bool includeComponents = false,
             [Description("Maximum hierarchy depth to include.")]
-            [DotCraftRuntimeToolSchemaHint(Minimum = 1)]
+            [AgentToolSchemaHint(Minimum = 1)]
             int maxDepth = 10)
         {
             var results = new List<object>();
@@ -212,7 +212,7 @@ namespace DotCraft.Editor.Extensions
         /// Gets the currently selected objects in the Unity Editor.
         /// </summary>
         [Description("Read the current Unity Editor selection.")]
-        [DotCraftRuntimeTool(
+        [AgentTool(
             Namespace = "unity",
             Name = "unity_get_selection",
             Kind = AcpToolKind.Unity)]
@@ -331,17 +331,17 @@ namespace DotCraft.Editor.Extensions
         /// Gets recent Unity console log entries.
         /// </summary>
         [Description("Retrieve recent Unity Console log entries.")]
-        [DotCraftRuntimeTool(
+        [AgentTool(
             Namespace = "unity",
             Name = "unity_get_console_logs",
             Kind = AcpToolKind.Unity)]
         [DotCraftBuiltinRuntimeTool(AcpMethod = "_unity/get_console_logs")]
         public static Task<object> HandleGetConsoleLogs(
             [Description("Optional log types to include.")]
-            [DotCraftRuntimeToolSchemaHint(EnumValues = new string[] { "error", "warning", "log" })]
+            [AgentToolSchemaHint(EnumValues = new string[] { "error", "warning", "log" })]
             string[] types = null,
             [Description("Maximum number of recent entries to return.")]
-            [DotCraftRuntimeToolSchemaHint(Minimum = 1)]
+            [AgentToolSchemaHint(Minimum = 1)]
             int limit = 50)
         {
             var logs = UnityConsoleLogCollector.GetLogs(types, limit);
@@ -363,7 +363,7 @@ namespace DotCraft.Editor.Extensions
         /// Gets Unity project information including version and installed packages.
         /// </summary>
         [Description("Read Unity version, project name, project path, and package information.")]
-        [DotCraftRuntimeTool(
+        [AgentTool(
             Namespace = "unity",
             Name = "unity_get_project_info",
             Kind = AcpToolKind.Unity)]

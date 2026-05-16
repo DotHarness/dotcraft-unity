@@ -376,8 +376,8 @@ namespace DotCraft.Editor.RuntimeTools
 
         private static void ApplySchemaHint(Dictionary<string, object> schema, ICustomAttributeProvider provider)
         {
-            var hint = provider.GetCustomAttributes(typeof(DotCraftRuntimeToolSchemaHintAttribute), false)
-                .OfType<DotCraftRuntimeToolSchemaHintAttribute>()
+            var hint = provider.GetCustomAttributes(typeof(AgentToolSchemaHintAttribute), false)
+                .OfType<AgentToolSchemaHintAttribute>()
                 .FirstOrDefault();
             if (hint == null)
                 return;

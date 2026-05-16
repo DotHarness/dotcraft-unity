@@ -69,7 +69,7 @@ dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明四个只读 Unity 运�
 
 ## 插件运行时工具
 
-其他 Unity Editor 插件可以通过给静态方法添加 `DotCraftRuntimeToolAttribute`，向 DotCraft 暴露仅 DotCraft 可用的运行时工具。新插件工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭，并且只会在 `DotCraft` 连接模式下注入。
+其他 Unity Editor 插件可以通过给静态方法添加 `AgentToolAttribute`，向 DotCraft 暴露仅 DotCraft 可用的运行时工具。新插件工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭，并且只会在 `DotCraft` 连接模式下注入。
 
 ```csharp
 using System.ComponentModel;
@@ -79,7 +79,7 @@ using DotCraft.Editor.RuntimeTools;
 public static class ExampleDotCraftTools
 {
     [Description("Return a greeting from an example Unity plugin.")]
-    [DotCraftRuntimeTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
+    [AgentTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
     public static object Greet([Description("Name to greet.")] string name = "Unity")
     {
         return new { message = $"Hello, {name}." };

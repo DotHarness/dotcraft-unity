@@ -4,11 +4,11 @@ using DotCraft.Editor.Protocol;
 namespace DotCraft.Editor.RuntimeTools
 {
     /// <summary>
-    /// Marks a static editor method as a DotCraft runtime dynamic tool.
+    /// Marks a static editor method as an agent runtime dynamic tool.
     /// These tools are DotCraft-specific ACP extensions and are not declared for Custom ACP agents.
     /// </summary>
     [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
-    public sealed class DotCraftRuntimeToolAttribute : Attribute
+    public sealed class AgentToolAttribute : Attribute
     {
         /// <summary>
         /// Model-visible tool name. When omitted, the method name is used.

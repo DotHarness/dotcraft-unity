@@ -28,7 +28,7 @@ namespace DotCraft.Editor.RuntimeTools
                     var methods = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
                     foreach (var method in methods)
                     {
-                        var attribute = method.GetCustomAttribute<DotCraftRuntimeToolAttribute>(false);
+                        var attribute = method.GetCustomAttribute<AgentToolAttribute>(false);
                         if (attribute == null)
                             continue;
 
@@ -85,7 +85,7 @@ namespace DotCraft.Editor.RuntimeTools
 
         private static bool TryCreateDefinition(
             MethodInfo method,
-            DotCraftRuntimeToolAttribute attribute,
+            AgentToolAttribute attribute,
             out RuntimeToolDefinition definition,
             out string diagnostic)
         {
@@ -122,7 +122,7 @@ namespace DotCraft.Editor.RuntimeTools
                               ?? NormalizeOptional(method.GetCustomAttribute<DescriptionAttribute>()?.Description);
             if (description == null)
             {
-                diagnostic = "A tool description is required. Set DotCraftRuntimeToolAttribute.Description or DescriptionAttribute.";
+                diagnostic = "A tool description is required. Set AgentToolAttribute.Description or DescriptionAttribute.";
                 return false;
             }
 
@@ -159,7 +159,7 @@ namespace DotCraft.Editor.RuntimeTools
         }
 
         private static bool TryBuildApproval(
-            DotCraftRuntimeToolAttribute attribute,
+            AgentToolAttribute attribute,
             Dictionary<string, object> inputSchema,
             out AcpRuntimeToolApprovalDescriptor approval,
             out string diagnostic)
@@ -242,7 +242,7 @@ namespace DotCraft.Editor.RuntimeTools
 
         private static bool CanContainRuntimeTools(Assembly assembly)
         {
-            var attributeAssembly = typeof(DotCraftRuntimeToolAttribute).Assembly;
+            var attributeAssembly = typeof(AgentToolAttribute).Assembly;
             if (ReferenceEquals(assembly, attributeAssembly))
                 return true;
 
@@ -260,7 +260,7 @@ namespace DotCraft.Editor.RuntimeTools
 
         private static RuntimeToolSource GetSource(MethodInfo method)
         {
-            return ReferenceEquals(method.Module.Assembly, typeof(DotCraftRuntimeToolAttribute).Assembly)
+            return ReferenceEquals(method.Module.Assembly, typeof(AgentToolAttribute).Assembly)
                 ? RuntimeToolSource.Builtin
                 : RuntimeToolSource.Plugin;
         }

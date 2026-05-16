@@ -68,7 +68,7 @@ These tools help DotCraft understand the current scene and project state. The mo
 
 ## Plugin Runtime Tools
 
-Other Unity Editor plugins can expose DotCraft-only runtime tools by marking static methods with `DotCraftRuntimeToolAttribute`. New plugin tools are discovered in **Edit → Project Settings → DotCraft → Unity Tools**, default to disabled, and are injected only for the `DotCraft` connection profile.
+Other Unity Editor plugins can expose DotCraft-only runtime tools by marking static methods with `AgentToolAttribute`. New plugin tools are discovered in **Edit → Project Settings → DotCraft → Unity Tools**, default to disabled, and are injected only for the `DotCraft` connection profile.
 
 ```csharp
 using System.ComponentModel;
@@ -78,7 +78,7 @@ using DotCraft.Editor.RuntimeTools;
 public static class ExampleDotCraftTools
 {
     [Description("Return a greeting from an example Unity plugin.")]
-    [DotCraftRuntimeTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
+    [AgentTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
     public static object Greet([Description("Name to greet.")] string name = "Unity")
     {
         return new { message = $"Hello, {name}." };

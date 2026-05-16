@@ -13,7 +13,7 @@ This document defines how Unity Editor plugins expose DotCraft-only runtime dyna
 
 ## Registration API
 
-Mark a static method with `DotCraftRuntimeToolAttribute`:
+Mark a static method with `AgentToolAttribute`:
 
 ```csharp
 using System.ComponentModel;
@@ -23,7 +23,7 @@ using DotCraft.Editor.RuntimeTools;
 public static class ExampleDotCraftTools
 {
     [Description("Return a greeting from an example Unity plugin.")]
-    [DotCraftRuntimeTool(
+    [AgentTool(
         Namespace = "example",
         Name = "example_greet",
         Kind = AcpToolKind.Read)]
@@ -55,7 +55,7 @@ Unsupported tools are skipped instead of failing ACP initialization. Diagnostics
 Tools that need DotCraft approval can declare optional approval metadata:
 
 ```csharp
-[DotCraftRuntimeTool(
+[AgentTool(
     Name = "example_write_file",
     Description = "Write generated content to a project file.",
     Kind = AcpToolKind.Edit,
