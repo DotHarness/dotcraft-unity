@@ -30,6 +30,15 @@ namespace DotCraft.Editor
         }
 
         /// <summary>
+        /// Loads an editor texture from the Resources folder.
+        /// </summary>
+        public static Texture2D LoadEditorTexture(string name)
+        {
+            var path = $"{BasePath}Resources/{name}.png";
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
+        /// <summary>
         /// Loads all required stylesheets.
         /// </summary>
         public static StyleSheet[] LoadAllStyleSheets()

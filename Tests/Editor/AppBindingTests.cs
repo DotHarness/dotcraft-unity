@@ -5,6 +5,7 @@ using DotCraft.Editor.Protocol;
 using DotCraft.Editor.RuntimeTools;
 using DotCraft.Editor.Settings;
 using NUnit.Framework;
+using UnityEngine.UIElements;
 
 namespace DotCraft.Editor.Tests
 {
@@ -76,6 +77,88 @@ namespace DotCraft.Editor.Tests
 
             Assert.That(attachment.Tools, Is.Empty);
             Assert.That(attachment.ToolCatalog, Is.Empty);
+        }
+
+        [Test]
+        public void StatusSummaryHidesWithoutActiveBindings()
+        {
+            var summary = UnityAppBindingStatusSummary.FromBindings(System.Array.Empty<UnityAppBindingService.ActiveBinding>());
+
+            Assert.That(summary.IsVisible, Is.False);
+            Assert.That(summary.ThreadCount, Is.EqualTo(0));
+            Assert.That(summary.ToolCount, Is.EqualTo(0));
+            Assert.That(summary.Tooltip, Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void StatusSummaryCountsThreadsAndTools()
+        {
+            var summary = UnityAppBindingStatusSummary.FromBindings(new[]
+            {
+                new UnityAppBindingService.ActiveBinding { BindingId = "binding_1", ThreadId = "thread_a", ToolCount = 3 },
+                new UnityAppBindingService.ActiveBinding { BindingId = "binding_2", ThreadId = "thread_b", ToolCount = 5 }
+            });
+
+            Assert.That(summary.IsVisible, Is.True);
+            Assert.That(summary.ThreadCount, Is.EqualTo(2));
+            Assert.That(summary.ToolCount, Is.EqualTo(8));
+            Assert.That(
+                summary.Tooltip,
+                Is.EqualTo("DotCraft App Binding: connected to 2 thread(s), 8 tool(s). Click to open DotCraft Assistant."));
+        }
+
+        [Test]
+        public void StatusBarOpenAssistantActionCanBeOverriddenForTests()
+        {
+            var opened = false;
+            UnityAppBindingStatusBarActions.OpenAssistantOverride = () => opened = true;
+            try
+            {
+                UnityAppBindingStatusBarActions.OpenAssistant();
+            }
+            finally
+            {
+                UnityAppBindingStatusBarActions.OpenAssistantOverride = null;
+            }
+
+            Assert.That(opened, Is.True);
+        }
+
+        [Test]
+        public void StatusBarRightOffsetStacksAfterGenericAbsolutePeers()
+        {
+            var root = new VisualElement();
+            var peer = new VisualElement();
+            peer.style.position = Position.Absolute;
+            peer.style.right = 104;
+            peer.style.top = 0;
+            peer.style.width = 42;
+            peer.style.height = 19;
+            root.Add(peer);
+
+            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, null), Is.EqualTo(150));
+        }
+
+        [Test]
+        public void StatusBarRightOffsetDoesNotInspectPeerNames()
+        {
+            var root = new VisualElement();
+            var peer = new VisualElement { name = "third-party-status-indicator" };
+            peer.style.position = Position.Absolute;
+            peer.style.right = 104;
+            peer.style.top = 0;
+            peer.style.width = 42;
+            peer.style.height = 19;
+            var self = new VisualElement { name = UnityAppBindingStatusBarIndicator.IndicatorName };
+            self.style.position = Position.Absolute;
+            self.style.right = 150;
+            self.style.top = 0;
+            self.style.width = 24;
+            self.style.height = 19;
+            root.Add(peer);
+            root.Add(self);
+
+            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, self), Is.EqualTo(150));
         }
 
         private static RuntimeToolDefinition FindTool(string methodName)
