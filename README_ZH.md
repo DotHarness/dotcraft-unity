@@ -16,6 +16,7 @@ dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 的 Unity 
 - 编辑器原生：通过 **Tools → DotCraft Assistant** 直接打开 DotCraft。
 - 项目感知：默认将 Unity 项目根目录作为 DotCraft 工作区。
 - 基于 ACP：DotCraft 作为 agent 进程运行，Unity 作为编辑器客户端。
+- App Binding：Unity Editor 运行时，可把已启用的 Unity 工具暴露给任意已绑定的 DotCraft thread。
 - Unity 上下文：内置只读工具可暴露场景、选中对象、控制台和项目信息。
 
 ## 快速开始
@@ -51,6 +52,7 @@ dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 的 Unity 
 | **Show Thinking Content** | `false` | 在可展开的聊天行中显示 agent 思考内容。关闭时仅显示轻量的思考状态。 |
 | **Enable Builtin Unity Tools** | `true` | 在 `DotCraft` 连接模式下声明内置只读 Unity 运行时工具，并启用对应的 `_unity/*` 处理器。 |
 | **Plugin Tools** | 关闭 | 通过 attribute 发现的插件运行时工具。每个工具都需要在 **Unity Tools → Plugin Tools (DotCraft only)** 中显式开启。 |
+| **Enable Local Server** | `true` | Unity Editor 打开时，在 `39777` 端口启动 localhost App Binding handoff 服务。 |
 
 配置 API key 时，建议使用 Project Settings 里的环境变量，不要把密钥提交到项目文件。
 
@@ -66,6 +68,12 @@ dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明四个只读 Unity 运�
 | `unity_get_project_info` | 读取 Unity 版本、项目名称和包信息。 |
 
 这些工具帮助 DotCraft 理解当前场景与项目状态。模型可见的工具描述符位于这个 Unity 客户端中；`_unity/*` ACP 方法只是执行这些工具时使用的私有回调。如需完整 Unity 编辑自动化能力，可以将 DotCraft 与 [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) 或 [unity-mcp](https://github.com/CoplayDev/unity-mcp) 等专用 Unity 工具包配合使用。
+
+## App Binding
+
+安装 DotCraft 的 `dotcraft-unity` 插件后，DotCraft Desktop 可以通过 App Binding 连接正在运行的 Unity Editor。Unity package 会监听 `http://127.0.0.1:39777/dotcraft/`，接收 DotCraft connect/bind handoff，并把当前已启用的运行时工具 attach 到选中的 DotCraft thread。
+
+这条路径独立于 Unity 内的 ACP 聊天窗口：Desktop、TUI、automations 或其他 AppServer 客户端中的 agent，都可以在绑定后调用 Unity 工具。Unity 关闭或脚本重载后，绑定会变为 offline，需要重新绑定。
 
 ## 插件运行时工具
 

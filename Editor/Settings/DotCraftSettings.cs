@@ -170,6 +170,12 @@ namespace DotCraft.Editor.Settings
         public bool EnableBuiltinUnityTools { get; set; } = true;
 
         /// <summary>
+        /// Starts the local localhost handoff server used by DotCraft App Binding.
+        /// </summary>
+        [JsonProperty("enableAppBindingLocalServer")]
+        public bool EnableAppBindingLocalServer { get; set; } = true;
+
+        /// <summary>
         /// Per-tool enablement for attribute-discovered DotCraft runtime tools.
         /// Unknown tools default to disabled to keep model tool surface and token use explicit.
         /// </summary>
@@ -385,6 +391,7 @@ namespace DotCraft.Editor.Settings
             RequestTimeoutSeconds = 30;
             MaxHistoryMessages = 1000;
             EnableBuiltinUnityTools = true;
+            EnableAppBindingLocalServer = true;
             DynamicToolEnabledById = new Dictionary<string, bool>();
             McpServers = new List<McpServerEntry>();
         }

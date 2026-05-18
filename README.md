@@ -15,6 +15,7 @@ dotcraft-unity is the Unity editor client for [DotCraft](https://github.com/DotH
 - Editor native: open DotCraft from **Tools → DotCraft Assistant** without leaving Unity.
 - Project aware: the Unity project root becomes the DotCraft workspace by default.
 - ACP based: DotCraft runs as the agent process while Unity acts as the editor client.
+- App Binding: expose enabled Unity tools to any bound DotCraft thread while the Unity Editor is running.
 - Unity context: built-in read-only tools expose scene, selection, console, and project information.
 
 ## Get Started
@@ -50,6 +51,7 @@ Open **Edit → Project Settings → DotCraft** to configure the client.
 | **Show Thinking Content** | `false` | Show agent reasoning text in expandable chat rows. When disabled, only lightweight thinking status is shown. |
 | **Enable Builtin Unity Tools** | `true` | Declare the built-in read-only Unity runtime tools and enable their `_unity/*` handlers when using the `DotCraft` connection profile. |
 | **Plugin Tools** | disabled | Attribute-discovered plugin runtime tools. Each tool must be enabled explicitly in **Unity Tools → Plugin Tools (DotCraft only)**. |
+| **Enable Local Server** | `true` | Start the localhost App Binding handoff server on port `39777` while Unity Editor is open. |
 
 For API keys, prefer environment variables in Project Settings instead of committing secrets to project files.
 
@@ -65,6 +67,12 @@ dotcraft-unity declares four read-only Unity runtime tools to DotCraft during AC
 | `unity_get_project_info` | Read Unity version, project name, and package information. |
 
 These tools help DotCraft understand the current scene and project state. The model-visible tool descriptors live in this Unity client; the `_unity/*` ACP methods are private callbacks used to execute them. For full Unity editing automation, combine DotCraft with a dedicated Unity tool package such as [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) or [unity-mcp](https://github.com/CoplayDev/unity-mcp).
+
+## App Binding
+
+When the DotCraft `dotcraft-unity` plugin is installed, DotCraft Desktop can connect to a running Unity Editor through App Binding. The Unity package listens on `http://127.0.0.1:39777/dotcraft/`, accepts DotCraft connect/bind handoffs, and attaches the currently enabled runtime tools to the selected DotCraft thread.
+
+This path is independent of the ACP chat window: agents in Desktop, TUI, automations, or other AppServer clients can use the bound Unity tools as long as Unity Editor stays open. If Unity closes or scripts reload, the binding becomes offline until you bind again.
 
 ## Plugin Runtime Tools
 
