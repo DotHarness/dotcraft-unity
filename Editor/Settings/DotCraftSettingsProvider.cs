@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DotCraft.Editor.AppBinding;
 using DotCraft.Editor.RuntimeTools;
 using UnityEditor;
 using UnityEngine;
@@ -174,6 +175,10 @@ namespace DotCraft.Editor.Settings
             EditorGUILayout.Space(10);
 
             DrawUnityToolsSection();
+
+            EditorGUILayout.Space(10);
+
+            DrawAppBindingSection();
 
             EditorGUILayout.Space(10);
 
@@ -382,6 +387,68 @@ namespace DotCraft.Editor.Settings
                         string.Join("\n", _runtimeToolCatalog.Diagnostics.Take(6)) +
                         (_runtimeToolCatalog.Diagnostics.Count > 6 ? "\n..." : ""),
                         MessageType.Warning);
+                }
+
+                EditorGUI.indentLevel--;
+            }
+        }
+
+        private void DrawAppBindingSection()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("App Binding", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(
+                    "Expose the enabled Unity runtime tools to DotCraft threads through a local App Binding handoff server.",
+                    MessageType.Info);
+
+                EditorGUI.indentLevel++;
+
+                var enabled = EditorGUILayout.Toggle(
+                    new GUIContent("Enable Local Server", "Listen on localhost for DotCraft App Binding connect and bind handoffs."),
+                    _settings.EnableAppBindingLocalServer);
+                if (enabled != _settings.EnableAppBindingLocalServer)
+                {
+                    _settings.EnableAppBindingLocalServer = enabled;
+                    UnityAppBindingBootstrap.ApplySettings();
+                }
+
+                var service = UnityAppBindingService.Instance;
+                EditorGUILayout.LabelField("Handoff URL", service.LocalServerUrl);
+                EditorGUILayout.LabelField("Status", service.IsLocalServerRunning ? "Running" : "Stopped");
+                if (!string.IsNullOrWhiteSpace(service.LastError))
+                    EditorGUILayout.HelpBox(service.LastError, MessageType.Error);
+
+                var bindings = service.ActiveBindings.ToList();
+                if (bindings.Count == 0)
+                {
+                    EditorGUILayout.LabelField("Active Bindings", "None", EditorStyles.miniLabel);
+                }
+                else
+                {
+                    foreach (var binding in bindings)
+                    {
+                        using (new EditorGUILayout.HorizontalScope())
+                        {
+                            EditorGUILayout.LabelField(
+                                "Active Binding",
+                                $"{binding.ThreadId} ({binding.ToolCount} tools)",
+                                EditorStyles.miniLabel);
+                            if (GUILayout.Button("Remove", GUILayout.Width(80)))
+                                service.RemoveActiveBinding(binding.BindingId);
+                        }
+                    }
+                }
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Space(EditorGUI.indentLevel * 15);
+                    if (GUILayout.Button("Restart Server", GUILayout.Width(130)))
+                    {
+                        _settings.EnableAppBindingLocalServer = true;
+                        service.StopLocalServer();
+                        service.StartLocalServer();
+                    }
                 }
 
                 EditorGUI.indentLevel--;
