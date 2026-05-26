@@ -22,11 +22,28 @@ namespace DotCraft.Editor.AppBinding
     {
         public static UnityAppBindingToolAttachment Build(DotCraftSettings settings, IReadOnlyCollection<string> grantedScopes)
         {
-            var snapshot = RuntimeToolCatalog.Discover();
+            var enabledPluginToolIds = settings.DynamicToolEnabledById
+                .Where(pair => pair.Value)
+                .Select(pair => pair.Key)
+                .ToArray();
+            return Build(
+                RuntimeToolCatalog.Discover(),
+                settings.EnableBuiltinUnityTools,
+                enabledPluginToolIds,
+                grantedScopes);
+        }
+
+        internal static UnityAppBindingToolAttachment Build(
+            RuntimeToolCatalogSnapshot snapshot,
+            bool enableBuiltinTools,
+            IReadOnlyCollection<string> enabledPluginToolIds,
+            IReadOnlyCollection<string> grantedScopes)
+        {
+            var enabledIds = new HashSet<string>(enabledPluginToolIds ?? Array.Empty<string>(), StringComparer.Ordinal);
             var resolved = RuntimeToolCatalog.ResolveEnabledTools(
                 snapshot,
-                settings.EnableBuiltinUnityTools,
-                id => settings.DynamicToolEnabledById.TryGetValue(id, out var enabled) && enabled);
+                enableBuiltinTools,
+                id => enabledIds.Contains(id));
 
             var granted = new HashSet<string>(grantedScopes ?? Array.Empty<string>(), StringComparer.Ordinal);
             var attachment = new UnityAppBindingToolAttachment

@@ -18,11 +18,14 @@ namespace DotCraft.Editor.AppBinding
             new(() => new UnityAppBindingService());
 
         private readonly ConcurrentDictionary<string, ActiveBinding> _activeBindings = new(StringComparer.Ordinal);
+        private readonly object _handoffSnapshotGate = new();
         private readonly UnityAppBindingLocalServer _localServer;
+        private HandoffSnapshot _handoffSnapshot;
 
         private UnityAppBindingService()
         {
             _localServer = new UnityAppBindingLocalServer(HandleHandoffAsync);
+            RefreshHandoffSnapshot();
         }
 
         public static UnityAppBindingService Instance => LazyInstance.Value;
@@ -45,6 +48,7 @@ namespace DotCraft.Editor.AppBinding
 
         public void StartLocalServer()
         {
+            RefreshHandoffSnapshot();
             _localServer.Start();
         }
 
@@ -53,9 +57,37 @@ namespace DotCraft.Editor.AppBinding
             _localServer.Stop();
         }
 
+        public void RestartLocalServer()
+        {
+            RefreshHandoffSnapshot();
+            _localServer.Restart();
+        }
+
         public bool RemoveActiveBinding(string bindingId)
         {
             return RemoveActiveBinding(bindingId, "Removed locally from Unity settings.");
+        }
+
+        internal void RefreshHandoffSnapshot()
+        {
+            var settings = DotCraftSettings.Instance;
+            var enabledPluginToolIds = settings.DynamicToolEnabledById
+                .Where(pair => pair.Value)
+                .Select(pair => pair.Key)
+                .ToArray();
+            var snapshot = new HandoffSnapshot
+            {
+                AccountLabel = BuildAccountLabel(Application.productName),
+                EnableBuiltinUnityTools = settings.EnableBuiltinUnityTools,
+                EnabledPluginToolIds = enabledPluginToolIds,
+                RequestTimeoutSeconds = Math.Max(5, settings.RequestTimeoutSeconds),
+                RuntimeTools = RuntimeToolCatalog.Discover()
+            };
+
+            lock (_handoffSnapshotGate)
+            {
+                _handoffSnapshot = snapshot;
+            }
         }
 
         public void Shutdown()
@@ -71,19 +103,31 @@ namespace DotCraft.Editor.AppBinding
             if (!string.Equals(handoff.AppId, UnityAppBindingConstants.AppId, StringComparison.Ordinal))
                 throw new InvalidOperationException($"Unexpected app id '{handoff.AppId}'.");
 
+            var snapshot = GetHandoffSnapshot();
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            timeout.CancelAfter(TimeSpan.FromSeconds(Math.Max(5, DotCraftSettings.Instance.RequestTimeoutSeconds)));
+            timeout.CancelAfter(TimeSpan.FromSeconds(snapshot.RequestTimeoutSeconds));
 
             if (string.Equals(handoff.Operation, "connect", StringComparison.Ordinal))
-                return await HandleConnectAsync(handoff, timeout.Token).ConfigureAwait(false);
+                return await HandleConnectAsync(handoff, snapshot, timeout.Token).ConfigureAwait(false);
 
             if (string.Equals(handoff.Operation, "bind", StringComparison.Ordinal))
-                return await HandleBindAsync(handoff, timeout.Token).ConfigureAwait(false);
+                return await HandleBindAsync(handoff, snapshot, timeout.Token).ConfigureAwait(false);
 
             throw new InvalidOperationException($"Unsupported App Binding operation '{handoff.Operation}'.");
         }
 
-        private async Task<string> HandleConnectAsync(UnityAppBindingHandoff handoff, CancellationToken ct)
+        private HandoffSnapshot GetHandoffSnapshot()
+        {
+            lock (_handoffSnapshotGate)
+            {
+                return _handoffSnapshot ?? throw new InvalidOperationException("App Binding handoff snapshot is not initialized.");
+            }
+        }
+
+        private async Task<string> HandleConnectAsync(
+            UnityAppBindingHandoff handoff,
+            HandoffSnapshot snapshot,
+            CancellationToken ct)
         {
             using var client = await DotCraftAppServerClient.ConnectAsync(handoff.Endpoint, ct).ConfigureAwait(false);
             await client.InitializeAsync(ct).ConfigureAwait(false);
@@ -93,19 +137,21 @@ namespace DotCraft.Editor.AppBinding
                 handoff.RequestToken,
                 ct).ConfigureAwait(false);
 
-            var label = await GetAccountLabelAsync(ct).ConfigureAwait(false);
             var status = await client.CompleteAppConnectionAsync(
                 request.ConnectionRequestId,
                 handoff.RequestToken,
                 handoff.AppId,
-                label,
+                snapshot.AccountLabel,
                 ct).ConfigureAwait(false);
 
             Debug.Log($"[DotCraft] App Binding connected to workspace '{request.WorkspaceLabel}' as '{status.State}'.");
-            return $"Connected Unity Editor project '{label}' to DotCraft workspace '{request.WorkspaceLabel}'.";
+            return $"Connected Unity Editor project '{snapshot.AccountLabel}' to DotCraft workspace '{request.WorkspaceLabel}'.";
         }
 
-        private async Task<string> HandleBindAsync(UnityAppBindingHandoff handoff, CancellationToken ct)
+        private async Task<string> HandleBindAsync(
+            UnityAppBindingHandoff handoff,
+            HandoffSnapshot snapshot,
+            CancellationToken ct)
         {
             var client = await DotCraftAppServerClient.ConnectAsync(handoff.Endpoint, ct).ConfigureAwait(false);
             try
@@ -126,10 +172,14 @@ namespace DotCraft.Editor.AppBinding
                     handoff.RequestToken,
                     grantId,
                     grantedScopes,
-                    await GetAccountLabelAsync(ct).ConfigureAwait(false),
+                    snapshot.AccountLabel,
                     ct).ConfigureAwait(false);
 
-                var attachment = UnityAppBindingToolCatalogAdapter.Build(DotCraftSettings.Instance, grantedScopes);
+                var attachment = UnityAppBindingToolCatalogAdapter.Build(
+                    snapshot.RuntimeTools,
+                    snapshot.EnableBuiltinUnityTools,
+                    snapshot.EnabledPluginToolIds,
+                    grantedScopes);
                 foreach (var diagnostic in attachment.Diagnostics.Take(8))
                     Debug.LogWarning($"[DotCraft] App Binding runtime tool discovery: {diagnostic}");
 
@@ -261,19 +311,20 @@ namespace DotCraft.Editor.AppBinding
             }
         }
 
-        private static Task<string> GetAccountLabelAsync(CancellationToken ct)
-        {
-            ct.ThrowIfCancellationRequested();
-            return MainThreadDispatcher.RunOnMainThread(
-                () => BuildAccountLabel(Application.productName),
-                timeoutMs: Math.Max(5000, DotCraftSettings.Instance.RequestTimeoutSeconds * 1000));
-        }
-
         private static string BuildAccountLabel(string project)
         {
             if (string.IsNullOrWhiteSpace(project))
                 project = "Unity Editor";
             return project;
+        }
+
+        internal sealed class HandoffSnapshot
+        {
+            public string AccountLabel { get; set; }
+            public bool EnableBuiltinUnityTools { get; set; }
+            public string[] EnabledPluginToolIds { get; set; } = Array.Empty<string>();
+            public int RequestTimeoutSeconds { get; set; }
+            public RuntimeToolCatalogSnapshot RuntimeTools { get; set; }
         }
 
         internal sealed class ActiveBinding

@@ -1,3 +1,11 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Linq;
 using System.Reflection;
 using DotCraft.Editor.AppBinding;
@@ -5,6 +13,8 @@ using DotCraft.Editor.Protocol;
 using DotCraft.Editor.RuntimeTools;
 using DotCraft.Editor.Settings;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 namespace DotCraft.Editor.Tests
@@ -22,6 +32,189 @@ namespace DotCraft.Editor.Tests
             Assert.That(handoff.RequestId, Is.EqualTo("bind_req_1"));
             Assert.That(handoff.RequestToken, Is.EqualTo("tok+1"));
             Assert.That(handoff.Endpoint, Is.EqualTo("ws://127.0.0.1:1234/appserver?token=abc"));
+        }
+
+        [Test]
+        public void LocalServerRespondsToHandoffWithoutEditorUpdate()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+
+            server.Start();
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+
+            var response = WaitForResult(SendGetAsync(
+                port,
+                "/dotcraft/bind?app=com.dotharness.dotcraft-unity&request=bind_req_1&token=tok&endpoint=ws%3A%2F%2F127.0.0.1%3A1234%2Fappserver"));
+
+            Assert.That(response, Does.Contain("HTTP/1.1 200 OK"));
+            Assert.That(response, Does.Contain("ok"));
+        }
+
+        [Test]
+        public void LocalServerStopReleasesPort()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+
+            server.Start();
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            server.Stop();
+
+            Assert.That(server.IsRunning, Is.False);
+            AssertCanBind(port);
+        }
+
+        [Test]
+        public void LocalServerRestartDoesNotLeavePortOccupied()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+
+            server.Start();
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            server.Restart();
+
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            server.Stop();
+            AssertCanBind(port);
+        }
+
+        [Test]
+        public void LocalServerRestartClosesAcceptedIdleClient()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+            using var client = new TcpClient();
+
+            server.Start();
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            client.Connect(IPAddress.Loopback, port);
+            AssertUntil(() => server.ActiveClientCountForTests == 1);
+
+            server.Restart();
+
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            var response = WaitForResult(SendGetAsync(
+                port,
+                "/dotcraft/bind?app=com.dotharness.dotcraft-unity&request=bind_req_1&token=tok&endpoint=ws%3A%2F%2F127.0.0.1%3A1234%2Fappserver"));
+            Assert.That(response, Does.Contain("HTTP/1.1 200 OK"));
+            AssertCanBindAfterStop(server, port);
+        }
+
+        [Test]
+        public void LocalServerRestartAfterCompletedHttpClientDoesNotLeavePortOccupied()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+
+            server.Start();
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            var firstResponse = WaitForResult(SendGetAsync(
+                port,
+                "/dotcraft/bind?app=com.dotharness.dotcraft-unity&request=bind_req_1&token=tok&endpoint=ws%3A%2F%2F127.0.0.1%3A1234%2Fappserver"));
+            Assert.That(firstResponse, Does.Contain("HTTP/1.1 200 OK"));
+
+            server.Restart();
+
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            var secondResponse = WaitForResult(SendGetAsync(
+                port,
+                "/dotcraft/bind?app=com.dotharness.dotcraft-unity&request=bind_req_2&token=tok&endpoint=ws%3A%2F%2F127.0.0.1%3A1234%2Fappserver"));
+            Assert.That(secondResponse, Does.Contain("HTTP/1.1 200 OK"));
+            AssertCanBindAfterStop(server, port);
+        }
+
+        [Test]
+        public void LocalServerStopClosesAcceptedIdleClient()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+            using var client = new TcpClient();
+
+            server.Start();
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            client.Connect(IPAddress.Loopback, port);
+            AssertUntil(() => server.ActiveClientCountForTests == 1);
+
+            server.Stop();
+
+            Assert.That(server.IsRunning, Is.False);
+            AssertCanBind(port);
+        }
+
+        [Test]
+        public void LocalServerStartStopsStaleServerWithMatchingToken()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var stale = CreateNoopLocalServer(port);
+            using var replacement = CreateNoopLocalServer(port);
+
+            stale.Start();
+            Assert.That(stale.IsRunning, Is.True, stale.LastError);
+
+            replacement.Start();
+
+            Assert.That(replacement.IsRunning, Is.True, replacement.LastError);
+            Assert.That(stale.IsRunning, Is.False);
+            AssertCanBindAfterStop(replacement, port);
+        }
+
+        [Test]
+        public void LocalServerReportsPortOccupiedWithoutMatchingToken()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+            var blocker = new TcpListener(IPAddress.Loopback, port)
+            {
+                ExclusiveAddressUse = true
+            };
+            try
+            {
+                blocker.Start();
+                LogAssert.Expect(LogType.Error, $"[DotCraft] App Binding local server failed to start: Port {port} is already in use. Another Unity Editor or local process may already own the DotCraft App Binding server.");
+
+                server.Start();
+
+                Assert.That(server.IsRunning, Is.False);
+                Assert.That(server.LastError, Does.Contain($"Port {port} is already in use"));
+            }
+            finally
+            {
+                blocker.Stop();
+            }
+        }
+
+        [Test]
+        public void LocalServerAdminStatusAndShutdownReleasePort()
+        {
+            var port = GetFreeLoopbackPort();
+            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            using var server = CreateNoopLocalServer(port);
+
+            server.Start();
+            Assert.That(server.IsRunning, Is.True, server.LastError);
+            var token = UnityAppBindingLocalServer.GetShutdownTokenForTests(port);
+            Assert.That(token, Is.Not.Empty);
+
+            var adminQuery = $"pid={Process.GetCurrentProcess().Id}&token={Uri.EscapeDataString(token)}";
+            var status = WaitForResult(SendGetAsync(port, $"/dotcraft/admin/status?{adminQuery}"));
+            Assert.That(status, Does.Contain("HTTP/1.1 200 OK"));
+            Assert.That(status, Does.Contain($"running=True, port={port}"));
+            Assert.That(status, Does.Contain("handlers="));
+            Assert.That(status, Does.Contain("pumpAlive=True"));
+
+            var shutdown = WaitForResult(SendGetAsync(port, $"/dotcraft/admin/shutdown?{adminQuery}"));
+            Assert.That(shutdown, Does.Contain("HTTP/1.1 200 OK"));
+            AssertUntil(() => !server.IsRunning && CanBind(port));
         }
 
         [Test]
@@ -77,6 +270,27 @@ namespace DotCraft.Editor.Tests
 
             Assert.That(attachment.Tools, Is.Empty);
             Assert.That(attachment.ToolCatalog, Is.Empty);
+        }
+
+        [Test]
+        public void ToolCatalogAdapterUsesSnapshotEnablement()
+        {
+            var readTool = FindTool(nameof(AppBindingMetadataTool));
+            var snapshot = RuntimeToolCatalog.Discover();
+
+            var enabled = UnityAppBindingToolCatalogAdapter.Build(
+                snapshot,
+                enableBuiltinTools: false,
+                enabledPluginToolIds: new[] { readTool.Id },
+                grantedScopes: new[] { "unity.read" });
+            var disabled = UnityAppBindingToolCatalogAdapter.Build(
+                snapshot,
+                enableBuiltinTools: false,
+                enabledPluginToolIds: Array.Empty<string>(),
+                grantedScopes: new[] { "unity.read" });
+
+            Assert.That(enabled.Tools.Select(tool => tool.Name), Does.Contain("test_appbinding_metadata_tool"));
+            Assert.That(disabled.Tools, Is.Empty);
         }
 
         [Test]
@@ -165,6 +379,115 @@ namespace DotCraft.Editor.Tests
         {
             var method = typeof(AppBindingTests).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
             return RuntimeToolCatalog.Discover().Tools.Single(tool => tool.Method == method);
+        }
+
+        private static UnityAppBindingLocalServer CreateNoopLocalServer(int port)
+        {
+            return new UnityAppBindingLocalServer(
+                (_, ct) =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return Task.FromResult("ok");
+                },
+                port);
+        }
+
+        private static int GetFreeLoopbackPort()
+        {
+            var listener = CreateRestartCompatibleListener(0);
+            try
+            {
+                listener.Start();
+                return ((IPEndPoint)listener.LocalEndpoint).Port;
+            }
+            finally
+            {
+                listener.Stop();
+            }
+        }
+
+        private static void AssertCanBindAfterStop(UnityAppBindingLocalServer server, int port)
+        {
+            server.Stop();
+            AssertCanBind(port);
+        }
+
+        private static void AssertCanBind(int port)
+        {
+            TcpListener listener = null;
+            try
+            {
+                listener = CreateRestartCompatibleListener(port);
+                listener.Start();
+            }
+            finally
+            {
+                listener?.Stop();
+            }
+        }
+
+        private static bool CanBind(int port)
+        {
+            TcpListener listener = null;
+            try
+            {
+                listener = CreateRestartCompatibleListener(port);
+                listener.Start();
+                return true;
+            }
+            catch (SocketException)
+            {
+                return false;
+            }
+            finally
+            {
+                listener?.Stop();
+            }
+        }
+
+        private static TcpListener CreateRestartCompatibleListener(int port)
+        {
+            var listener = new TcpListener(IPAddress.Loopback, port);
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                listener.ExclusiveAddressUse = true;
+            return listener;
+        }
+
+        private static async Task<string> SendGetAsync(int port, string target)
+        {
+            using var client = new TcpClient();
+            await Task.Factory.FromAsync(
+                client.BeginConnect(IPAddress.Loopback, port, null, null),
+                client.EndConnect);
+
+            using var stream = client.GetStream();
+            var request =
+                $"GET {target} HTTP/1.1\r\n" +
+                $"Host: 127.0.0.1:{port}\r\n" +
+                "Connection: close\r\n\r\n";
+            var bytes = Encoding.ASCII.GetBytes(request);
+            await stream.WriteAsync(bytes, 0, bytes.Length);
+
+            using var reader = new StreamReader(stream, Encoding.ASCII, false, 4096, leaveOpen: true);
+            return await reader.ReadToEndAsync();
+        }
+
+        private static T WaitForResult<T>(Task<T> task, int timeoutMilliseconds = 3000)
+        {
+            if (!task.Wait(timeoutMilliseconds))
+                Assert.Fail($"Timed out waiting for task after {timeoutMilliseconds} ms.");
+            return task.GetAwaiter().GetResult();
+        }
+
+        private static void AssertUntil(Func<bool> condition, int timeoutMilliseconds = 3000)
+        {
+            var timeout = Stopwatch.StartNew();
+            while (!condition())
+            {
+                if (timeout.ElapsedMilliseconds > timeoutMilliseconds)
+                    Assert.Fail($"Timed out waiting for condition after {timeoutMilliseconds} ms.");
+                Thread.Sleep(25);
+            }
         }
 
         [AgentTool(

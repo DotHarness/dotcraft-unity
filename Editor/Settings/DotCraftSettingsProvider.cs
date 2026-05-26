@@ -320,10 +320,15 @@ namespace DotCraft.Editor.Settings
 
                 EditorGUI.indentLevel++;
 
-                _settings.EnableBuiltinUnityTools = EditorGUILayout.Toggle(
+                var enableBuiltinTools = EditorGUILayout.Toggle(
                     new GUIContent("Enable Builtin Tools",
                         "Declare built-in read-only Unity runtime tools and enable their _unity/* handlers. DotCraft connection only."),
                     _settings.EnableBuiltinUnityTools);
+                if (enableBuiltinTools != _settings.EnableBuiltinUnityTools)
+                {
+                    _settings.EnableBuiltinUnityTools = enableBuiltinTools;
+                    UnityAppBindingService.Instance.RefreshHandoffSnapshot();
+                }
 
                 EditorGUILayout.Space(6);
                 EditorGUILayout.LabelField("Plugin Tools (DotCraft only)", EditorStyles.boldLabel);
@@ -337,7 +342,10 @@ namespace DotCraft.Editor.Settings
                 {
                     GUILayout.Space(EditorGUI.indentLevel * 15);
                     if (GUILayout.Button("Refresh Plugin Tools", GUILayout.Width(150)))
+                    {
                         RefreshRuntimeToolCatalog();
+                        UnityAppBindingService.Instance.RefreshHandoffSnapshot();
+                    }
                 }
 
                 var pluginTools = _runtimeToolCatalog.Tools
@@ -369,6 +377,7 @@ namespace DotCraft.Editor.Settings
                                     _settings.DynamicToolEnabledById[tool.Id] = true;
                                 else
                                     _settings.DynamicToolEnabledById.Remove(tool.Id);
+                                UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                             }
 
                             if (!string.IsNullOrWhiteSpace(tool.Descriptor.Description))
@@ -446,8 +455,7 @@ namespace DotCraft.Editor.Settings
                     if (GUILayout.Button("Restart Server", GUILayout.Width(130)))
                     {
                         _settings.EnableAppBindingLocalServer = true;
-                        service.StopLocalServer();
-                        service.StartLocalServer();
+                        service.RestartLocalServer();
                     }
                 }
 
