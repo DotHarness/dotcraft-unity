@@ -38,6 +38,8 @@ namespace DotCraft.Editor.AppBinding
 
         public IReadOnlyCollection<ActiveBinding> ActiveBindings => _activeBindings.Values.ToArray();
 
+        internal event Action ActiveBindingsChanged;
+
         public void ApplySettings()
         {
             if (DotCraftSettings.Instance.EnableAppBindingLocalServer)
@@ -93,9 +95,12 @@ namespace DotCraft.Editor.AppBinding
         public void Shutdown()
         {
             StopLocalServer();
+            var hadBindings = !_activeBindings.IsEmpty;
             foreach (var binding in _activeBindings.Values)
-                binding.Client.Dispose();
+                binding.Client?.Dispose();
             _activeBindings.Clear();
+            if (hadBindings)
+                NotifyActiveBindingsChanged();
         }
 
         private async Task<string> HandleHandoffAsync(UnityAppBindingHandoff handoff, CancellationToken ct)
@@ -224,9 +229,12 @@ namespace DotCraft.Editor.AppBinding
             foreach (var existing in _activeBindings.Values.Where(item => item.ThreadId == binding.ThreadId).ToArray())
             {
                 if (_activeBindings.TryRemove(existing.BindingId, out var removed))
-                    removed.Client.Dispose();
+                {
+                    removed.Client?.Dispose();
+                }
             }
             _activeBindings[binding.BindingId] = binding;
+            NotifyActiveBindingsChanged();
         }
 
         private bool RemoveActiveBinding(string bindingId, string reason)
@@ -237,9 +245,15 @@ namespace DotCraft.Editor.AppBinding
             if (!_activeBindings.TryRemove(bindingId, out var removed))
                 return false;
 
-            removed.Client.Dispose();
+            removed.Client?.Dispose();
             Debug.Log($"[DotCraft] App Binding removed for thread '{removed.ThreadId}': {reason}");
+            NotifyActiveBindingsChanged();
             return true;
+        }
+
+        private void NotifyActiveBindingsChanged()
+        {
+            MainThreadDispatcher.RunOrEnqueue(() => ActiveBindingsChanged?.Invoke());
         }
 
         private Task HandleAppServerNotificationAsync(

@@ -339,6 +339,35 @@ namespace DotCraft.Editor.Tests
         }
 
         [Test]
+        public void ActiveBindingsChangedFiresWhenBindingRemoved()
+        {
+            var service = UnityAppBindingService.Instance;
+            var bindings = GetActiveBindingsForTests(service);
+            var bindingId = $"test_binding_{Guid.NewGuid():N}";
+            var fired = 0;
+            void OnChanged() => fired++;
+            service.ActiveBindingsChanged += OnChanged;
+            try
+            {
+                bindings[bindingId] = new UnityAppBindingService.ActiveBinding
+                {
+                    BindingId = bindingId,
+                    ThreadId = "test_thread",
+                    ToolCount = 1,
+                    ConnectedAt = DateTimeOffset.UtcNow
+                };
+
+                Assert.That(service.RemoveActiveBinding(bindingId), Is.True);
+                Assert.That(fired, Is.EqualTo(1));
+            }
+            finally
+            {
+                service.ActiveBindingsChanged -= OnChanged;
+                bindings.TryRemove(bindingId, out _);
+            }
+        }
+
+        [Test]
         public void StatusBarRightOffsetStacksAfterGenericAbsolutePeers()
         {
             var root = new VisualElement();
@@ -375,10 +404,65 @@ namespace DotCraft.Editor.Tests
             Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, self), Is.EqualTo(150));
         }
 
+        [Test]
+        public void StatusBarRightOffsetIgnoresNonStatusBarPeers()
+        {
+            var root = new VisualElement();
+            var hidden = CreateStatusBarPeer(104, 42);
+            hidden.style.display = DisplayStyle.None;
+            var tall = CreateStatusBarPeer(104, 42, height: 40);
+            var wide = CreateStatusBarPeer(104, 200);
+            var lower = CreateStatusBarPeer(104, 42, top: 6);
+            var relative = CreateStatusBarPeer(104, 42);
+            relative.style.position = Position.Relative;
+            root.Add(hidden);
+            root.Add(tall);
+            root.Add(wide);
+            root.Add(lower);
+            root.Add(relative);
+
+            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, null), Is.EqualTo(104));
+        }
+
+        [Test]
+        public void StatusBarRightOffsetClampsToRootWidth()
+        {
+            var root = new VisualElement();
+            root.style.width = 120;
+            root.Add(CreateStatusBarPeer(104, 80));
+
+            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, null), Is.EqualTo(90));
+        }
+
         private static RuntimeToolDefinition FindTool(string methodName)
         {
             var method = typeof(AppBindingTests).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
             return RuntimeToolCatalog.Discover().Tools.Single(tool => tool.Method == method);
+        }
+
+        private static VisualElement CreateStatusBarPeer(
+            float right,
+            float width,
+            float top = 0,
+            float height = 19)
+        {
+            var peer = new VisualElement();
+            peer.style.position = Position.Absolute;
+            peer.style.right = right;
+            peer.style.top = top;
+            peer.style.width = width;
+            peer.style.height = height;
+            return peer;
+        }
+
+        private static System.Collections.Concurrent.ConcurrentDictionary<string, UnityAppBindingService.ActiveBinding>
+            GetActiveBindingsForTests(UnityAppBindingService service)
+        {
+            var field = typeof(UnityAppBindingService).GetField(
+                "_activeBindings",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            return (System.Collections.Concurrent.ConcurrentDictionary<string, UnityAppBindingService.ActiveBinding>)
+                field.GetValue(service);
         }
 
         private static UnityAppBindingLocalServer CreateNoopLocalServer(int port)
