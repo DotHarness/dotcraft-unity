@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,9 +51,10 @@ namespace DotCraft.Editor.Connection
 
             _errorOutput.Clear();
 
+            ProcessStartInfo startInfo = null;
             try
             {
-                var startInfo = await BuildProcessStartInfoAsync(settings, ct);
+                startInfo = await BuildProcessStartInfoAsync(settings, ct);
                 _process = Process.Start(startInfo);
 
                 if (_process == null)
@@ -80,7 +82,7 @@ namespace DotCraft.Editor.Connection
             }
             catch (Exception ex)
             {
-                Debug.LogError($"[DotCraft] Failed to start process: {ex.Message}");
+                Debug.LogError(FormatStartFailureMessage(ex, startInfo, settings));
                 return false;
             }
         }
@@ -237,16 +239,24 @@ namespace DotCraft.Editor.Connection
             IReadOnlyDictionary<string, string> environmentVariables,
             bool redirectStreams)
         {
+#if UNITY_EDITOR_OSX
+            // macOS: Use zsh -cl to properly load PATH.
+            var fileName = "/bin/zsh";
+            var processArguments = $"-cl {QuoteShellArgument($"{QuoteCommandLineArgument(command)} {arguments}")}";
+#else
+            var launchCommand = ProcessCommandResolver.Resolve(
+                command,
+                arguments,
+                workingDirectory,
+                environmentVariables);
+            var fileName = launchCommand.FileName;
+            var processArguments = launchCommand.Arguments;
+#endif
+
             var startInfo = new ProcessStartInfo
             {
-#if UNITY_EDITOR_OSX
-                // macOS: Use zsh -cl to properly load PATH
-                FileName = "/bin/zsh",
-                Arguments = $"-cl {QuoteShellArgument($"{QuoteCommandLineArgument(command)} {arguments}")}",
-#else
-                FileName = command,
-                Arguments = arguments,
-#endif
+                FileName = fileName,
+                Arguments = processArguments,
                 RedirectStandardInput = redirectStreams,
                 RedirectStandardOutput = redirectStreams,
                 RedirectStandardError = redirectStreams,
@@ -281,15 +291,91 @@ namespace DotCraft.Editor.Connection
             if (string.IsNullOrEmpty(value))
                 return "\"\"";
 
-            if (value.IndexOfAny(new[] { ' ', '\t', '\n', '\r', '"' }) < 0)
+            if (value.IndexOfAny(new[] { ' ', '\t', '\n', '\r', '"', '%', '&', '|', '<', '>', '^' }) < 0)
                 return value;
 
-            return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+            var builder = new StringBuilder();
+            builder.Append('"');
+
+            var backslashCount = 0;
+            foreach (var ch in value)
+            {
+                if (ch == '\\')
+                {
+                    backslashCount++;
+                    continue;
+                }
+
+                if (ch == '"')
+                {
+                    builder.Append('\\', backslashCount * 2 + 1);
+                    builder.Append('"');
+                    backslashCount = 0;
+                    continue;
+                }
+
+                builder.Append('\\', backslashCount);
+                backslashCount = 0;
+                builder.Append(ch);
+            }
+
+            builder.Append('\\', backslashCount * 2);
+            builder.Append('"');
+            return builder.ToString();
         }
 
         private static string QuoteShellArgument(string value)
         {
             return "'" + value.Replace("'", "'\"'\"'") + "'";
+        }
+
+        private static string FormatStartFailureMessage(
+            Exception exception,
+            ProcessStartInfo startInfo,
+            DotCraftSettings settings)
+        {
+            var builder = new StringBuilder();
+            builder.Append("[DotCraft] Failed to start process: ");
+            builder.Append(RedactSensitiveText(exception.Message));
+
+            if (startInfo != null)
+            {
+                builder.AppendLine();
+                builder.Append("OriginalCommand='");
+                builder.Append(RedactSensitiveText(settings?.DotCraftCommand ?? ""));
+                builder.Append("', ApplicationName='");
+                builder.Append(RedactSensitiveText(startInfo.FileName ?? ""));
+                builder.Append("', Arguments='");
+                builder.Append(RedactSensitiveText(startInfo.Arguments ?? ""));
+                builder.Append("', WorkingDirectory='");
+                builder.Append(startInfo.WorkingDirectory ?? "");
+                builder.Append("'.");
+            }
+
+#if UNITY_EDITOR_WIN
+            builder.AppendLine();
+            builder.Append(
+                "Hint: On Windows, if Unity cannot resolve the command from PATH, " +
+                "set Project Settings > DotCraft > DotCraft Command to the full path of dotcraft.exe.");
+#endif
+
+            return builder.ToString();
+        }
+
+        private static string RedactSensitiveText(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return value;
+
+            var redacted = Regex.Replace(
+                value,
+                @"(?i)([?&]token=)[^'""\s&]+",
+                "$1<redacted>");
+
+            return Regex.Replace(
+                redacted,
+                @"(?i)(--token\s+)(?:""[^""]*""|'[^']*'|\S+)",
+                "$1<redacted>");
         }
 
         private async Task ReadErrorOutputAsync(CancellationToken ct)

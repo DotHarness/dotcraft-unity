@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using DotCraft.Editor.Connection;
 using DotCraft.Editor.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -307,6 +308,20 @@ namespace DotCraft.Editor.Settings
                     ? "DotCraft command is not configured."
                     : "ACP command is not configured.");
             }
+#if UNITY_EDITOR_WIN
+            else if (!ProcessCommandResolver.IsWindowsCommandResolvable(
+                         DotCraftCommand,
+                         EffectiveWorkspacePath,
+                         EnvironmentVariables))
+            {
+                var commandLabel = AgentConnection == AgentConnectionDotCraft ? "DotCraft command" : "ACP command";
+                var executableLabel = AgentConnection == AgentConnectionDotCraft ? "dotcraft.exe" : "the ACP executable";
+                errors.Add(
+                    $"{commandLabel} \"{ProcessCommandResolver.NormalizeCommand(DotCraftCommand)}\" could not be resolved from Unity's PATH. " +
+                    $"Set Project Settings > DotCraft > {commandLabel} to the full path of {executableLabel}, " +
+                    "or start Unity from an environment where the command is on PATH.");
+            }
+#endif
 
             if (AgentConnection == AgentConnectionCustomAcp && string.IsNullOrWhiteSpace(DotCraftArguments))
             {

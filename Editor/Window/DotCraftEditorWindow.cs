@@ -141,14 +141,14 @@ namespace DotCraft.Editor.Window
                 var sessionId = DomainReloadHandler.GetSavedSessionId();
                 if (!string.IsNullOrEmpty(sessionId))
                 {
-                    ConnectAsync(true, sessionId).Forget();
+                    ConnectAsync(true, sessionId, fallbackToNewSessionOnReconnectFailure: true).Forget();
                 }
             }
         }
 
         private void HandleSessionRestore(string sessionId)
         {
-            ConnectAsync(true, sessionId).Forget();
+            ConnectAsync(true, sessionId, fallbackToNewSessionOnReconnectFailure: true).Forget();
         }
 
         private void LoadStyles()
@@ -670,7 +670,10 @@ namespace DotCraft.Editor.Window
             _client.OnConfigOptionsUpdate += HandleConfigOptionsUpdate;
         }
 
-        private async Task ConnectAsync(bool reconnect = false, string sessionId = null)
+        private async Task ConnectAsync(
+            bool reconnect = false,
+            string sessionId = null,
+            bool fallbackToNewSessionOnReconnectFailure = false)
         {
             RefreshWorkspaceBanner();
 
@@ -687,7 +690,9 @@ namespace DotCraft.Editor.Window
             bool success;
             if (reconnect && !string.IsNullOrEmpty(sessionId))
             {
-                success = await _client.ReconnectAsync(sessionId);
+                success = await _client.ReconnectAsync(
+                    sessionId,
+                    fallbackToNewSessionOnReconnectFailure);
             }
             else
             {

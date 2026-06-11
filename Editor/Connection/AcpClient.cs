@@ -208,7 +208,10 @@ namespace DotCraft.Editor.Connection
         /// <summary>
         /// Reconnects and loads an existing session.
         /// </summary>
-        public async Task<bool> ReconnectAsync(string sessionId, CancellationToken ct = default)
+        public async Task<bool> ReconnectAsync(
+            string sessionId,
+            bool fallbackToNewSessionOnLoadFailure = false,
+            CancellationToken ct = default)
         {
             if (_isConnected)
             {
@@ -244,29 +247,37 @@ namespace DotCraft.Editor.Connection
                 AgentCapabilities = initResult.AgentCapabilities;
                 AgentInfo = initResult.AgentInfo;
 
-                // Load existing session
+                // Load existing session when possible. During automatic restore, fall
+                // back to a new session if loading the saved session fails (for example,
+                // stale thread id or incompatible persisted configuration). Manual
+                // session switching keeps surfacing load errors to the caller.
                 if (!string.IsNullOrEmpty(sessionId) && AgentCapabilities.LoadSession)
                 {
-                    var loadResult = await LoadSessionAsync(sessionId, ct);
-                    if (loadResult == null)
+                    try
                     {
-                        await DisconnectAsync();
-                        return false;
+                        var loadResult = await LoadSessionAsync(sessionId, ct);
+                        if (loadResult == null)
+                        {
+                            await DisconnectAsync();
+                            return false;
+                        }
+                        _sessionId = loadResult.SessionId;
+                        ConfigOptions = loadResult.ConfigOptions ?? new List<ConfigOption>();
                     }
-                    _sessionId = loadResult.SessionId;
-                    ConfigOptions = loadResult.ConfigOptions ?? new List<ConfigOption>();
+                    catch (AcpTransportException ex) when (fallbackToNewSessionOnLoadFailure || IsMissingSessionError(ex))
+                    {
+                        Debug.LogWarning(
+                            $"[DotCraft] Saved session '{sessionId}' could not be resumed; creating a new session instead. {ex.Message}");
+
+                        if (!await CreateNewSessionAfterReconnectAsync(ct))
+                            return false;
+                    }
                 }
                 else
                 {
-                    // Create new session if load not supported
-                    var sessionResult = await NewSessionAsync(ct);
-                    if (sessionResult == null)
-                    {
-                        await DisconnectAsync();
+                    // Create new session if load not supported.
+                    if (!await CreateNewSessionAfterReconnectAsync(ct))
                         return false;
-                    }
-                    _sessionId = sessionResult.SessionId;
-                    ConfigOptions = sessionResult.ConfigOptions ?? new List<ConfigOption>();
                 }
 
                 _isConnected = true;
@@ -285,6 +296,27 @@ namespace DotCraft.Editor.Connection
                 await DisconnectAsync();
                 return false;
             }
+        }
+
+        private async Task<bool> CreateNewSessionAfterReconnectAsync(CancellationToken ct)
+        {
+            var sessionResult = await NewSessionAsync(ct);
+            if (sessionResult == null)
+            {
+                await DisconnectAsync();
+                return false;
+            }
+
+            _sessionId = sessionResult.SessionId;
+            ConfigOptions = sessionResult.ConfigOptions ?? new List<ConfigOption>();
+            return true;
+        }
+
+        private static bool IsMissingSessionError(AcpTransportException exception)
+        {
+            var message = exception?.Message ?? string.Empty;
+            return message.IndexOf("Thread not found", StringComparison.OrdinalIgnoreCase) >= 0
+                   || message.IndexOf("Session not found", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
