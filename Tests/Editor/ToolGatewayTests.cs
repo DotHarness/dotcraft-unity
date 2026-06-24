@@ -1,11 +1,16 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ComponentDescriptionAttribute = System.ComponentModel.DescriptionAttribute;
 using DotCraft.Editor.AppBinding;
+using DotCraft.Editor.RuntimeTools;
+using DotCraft.Editor.Settings;
 using DotCraft.Editor.ToolGateway;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -17,15 +22,96 @@ namespace DotCraft.Editor.Tests
 {
     public sealed class ToolGatewayTests
     {
-        [Test]
-        public void GatewayListsOnlyCanonicalExecuteCSharp()
-        {
-            var tools = UnityToolGateway.Instance.ListTools();
+        private const string ExecuteCSharpToolName = "unity_execute_csharp";
 
-            Assert.That(tools.Count, Is.EqualTo(1));
-            Assert.That(tools[0].Name, Is.EqualTo("ExecuteCSharp"));
-            Assert.That(tools[0].InputSchema["properties"]?["code"], Is.Not.Null);
-            Assert.That(tools[0].InputSchema["properties"]?["mode"]?["enum"], Is.Not.Null);
+        private static readonly string[] BuiltinToolNames =
+        {
+            ExecuteCSharpToolName,
+            "unity_scene_query",
+            "unity_get_selection",
+            "unity_get_console_logs",
+            "unity_get_project_info"
+        };
+
+        [Test]
+        public void GatewayListsEnabledRuntimeToolsByDefault()
+        {
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var tools = UnityToolGateway.Instance.ListTools();
+                var names = tools.Select(tool => tool.Name).ToArray();
+
+                foreach (var toolName in BuiltinToolNames)
+                    Assert.That(names, Does.Contain(toolName));
+
+                Assert.That(names, Does.Not.Contain("ExecuteCSharp"));
+                Assert.That(names, Does.Not.Contain("execute_csharp"));
+                Assert.That(tools.Single(tool => tool.Name == ExecuteCSharpToolName)
+                    .InputSchema["properties"]?["code"], Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public void GatewayRespectsBuiltinToolSetting()
+        {
+            WithGatewaySettings(enableBuiltins: false, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var names = UnityToolGateway.Instance.ListTools()
+                    .Select(tool => tool.Name)
+                    .ToArray();
+
+                foreach (var toolName in BuiltinToolNames)
+                    Assert.That(names, Does.Not.Contain(toolName));
+            });
+        }
+
+        [Test]
+        public void GatewayExposesEnabledPluginToolsOnly()
+        {
+            var enabled = FindPluginTool("test_gateway_plugin_echo");
+            var disabled = FindPluginTool("test_gateway_plugin_disabled");
+            var conflictingPlugin = FindPluginTool(ExecuteCSharpToolName);
+
+            WithGatewaySettings(
+                enableBuiltins: false,
+                enabledPluginToolIds: new[] { enabled.Id, conflictingPlugin.Id },
+                () =>
+            {
+                var names = UnityToolGateway.Instance.ListTools()
+                    .Select(tool => tool.Name)
+                    .ToArray();
+
+                Assert.That(names, Does.Contain(enabled.Descriptor.Name));
+                Assert.That(names, Does.Not.Contain(disabled.Descriptor.Name));
+                Assert.That(names, Does.Not.Contain(ExecuteCSharpToolName));
+            });
+        }
+
+        [Test]
+        public void GatewayKeepsExecuteCSharpReservedWhenPluginUsesSameName()
+        {
+            var conflictingPlugin = FindPluginTool(ExecuteCSharpToolName);
+
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: new[] { conflictingPlugin.Id }, () =>
+            {
+                var names = UnityToolGateway.Instance.ListTools()
+                    .Select(tool => tool.Name)
+                    .ToArray();
+
+                Assert.That(names.Count(name => name == ExecuteCSharpToolName), Is.EqualTo(1));
+
+                var result = CallMcpTool(
+                    ExecuteCSharpToolName,
+                    new JObject
+                    {
+                        ["code"] = "return 21 + 21;",
+                        ["mode"] = "editor"
+                    },
+                    timeoutMilliseconds: 10000);
+
+                Assert.That(result?["isError"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["returnValue"]?.Value<int>(), Is.EqualTo(42));
+            });
         }
 
         [Test]
@@ -41,97 +127,103 @@ namespace DotCraft.Editor.Tests
             Assert.That(response.Status, Is.EqualTo(200));
             Assert.That(root["result"]?["capabilities"]?["tools"], Is.Not.Null);
             Assert.That(root["result"]?["serverInfo"]?["name"]?.Value<string>(), Is.EqualTo("dotcraft-unity"));
+            Assert.That(root["result"]?["instructions"]?.Value<string>(), Does.Contain(ExecuteCSharpToolName));
         }
 
         [Test]
-        public void McpToolsListExposesOnlyExecuteCSharp()
+        public void McpToolsListExposesEnabledRuntimeTools()
         {
-            var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
-                "POST",
-                "/dotcraft/mcp",
-                @"{""jsonrpc"":""2.0"",""id"":2,""method"":""tools/list"",""params"":{}}",
-                CancellationToken.None));
-            var tools = (JArray)JObject.Parse(response.Body)["result"]?["tools"];
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
+                    "POST",
+                    "/dotcraft/mcp",
+                    @"{""jsonrpc"":""2.0"",""id"":2,""method"":""tools/list"",""params"":{}}",
+                    CancellationToken.None));
+                var tools = (JArray)JObject.Parse(response.Body)["result"]?["tools"];
+                var names = tools?.Select(tool => tool["name"]?.Value<string>()).ToArray();
 
-            Assert.That(tools, Is.Not.Null);
-            Assert.That(tools, Has.Count.EqualTo(1));
-            Assert.That(tools[0]?["name"]?.Value<string>(), Is.EqualTo("ExecuteCSharp"));
-            Assert.That(tools[0]?["inputSchema"]?["required"]?[0]?.Value<string>(), Is.EqualTo("code"));
+                Assert.That(tools, Is.Not.Null);
+                foreach (var toolName in BuiltinToolNames)
+                    Assert.That(names, Does.Contain(toolName));
+
+                Assert.That(names, Does.Not.Contain("ExecuteCSharp"));
+                Assert.That(names, Does.Not.Contain("execute_csharp"));
+                Assert.That(tools.Single(tool => tool["name"]?.Value<string>() == ExecuteCSharpToolName)
+                    ["inputSchema"]?["required"]?[0]?.Value<string>(), Is.EqualTo("code"));
+            });
         }
 
         [Test]
         public void McpToolsCallRunsExecuteCSharp()
         {
-            var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
-                "POST",
-                "/dotcraft/mcp",
-                @"{""jsonrpc"":""2.0"",""id"":3,""method"":""tools/call"",""params"":{""name"":""ExecuteCSharp"",""arguments"":{""code"":""return 21 + 21;"",""mode"":""editor""}}}",
-                CancellationToken.None),
-                timeoutMilliseconds: 10000);
-            var result = JObject.Parse(response.Body)["result"];
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var result = CallMcpTool(
+                    ExecuteCSharpToolName,
+                    new JObject
+                    {
+                        ["code"] = "return 21 + 21;",
+                        ["mode"] = "editor"
+                    },
+                    timeoutMilliseconds: 10000);
 
-            Assert.That(result?["isError"]?.Value<bool>(), Is.False);
-            Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.True);
-            Assert.That(result?["structuredContent"]?["returnValue"]?.Value<int>(), Is.EqualTo(42));
+                Assert.That(result?["isError"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.True);
+                Assert.That(result?["structuredContent"]?["returnValue"]?.Value<int>(), Is.EqualTo(42));
+            });
         }
 
         [Test]
         public void McpToolsCallCanCreateGameObjectInEditorMode()
         {
             var name = $"DotCraft Gateway Test {Guid.NewGuid():N}";
-            var body = new JObject
+
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
-                ["jsonrpc"] = "2.0",
-                ["id"] = 33,
-                ["method"] = "tools/call",
-                ["params"] = new JObject
+                try
                 {
-                    ["name"] = "ExecuteCSharp",
-                    ["arguments"] = new JObject
-                    {
-                        ["code"] = $"var go = new GameObject({JToken.FromObject(name).ToString(Formatting.None)}); return go.name;",
-                        ["mode"] = "editor"
-                    }
+                    var result = CallMcpTool(
+                        ExecuteCSharpToolName,
+                        new JObject
+                        {
+                            ["code"] = $"var go = new GameObject({JToken.FromObject(name).ToString(Formatting.None)}); return go.name;",
+                            ["mode"] = "editor"
+                        },
+                        timeoutMilliseconds: 10000);
+
+                    Assert.That(result?["isError"]?.Value<bool>(), Is.False);
+                    Assert.That(result?["structuredContent"]?["returnValue"]?.Value<string>(), Is.EqualTo(name));
+                    Assert.That(GameObject.Find(name), Is.Not.Null);
                 }
-            }.ToString(Formatting.None);
-
-            try
-            {
-                var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
-                    "POST",
-                    "/dotcraft/mcp",
-                    body,
-                    CancellationToken.None),
-                    timeoutMilliseconds: 10000);
-                var result = JObject.Parse(response.Body)["result"];
-
-                Assert.That(result?["isError"]?.Value<bool>(), Is.False);
-                Assert.That(result?["structuredContent"]?["returnValue"]?.Value<string>(), Is.EqualTo(name));
-                Assert.That(GameObject.Find(name), Is.Not.Null);
-            }
-            finally
-            {
-                var created = GameObject.Find(name);
-                if (created != null)
-                    UnityEngine.Object.DestroyImmediate(created);
-            }
+                finally
+                {
+                    var created = GameObject.Find(name);
+                    if (created != null)
+                        UnityEngine.Object.DestroyImmediate(created);
+                }
+            });
         }
 
         [Test]
         public void McpToolsCallInvalidCSharpReturnsCompilerDiagnostics()
         {
-            var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
-                "POST",
-                "/dotcraft/mcp",
-                @"{""jsonrpc"":""2.0"",""id"":4,""method"":""tools/call"",""params"":{""name"":""ExecuteCSharp"",""arguments"":{""code"":""return ;"",""mode"":""editor""}}}",
-                CancellationToken.None),
-                timeoutMilliseconds: 10000);
-            var result = JObject.Parse(response.Body)["result"];
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var result = CallMcpTool(
+                    ExecuteCSharpToolName,
+                    new JObject
+                    {
+                        ["code"] = "return ;",
+                        ["mode"] = "editor"
+                    },
+                    timeoutMilliseconds: 10000);
 
-            Assert.That(result?["isError"]?.Value<bool>(), Is.True);
-            Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.False);
-            Assert.That(result?["structuredContent"]?["errorCode"]?.Value<string>(), Is.EqualTo("CompilationFailed"));
-            Assert.That((JArray)result?["structuredContent"]?["diagnostics"], Is.Not.Empty);
+                Assert.That(result?["isError"]?.Value<bool>(), Is.True);
+                Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["errorCode"]?.Value<string>(), Is.EqualTo("CompilationFailed"));
+                Assert.That((JArray)result?["structuredContent"]?["diagnostics"], Is.Not.Empty);
+            });
         }
 
         [Test]
@@ -139,32 +231,112 @@ namespace DotCraft.Editor.Tests
         {
             Assume.That(EditorApplication.isPlaying, Is.False);
 
-            var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
-                "POST",
-                "/dotcraft/mcp",
-                @"{""jsonrpc"":""2.0"",""id"":44,""method"":""tools/call"",""params"":{""name"":""ExecuteCSharp"",""arguments"":{""code"":""return 1;"",""mode"":""playmode""}}}",
-                CancellationToken.None),
-                timeoutMilliseconds: 10000);
-            var result = JObject.Parse(response.Body)["result"];
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var result = CallMcpTool(
+                    ExecuteCSharpToolName,
+                    new JObject
+                    {
+                        ["code"] = "return 1;",
+                        ["mode"] = "playmode"
+                    },
+                    timeoutMilliseconds: 10000);
 
-            Assert.That(result?["isError"]?.Value<bool>(), Is.True);
-            Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.False);
-            Assert.That(result?["structuredContent"]?["errorCode"]?.Value<string>(), Is.EqualTo("UnityNotInPlayMode"));
+                Assert.That(result?["isError"]?.Value<bool>(), Is.True);
+                Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["errorCode"]?.Value<string>(), Is.EqualTo("UnityNotInPlayMode"));
+            });
+        }
+
+        [TestCase("unity_scene_query")]
+        [TestCase("unity_get_selection")]
+        [TestCase("unity_get_console_logs")]
+        [TestCase("unity_get_project_info")]
+        public void McpToolsCallRunsBuiltinRuntimeTool(string toolName)
+        {
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var result = CallMcpTool(toolName, new JObject(), timeoutMilliseconds: 10000);
+
+                Assert.That(result?["isError"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"], Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public void McpToolsCallRunsEnabledPluginRuntimeTool()
+        {
+            var plugin = FindPluginTool("test_gateway_plugin_echo");
+
+            WithGatewaySettings(enableBuiltins: false, enabledPluginToolIds: new[] { plugin.Id }, () =>
+            {
+                var result = CallMcpTool(
+                    plugin.Descriptor.Name,
+                    new JObject { ["value"] = "hello" },
+                    timeoutMilliseconds: 10000);
+
+                Assert.That(result?["isError"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["echoed"]?.Value<string>(), Is.EqualTo("hello"));
+            });
+        }
+
+        [Test]
+        public void McpToolsCallRuntimeToolArgumentErrorReturnsToolError()
+        {
+            var plugin = FindPluginTool("test_gateway_plugin_requires_int");
+
+            WithGatewaySettings(enableBuiltins: false, enabledPluginToolIds: new[] { plugin.Id }, () =>
+            {
+                var result = CallMcpTool(
+                    plugin.Descriptor.Name,
+                    new JObject { ["count"] = "not an int" },
+                    timeoutMilliseconds: 10000);
+
+                Assert.That(result?["isError"]?.Value<bool>(), Is.True);
+                Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["errorCode"]?.Value<string>(), Is.EqualTo("InvalidArguments"));
+            });
+        }
+
+        [TestCase("ExecuteCSharp")]
+        [TestCase("execute_csharp")]
+        public void McpToolsCallDoesNotAcceptLegacyExecuteCSharpAliases(string toolName)
+        {
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            {
+                var result = CallMcpTool(
+                    toolName,
+                    new JObject
+                    {
+                        ["code"] = "return 1;",
+                        ["mode"] = "editor"
+                    });
+
+                Assert.That(result?["isError"]?.Value<bool>(), Is.True);
+                Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["errorCode"]?.Value<string>(), Is.EqualTo("ToolNotFound"));
+            });
         }
 
         [Test]
         public void HttpToolProjectionSupportsCanonicalOpenAiAndClaudeFormats()
         {
-            var canonical = GetProjectedTools("canonical");
-            var responses = GetProjectedTools("openai-responses");
-            var chat = GetProjectedTools("openai-chat");
-            var claude = GetProjectedTools("claude");
+            var plugin = FindPluginTool("test_gateway_plugin_echo");
 
-            Assert.That(canonical["tools"]?[0]?["name"]?.Value<string>(), Is.EqualTo("ExecuteCSharp"));
-            Assert.That(responses["tools"]?[0]?["type"]?.Value<string>(), Is.EqualTo("function"));
-            Assert.That(responses["tools"]?[0]?["name"]?.Value<string>(), Is.EqualTo("ExecuteCSharp"));
-            Assert.That(chat["tools"]?[0]?["function"]?["name"]?.Value<string>(), Is.EqualTo("ExecuteCSharp"));
-            Assert.That(claude["tools"]?[0]?["input_schema"], Is.Not.Null);
+            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: new[] { plugin.Id }, () =>
+            {
+                var canonical = GetProjectedTools("canonical");
+                var responses = GetProjectedTools("openai-responses");
+                var chat = GetProjectedTools("openai-chat");
+                var claude = GetProjectedTools("claude");
+
+                AssertProjectedToolNames(canonical, "canonical", ExecuteCSharpToolName, plugin.Descriptor.Name);
+                AssertProjectedToolNames(responses, "openai-responses", ExecuteCSharpToolName, plugin.Descriptor.Name);
+                AssertProjectedToolNames(chat, "openai-chat", ExecuteCSharpToolName, plugin.Descriptor.Name);
+                AssertProjectedToolNames(claude, "claude", ExecuteCSharpToolName, plugin.Descriptor.Name);
+                Assert.That(responses["tools"]?[0]?["type"]?.Value<string>(), Is.EqualTo("function"));
+                Assert.That(claude["tools"]?[0]?["input_schema"], Is.Not.Null);
+            });
         }
 
         [Test]
@@ -189,6 +361,31 @@ namespace DotCraft.Editor.Tests
             AssertCanBind(port);
         }
 
+        private static JToken CallMcpTool(string name, JObject arguments, int timeoutMilliseconds = 3000)
+        {
+            var body = new JObject
+            {
+                ["jsonrpc"] = "2.0",
+                ["id"] = 3,
+                ["method"] = "tools/call",
+                ["params"] = new JObject
+                {
+                    ["name"] = name,
+                    ["arguments"] = arguments ?? new JObject()
+                }
+            }.ToString(Formatting.None);
+
+            var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
+                    "POST",
+                    "/dotcraft/mcp",
+                    body,
+                    CancellationToken.None),
+                timeoutMilliseconds);
+
+            Assert.That(response.Status, Is.EqualTo(200));
+            return JObject.Parse(response.Body)["result"];
+        }
+
         private static JObject GetProjectedTools(string format)
         {
             var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
@@ -197,6 +394,57 @@ namespace DotCraft.Editor.Tests
                 string.Empty,
                 CancellationToken.None));
             return JObject.Parse(response.Body);
+        }
+
+        private static void AssertProjectedToolNames(
+            JObject projected,
+            string format,
+            params string[] expectedNames)
+        {
+            var tools = (JArray)projected["tools"];
+            var names = format == "openai-chat"
+                ? tools.Select(tool => tool["function"]?["name"]?.Value<string>()).ToArray()
+                : tools.Select(tool => tool["name"]?.Value<string>()).ToArray();
+
+            foreach (var expectedName in expectedNames)
+                Assert.That(names, Does.Contain(expectedName));
+
+            Assert.That(names, Does.Not.Contain("ExecuteCSharp"));
+            Assert.That(names, Does.Not.Contain("execute_csharp"));
+        }
+
+        private static void WithGatewaySettings(
+            bool enableBuiltins,
+            IEnumerable<string> enabledPluginToolIds,
+            Action action)
+        {
+            var settings = DotCraftSettings.Instance;
+            var originalEnableBuiltins = settings.EnableBuiltinUnityTools;
+            var originalDynamicTools = settings.DynamicToolEnabledById == null
+                ? new Dictionary<string, bool>(StringComparer.Ordinal)
+                : new Dictionary<string, bool>(settings.DynamicToolEnabledById, StringComparer.Ordinal);
+
+            try
+            {
+                settings.EnableBuiltinUnityTools = enableBuiltins;
+                settings.DynamicToolEnabledById = new Dictionary<string, bool>(StringComparer.Ordinal);
+                foreach (var id in enabledPluginToolIds ?? Array.Empty<string>())
+                    settings.DynamicToolEnabledById[id] = true;
+
+                action();
+            }
+            finally
+            {
+                settings.EnableBuiltinUnityTools = originalEnableBuiltins;
+                settings.DynamicToolEnabledById = originalDynamicTools;
+            }
+        }
+
+        private static RuntimeToolDefinition FindPluginTool(string name)
+        {
+            return RuntimeToolCatalog.Discover().Tools.Single(tool =>
+                tool.Source == RuntimeToolSource.Plugin
+                && string.Equals(tool.Descriptor.Name, name, StringComparison.Ordinal));
         }
 
         private static UnityAppBindingLocalServer CreateNoopLocalServer(int port)
@@ -275,6 +523,40 @@ namespace DotCraft.Editor.Tests
             if (!task.Wait(timeoutMilliseconds))
                 Assert.Fail($"Timed out waiting for task after {timeoutMilliseconds} ms.");
             return task.GetAwaiter().GetResult();
+        }
+
+        [AgentTool(
+            Name = "test_gateway_plugin_echo",
+            Description = "Echo a value through a test plugin runtime tool.")]
+        private static object GatewayPluginEcho(
+            [ComponentDescriptionAttribute("Value to echo.")] string value = "ok")
+        {
+            return new { echoed = value };
+        }
+
+        [AgentTool(
+            Name = "test_gateway_plugin_disabled",
+            Description = "Disabled test plugin runtime tool.")]
+        private static object GatewayPluginDisabled()
+        {
+            return new { disabled = true };
+        }
+
+        [AgentTool(
+            Name = "test_gateway_plugin_requires_int",
+            Description = "Return a required integer through a test plugin runtime tool.")]
+        private static object GatewayPluginRequiresInt(
+            [ComponentDescriptionAttribute("Required count.")] int count)
+        {
+            return new { count };
+        }
+
+        [AgentTool(
+            Name = ExecuteCSharpToolName,
+            Description = "Conflicting test plugin runtime tool.")]
+        private static object GatewayPluginConflictsWithExecuteCSharp()
+        {
+            return new { conflict = true };
         }
     }
 }

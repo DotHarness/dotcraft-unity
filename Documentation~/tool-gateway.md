@@ -9,39 +9,50 @@
 
 ## Purpose
 
-The Tool Gateway is the dotcraft-unity-owned entry point that lets external agents discover and invoke Unity tools while the Unity Editor is running.
+The Tool Gateway is the dotcraft-unity-owned local entry point that lets external agents discover and invoke Unity Editor tools while the editor is running.
 
-The gateway belongs to the Unity package, not to DotCraft Core, DotCraft AppServer, or App Binding. DotCraft App Binding remains a separate integration path for attaching Unity tools to DotCraft threads. The Tool Gateway is the direct local surface for external clients such as MCP-compatible agents, OpenAI function-call hosts, and Claude tool-use hosts.
+The gateway belongs to the Unity package. It is not part of DotCraft Core, DotCraft AppServer, or the DotCraft App Binding protocol. App Binding remains a separate path for attaching Unity tools to DotCraft threads; the Tool Gateway is the direct local surface for MCP-compatible agents, OpenAI function-call hosts, and Claude tool-use hosts.
 
 ```text
 LLM / Agent Host
   -> Tool Gateway (MCP / HTTP adapters)
   -> Unity Tool Gateway registry
-  -> Execution Core
+  -> Execution Core or Runtime Tool Invoker
   -> Unity Runtime
 ```
 
 ## Ownership Boundaries
 
-- dotcraft-unity owns tool registration, schema projection, request validation, Unity main-thread dispatch, and result normalization.
+- dotcraft-unity owns tool discovery, schema projection, request validation, Unity main-thread dispatch, and result normalization.
 - External agent hosts own model prompting, approval UX, tool-call scheduling, retries, and model-result replay.
 - DotCraft AppServer is not required for Tool Gateway discovery or invocation.
 - App Binding descriptors do not define the Tool Gateway contract.
 
-## Canonical Tool Registry
+## Runtime Tool Registry
 
-The gateway exposes a small canonical tool surface through `UnityToolGateway`. Tools are registered explicitly. The gateway must not automatically expose every `AgentToolAttribute` runtime tool, because external agent clients need a stable and intentionally curated surface.
+`UnityToolGateway` builds the gateway registry from the current dotcraft-unity runtime tool surface. The registry is generated on every `tools/list` and `tools/call`, so Project Settings changes apply to the next request.
 
-Each canonical tool has:
+Settings rules:
 
-- `name`: stable public tool name.
-- `description`: model-facing behavior summary.
-- `inputSchema`: JSON Schema object for arguments.
-- `handler`: async Unity-side implementation that returns a `ToolGatewayResult`.
+- **Enable Local Server** starts or stops the localhost server used by App Binding and the Tool Gateway.
+- **Enable Builtin Tools** controls all built-in Unity runtime tools exposed through the gateway, including `unity_execute_csharp`.
+- Plugin tools are exposed only when their `AgentToolAttribute` entry is enabled in **Project Settings > DotCraft > Unity Tools > Plugin Tools**.
+- The gateway does not add a second per-tool enablement list.
 
-The current canonical tool set contains `ExecuteCSharp`.
+Name rules:
 
-Future canonical tools should be added only when they represent a stable external-agent workflow, for example `QueryUnityState` or higher-level scene editing tools.
+- Public tool names come from the runtime tool descriptor `Name`.
+- The C# execution tool public name is `unity_execute_csharp`.
+- The legacy names `ExecuteCSharp` and `execute_csharp` are not aliases.
+- `unity_execute_csharp` is a reserved gateway name with a dedicated execution handler. Enabled runtime tools with the same name are skipped by name de-duplication.
+
+Default built-in tool list:
+
+- `unity_execute_csharp`
+- `unity_scene_query`
+- `unity_get_selection`
+- `unity_get_console_logs`
+- `unity_get_project_info`
 
 ## Local HTTP Surface
 
@@ -83,21 +94,22 @@ Discovery flow:
 client -> initialize
 client -> notifications/initialized
 client -> tools/list
-server -> canonical tool specs
+server -> enabled runtime tool specs
 ```
 
 Call flow:
 
 ```text
 client -> tools/call
-server -> validate tool name and arguments
-server -> dispatch handler through UnityToolGateway
-server -> route execution through Execution Core
-server -> execute on the Unity main thread when Unity APIs are required
+server -> resolve the enabled gateway registry by tool name
+server -> validate arguments
+server -> dispatch unity_execute_csharp through Execution Core
+server -> dispatch other runtime tools through RuntimeToolInvoker
+server -> execute Unity API work on the Unity main thread
 server -> return MCP content and structuredContent
 ```
 
-Protocol errors, such as invalid JSON-RPC methods or malformed parameters, return JSON-RPC errors. Tool-level failures, such as compiler diagnostics or Unity execution exceptions, return a successful JSON-RPC response whose MCP tool result has `isError: true`.
+Protocol errors, such as invalid JSON-RPC methods or malformed MCP parameters, return JSON-RPC errors. Tool-level failures, such as compiler diagnostics, argument conversion failures, missing disabled tools, or Unity execution exceptions, return a successful JSON-RPC response whose MCP tool result has `isError: true`.
 
 ## HTTP Adapter Flow
 
@@ -117,7 +129,7 @@ Direct local call:
 ```json
 {
   "namespace": "unity",
-  "tool": "ExecuteCSharp",
+  "tool": "unity_execute_csharp",
   "arguments": {
     "code": "return UnityEngine.Application.unityVersion;",
     "mode": "editor"
@@ -130,16 +142,16 @@ The adapter normalizes tool results into:
 ```json
 {
   "success": true,
-  "name": "ExecuteCSharp",
+  "name": "unity_execute_csharp",
   "result": {},
   "text": "short model-readable summary",
   "durationMs": 42
 }
 ```
 
-## ExecuteCSharp Contract
+## unity_execute_csharp Contract
 
-`ExecuteCSharp` compiles and executes a C# method body in the running Unity Editor process.
+`unity_execute_csharp` compiles and executes a C# method body in the running Unity Editor process.
 
 Input schema:
 
@@ -195,22 +207,23 @@ Failed structured result:
 
 ## Result Rules
 
-- Every tool result must include `success`, `durationMs`, and either a structured payload or an error code and message.
-- Compiler diagnostics are included when compilation fails.
-- Unity logs captured during execution are returned in `logs`.
-- Successful results should keep `diagnostics` empty unless the diagnostic directly affects the external agent workflow.
+- `unity_execute_csharp` returns the Execution Core result model directly in MCP `structuredContent`.
+- Other runtime tools return their method result in MCP `structuredContent`.
+- HTTP `/dotcraft/gateway/call` wraps every call in the gateway result envelope with `success`, `name`, `result`, `text`, `errorCode`, `errorMessage`, and `durationMs`.
+- Missing, disabled, or de-duplicated tools return `ToolNotFound`.
+- Argument conversion failures return `InvalidArguments`.
+- Tool invocation exceptions return `ToolExecutionException`.
 - Transport errors are reserved for protocol, parsing, routing, and server failures.
-- Tool failures are represented in the tool result, not by throwing through the transport.
 
 ## Extension Rules
 
-New gateway tools must:
+Plugin authors use `AgentToolAttribute` to expose static Editor methods. New plugin tools are discovered in Project Settings, default to disabled, and appear in the gateway only after the user enables them.
 
-- Be explicitly registered in `UnityToolGateway`.
-- Have a stable public name and JSON Schema.
+New built-in gateway tools should be added to the runtime tool catalog unless they need a dedicated result contract like `unity_execute_csharp`. Dedicated handlers must:
+
+- Have a stable public snake_case tool name.
+- Provide a JSON Schema input object.
 - Return `ToolGatewayResult`.
 - Dispatch Unity API work onto the Unity main thread.
 - Preserve structured failure results across MCP and HTTP adapters.
 - Add focused EditMode coverage for discovery, successful call, failure call, and adapter schema projection.
-
-Plugin runtime tools may continue to use `AgentToolAttribute` for DotCraft App Binding. That mechanism is intentionally separate from the canonical Tool Gateway registry.

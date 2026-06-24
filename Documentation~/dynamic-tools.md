@@ -43,7 +43,7 @@ public static class ExampleDotCraftTools
 
 The same enabled runtime tools can also be attached to DotCraft threads through App Binding while Unity Editor is running. App Binding always exposes tools under the `unity` namespace because the DotCraft app descriptor owns one namespace per bound app.
 
-The built-in `ExecuteCSharp` tool uses `unity.execute` and runs C# snippets inside the Unity Editor process. Plugin authors can reserve the same scope for higher-level execution tools such as graph runners.
+The built-in `unity_execute_csharp` tool uses `unity.execute` and runs C# snippets inside the Unity Editor process. Plugin authors can reserve the same scope for higher-level execution tools.
 
 Optional App Binding metadata can be added to `AgentToolAttribute`:
 

@@ -9,7 +9,7 @@ namespace DotCraft.Editor.Execution
     {
         [AgentTool(
             Namespace = "unity",
-            Name = "ExecuteCSharp",
+            Name = "unity_execute_csharp",
             Description = "Compile and execute a C# snippet in the Unity Editor process.",
             Kind = AcpToolKind.Execute,
             DeferLoading = false,

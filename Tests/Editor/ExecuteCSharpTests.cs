@@ -75,10 +75,11 @@ namespace DotCraft.Editor.Tests
         [Test]
         public void RuntimeToolCatalogDiscoversExecuteCSharpWithExecuteScope()
         {
-            var tool = RuntimeToolCatalog.Discover().Tools.Single(t => t.Descriptor.Name == "ExecuteCSharp");
+            var tool = RuntimeToolCatalog.Discover().Tools.Single(t => t.Descriptor.Name == "unity_execute_csharp");
 
             Assert.That(tool.Source, Is.EqualTo(RuntimeToolSource.Builtin));
             Assert.That(tool.Descriptor.Namespace, Is.EqualTo("unity"));
+            Assert.That(tool.Descriptor.AcpMethod, Is.EqualTo("_unity/execute_csharp"));
             Assert.That(tool.Descriptor.Kind, Is.EqualTo(AcpToolKind.Execute));
             Assert.That(tool.AppBinding.Scope, Is.EqualTo("unity.execute"));
             Assert.That(tool.AppBinding.Risk, Is.EqualTo("mutate"));
@@ -94,14 +95,14 @@ namespace DotCraft.Editor.Tests
                 enabledPluginToolIds: Array.Empty<string>(),
                 grantedScopes: new[] { "unity.execute" });
 
-            var catalog = attachment.ToolCatalog.Single(t => t.Name == "ExecuteCSharp");
-            var spec = attachment.Tools.Single(t => t.Name == "ExecuteCSharp");
+            var catalog = attachment.ToolCatalog.Single(t => t.Name == "unity_execute_csharp");
+            var spec = attachment.Tools.Single(t => t.Name == "unity_execute_csharp");
 
             Assert.That(catalog.Scope, Is.EqualTo("unity.execute"));
             Assert.That(catalog.Risk, Is.EqualTo("mutate"));
             Assert.That(spec.Namespace, Is.EqualTo("unity"));
             Assert.That(spec.DeferLoading, Is.True);
-            Assert.That(attachment.DeferredToolNames, Does.Contain("ExecuteCSharp"));
+            Assert.That(attachment.DeferredToolNames, Does.Contain("unity_execute_csharp"));
         }
 
         private static ExecutionResult Execute(string code)

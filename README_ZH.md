@@ -52,7 +52,7 @@ dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 面向 age
 | **Auto Reconnect** | `true` | Unity Domain Reload 后自动重连。 |
 | **Verbose Logging** | `false` | 将 DotCraft stderr 输出到 Unity Console。 |
 | **Show Thinking Content** | `false` | 在可展开的聊天行中显示 agent 思考内容。关闭时仅显示轻量的思考状态。 |
-| **Enable Builtin Unity Tools** | `true` | 在 `DotCraft` 连接模式下声明内置 Unity 运行时工具，包括只读工具和 `ExecuteCSharp`。 |
+| **Enable Builtin Unity Tools** | `true` | 在 `DotCraft` 连接模式下声明内置 Unity 运行时工具，包括只读工具和 `unity_execute_csharp`。 |
 | **Plugin Tools** | 关闭 | 通过 attribute 发现的插件运行时工具。每个工具都需要在 **Unity Tools → Plugin Tools (DotCraft only)** 中显式开启。 |
 | **Enable Local Server** | `true` | Unity Editor 打开时，在 `39777` 端口启动 localhost App Binding 与 Tool Gateway 服务。 |
 
@@ -68,9 +68,9 @@ dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明内置 Unity 运行时�
 | `unity_get_selection` | 读取 Unity 编辑器当前选中对象。 |
 | `unity_get_console_logs` | 获取最近的 Unity Console 日志。 |
 | `unity_get_project_info` | 读取 Unity 版本、项目名称和包信息。 |
-| `ExecuteCSharp` | 在 Unity Editor 进程中编译并执行一段 C# 方法体代码。 |
+| `unity_execute_csharp` | 在 Unity Editor 进程中编译并执行一段 C# 方法体代码。 |
 
-只读工具帮助 DotCraft 理解当前场景与项目状态。`ExecuteCSharp` 允许已绑定的 agent 在 Unity 主线程编译并运行 C#，从而读取或修改 Editor 状态。模型可见的工具描述符位于这个 Unity 客户端中；`_unity/*` ACP 方法用于稳定内置只读工具，App Binding 会把所有已启用工具暴露在 `unity` namespace 下。
+只读工具帮助 DotCraft 理解当前场景与项目状态。`unity_execute_csharp` 允许已绑定的 agent 在 Unity 主线程编译并运行 C#，从而读取或修改 Editor 状态。模型可见的工具描述符位于这个 Unity 客户端中；`_unity/*` ACP 方法用于稳定内置工具，App Binding 会把所有已启用工具暴露在 `unity` namespace 下。
 
 ## Tool Gateway
 
@@ -80,7 +80,7 @@ dotcraft-unity 也会暴露一个本地 Unity Agent OS Tool Gateway，供外部 
 http://127.0.0.1:39777/dotcraft/mcp
 ```
 
-当前 gateway 通过 MCP `tools/list` 和 `tools/call` 暴露 canonical `ExecuteCSharp` 工具。普通 HTTP adapter 位于 `GET /dotcraft/gateway/tools?format=canonical|openai-responses|openai-chat|claude` 和 `POST /dotcraft/gateway/call`。
+当前 gateway 会通过 MCP `tools/list` 和 `tools/call` 暴露已启用的运行时工具面，包括内置 Unity 工具、`unity_execute_csharp` 和已启用的插件工具。普通 HTTP adapter 位于 `GET /dotcraft/gateway/tools?format=canonical|openai-responses|openai-chat|claude` 和 `POST /dotcraft/gateway/call`。
 
 Codex 配置示例：
 

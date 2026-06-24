@@ -322,7 +322,7 @@ namespace DotCraft.Editor.Settings
 
                 var enableBuiltinTools = EditorGUILayout.Toggle(
                     new GUIContent("Enable Builtin Tools",
-                        "Declare built-in Unity runtime tools, including read tools and ExecuteCSharp. DotCraft connection only."),
+                        "Declare built-in Unity runtime tools, including read tools and unity_execute_csharp. DotCraft connection only."),
                     _settings.EnableBuiltinUnityTools);
                 if (enableBuiltinTools != _settings.EnableBuiltinUnityTools)
                 {

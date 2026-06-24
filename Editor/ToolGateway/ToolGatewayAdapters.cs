@@ -20,8 +20,8 @@ namespace DotCraft.Editor.ToolGateway
                     {
                         tools = tools.Select(tool => new
                         {
-                            tool.Name,
-                            tool.Description,
+                            name = tool.Name,
+                            description = tool.Description,
                             inputSchema = tool.InputSchema
                         }).ToArray()
                     };

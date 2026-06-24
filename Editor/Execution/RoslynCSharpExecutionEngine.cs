@@ -36,7 +36,7 @@ namespace DotCraft.Editor.Execution
                 return Task.FromResult(ExecutionResult.Failed(
                     mode,
                     "InvalidMode",
-                    $"ExecuteCSharp mode must be '{UnityExecutionModes.Editor}' or '{UnityExecutionModes.PlayMode}'.",
+                    $"unity_execute_csharp mode must be '{UnityExecutionModes.Editor}' or '{UnityExecutionModes.PlayMode}'.",
                     stopwatch.ElapsedMilliseconds));
             }
 
@@ -45,7 +45,7 @@ namespace DotCraft.Editor.Execution
                 return Task.FromResult(ExecutionResult.Failed(
                     mode,
                     "UnityNotInPlayMode",
-                    "ExecuteCSharp mode 'playmode' requires the Unity Editor to be in Play Mode.",
+                    "unity_execute_csharp mode 'playmode' requires the Unity Editor to be in Play Mode.",
                     stopwatch.ElapsedMilliseconds));
             }
 
@@ -55,7 +55,7 @@ namespace DotCraft.Editor.Execution
                 return Task.FromResult(ExecutionResult.Failed(
                     mode,
                     "EmptyCode",
-                    "ExecuteCSharp requires a non-empty code snippet.",
+                    "unity_execute_csharp requires a non-empty code snippet.",
                     stopwatch.ElapsedMilliseconds));
             }
 
@@ -195,7 +195,7 @@ namespace DotCraft.Editor.Execution.Generated
     {{
         public static object Run()
         {{
-#line 1 ""ExecuteCSharp""
+#line 1 ""unity_execute_csharp""
 {code}
 #line default
             return null;
