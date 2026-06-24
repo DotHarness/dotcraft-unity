@@ -4,15 +4,13 @@
 
 [中文](./README_ZH.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](https://github.com/DotHarness/dotcraft-unity)
 
-Agent-native Unity Editor integration for DotCraft.
-
-Build, debug, and iterate game worlds with DotCraft.
+Agent-native Unity Editor integration. Build, debug, and iterate game worlds with DotCraft.
 
 </div>
 
 ## About
 
-dotcraft-unity is the agent-native Unity Editor integration for [DotCraft](https://github.com/DotHarness/dotcraft). It brings DotCraft into Unity through in-editor ACP chat, App Binding for bound DotCraft threads, and a local MCP Tool Gateway for external agents. Besides DotCraft, it also supports any agent that implements the ACP protocol, such as Claude Code, Cursor, and Codex.
+dotcraft-unity is the agent-native Unity Editor integration. It brings DotCraft into Unity through in-editor ACP chat, App Binding for bound DotCraft threads, and a local MCP Tool Gateway for external agents. Besides [DotCraft](https://github.com/DotHarness/dotcraft) , it also supports any agent that implements the ACP protocol, such as Claude Code, Cursor, and Codex.
 
 - Editor native: open DotCraft from **Tools → DotCraft Assistant** without leaving Unity.
 - Project aware: the Unity project root becomes the DotCraft workspace by default.

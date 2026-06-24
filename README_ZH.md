@@ -4,16 +4,14 @@
 
 [English](./README.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](https://github.com/DotHarness/dotcraft-unity)
 
-面向 agent 的 DotCraft Unity Editor 集成。
-
-用 DotCraft 构建、调试并迭代游戏世界。
+面向 agent 的 Unity Editor 集成。用 DotCraft 构建、调试并迭代游戏世界。
 
 </div>
 
 ## 简介
 
-dotcraft-unity 是 [DotCraft](https://github.com/DotHarness/dotcraft) 面向 agent 的 Unity Editor 集成。它通过编辑器内 ACP 聊天、面向已绑定 DotCraft thread 的 App Binding，以及供外部 agent 使用的本地 MCP Tool Gateway，把 DotCraft 带入 Unity。
-除了 DotCraft，它也支持 Claude Code、Cursor、Codex 等任何已实现 ACP 协议的 agent。
+dotcraft-unity 是面向 agent 的 Unity Editor 集成。它通过编辑器内 ACP 聊天、面向已绑定 DotCraft thread 的 App Binding，以及供外部 agent 使用的本地 MCP Tool Gateway，把 DotCraft 带入 Unity。
+除了 [DotCraft](https://github.com/DotHarness/dotcraft) ，它也支持 Claude Code、Cursor、Codex 等任何已实现 ACP 协议的 agent。
 
 - 编辑器原生：通过 **Tools → DotCraft Assistant** 直接打开 DotCraft。
 - 项目感知：默认将 Unity 项目根目录作为 DotCraft 工作区。
