@@ -2,6 +2,8 @@
 
 This document defines how Unity Editor plugins expose DotCraft-only runtime dynamic tools through dotcraft-unity.
 
+Related: [Unity Agent OS Tool Gateway](tool-gateway.md).
+
 ## Contract
 
 - Runtime dynamic tools are declared only when **Project Settings > DotCraft > Agent Connection** is `DotCraft`.
@@ -40,6 +42,8 @@ public static class ExampleDotCraftTools
 ## App Binding Exposure
 
 The same enabled runtime tools can also be attached to DotCraft threads through App Binding while Unity Editor is running. App Binding always exposes tools under the `unity` namespace because the DotCraft app descriptor owns one namespace per bound app.
+
+The built-in `ExecuteCSharp` tool uses `unity.execute` and runs C# snippets inside the Unity Editor process. Plugin authors can reserve the same scope for higher-level execution tools such as graph runners.
 
 Optional App Binding metadata can be added to `AgentToolAttribute`:
 

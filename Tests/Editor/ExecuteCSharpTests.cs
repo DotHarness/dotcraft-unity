@@ -1,0 +1,120 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using DotCraft.Editor.AppBinding;
+using DotCraft.Editor.Execution;
+using DotCraft.Editor.Protocol;
+using DotCraft.Editor.RuntimeTools;
+using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
+
+namespace DotCraft.Editor.Tests
+{
+    public sealed class ExecuteCSharpTests
+    {
+        [Test]
+        public void ExecuteCSharpCompilesAndReturnsSimpleValue()
+        {
+            var result = Execute("return 21 + 21;");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.Mode, Is.EqualTo(UnityExecutionModes.Editor));
+            Assert.That(result.ReturnValue, Is.EqualTo(42));
+            Assert.That(result.Diagnostics, Is.Empty);
+        }
+
+        [Test]
+        public void ExecuteCSharpCanCreateGameObjectInEditorMode()
+        {
+            var name = $"DotCraft ExecuteCSharp Test {Guid.NewGuid():N}";
+
+            try
+            {
+                var result = Execute($"var go = new GameObject(\"{name}\"); return go;");
+
+                Assert.That(result.Success, Is.True, result.ErrorMessage);
+                Assert.That(GameObject.Find(name), Is.Not.Null);
+                var returned = result.ReturnValue as Dictionary<string, object>;
+                Assert.That(returned, Is.Not.Null);
+                Assert.That(returned["name"], Is.EqualTo(name));
+                Assert.That(returned["type"], Is.EqualTo(typeof(GameObject).FullName));
+            }
+            finally
+            {
+                var created = GameObject.Find(name);
+                if (created != null)
+                    UnityEngine.Object.DestroyImmediate(created);
+            }
+        }
+
+        [Test]
+        public void InvalidCSharpReturnsCompilerDiagnostics()
+        {
+            var result = Execute("return ;");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("CompilationFailed"));
+            Assert.That(result.Diagnostics, Is.Not.Empty);
+            Assert.That(result.Diagnostics.Any(d => d.Line == 1), Is.True);
+        }
+
+        [Test]
+        public void PlaymodeModeFailsClearlyWhenEditorIsNotPlaying()
+        {
+            Assume.That(EditorApplication.isPlaying, Is.False);
+
+            var result = WaitForResult(ExecutionRouter.Instance.ExecuteAsync(
+                new ExecutionRequest(UnityExecutionEngines.CSharp, UnityExecutionModes.PlayMode, "return 1;")));
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Mode, Is.EqualTo(UnityExecutionModes.PlayMode));
+            Assert.That(result.ErrorCode, Is.EqualTo("UnityNotInPlayMode"));
+        }
+
+        [Test]
+        public void RuntimeToolCatalogDiscoversExecuteCSharpWithExecuteScope()
+        {
+            var tool = RuntimeToolCatalog.Discover().Tools.Single(t => t.Descriptor.Name == "ExecuteCSharp");
+
+            Assert.That(tool.Source, Is.EqualTo(RuntimeToolSource.Builtin));
+            Assert.That(tool.Descriptor.Namespace, Is.EqualTo("unity"));
+            Assert.That(tool.Descriptor.Kind, Is.EqualTo(AcpToolKind.Execute));
+            Assert.That(tool.AppBinding.Scope, Is.EqualTo("unity.execute"));
+            Assert.That(tool.AppBinding.Risk, Is.EqualTo("mutate"));
+            Assert.That(tool.AppBinding.Exposure, Is.EqualTo("deferred"));
+        }
+
+        [Test]
+        public void ToolCatalogAdapterMapsExecuteCSharpToUnityExecute()
+        {
+            var attachment = UnityAppBindingToolCatalogAdapter.Build(
+                RuntimeToolCatalog.Discover(),
+                enableBuiltinTools: true,
+                enabledPluginToolIds: Array.Empty<string>(),
+                grantedScopes: new[] { "unity.execute" });
+
+            var catalog = attachment.ToolCatalog.Single(t => t.Name == "ExecuteCSharp");
+            var spec = attachment.Tools.Single(t => t.Name == "ExecuteCSharp");
+
+            Assert.That(catalog.Scope, Is.EqualTo("unity.execute"));
+            Assert.That(catalog.Risk, Is.EqualTo("mutate"));
+            Assert.That(spec.Namespace, Is.EqualTo("unity"));
+            Assert.That(spec.DeferLoading, Is.True);
+            Assert.That(attachment.DeferredToolNames, Does.Contain("ExecuteCSharp"));
+        }
+
+        private static ExecutionResult Execute(string code)
+        {
+            return WaitForResult(ExecutionRouter.Instance.ExecuteAsync(
+                new ExecutionRequest(UnityExecutionEngines.CSharp, UnityExecutionModes.Editor, code)));
+        }
+
+        private static T WaitForResult<T>(System.Threading.Tasks.Task<T> task, int timeoutMilliseconds = 5000)
+        {
+            if (!task.Wait(timeoutMilliseconds))
+                Assert.Fail($"Timed out waiting for task after {timeoutMilliseconds} ms.");
+            return task.GetAwaiter().GetResult();
+        }
+    }
+}

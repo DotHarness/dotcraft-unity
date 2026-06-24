@@ -171,7 +171,7 @@ namespace DotCraft.Editor.Settings
         public bool EnableBuiltinUnityTools { get; set; } = true;
 
         /// <summary>
-        /// Starts the local localhost handoff server used by DotCraft App Binding.
+        /// Starts the local localhost server used by DotCraft App Binding and the Tool Gateway.
         /// </summary>
         [JsonProperty("enableAppBindingLocalServer")]
         public bool EnableAppBindingLocalServer { get; set; } = true;

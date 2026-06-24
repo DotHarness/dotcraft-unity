@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DotCraft.Editor.ToolGateway;
 using Process = System.Diagnostics.Process;
 using UnityEditor;
 using UnityEngine;
@@ -23,8 +24,18 @@ namespace DotCraft.Editor.AppBinding
         public string RawUrl { get; set; }
     }
 
+    internal sealed class UnityAppBindingHttpRequest
+    {
+        public string Method { get; set; }
+        public string Target { get; set; }
+        public Dictionary<string, string> Headers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public string Body { get; set; } = string.Empty;
+    }
+
     internal sealed class UnityAppBindingLocalServer : IDisposable
     {
+        private const int MaxHeaderBytes = 64 * 1024;
+        private const int MaxBodyBytes = 4 * 1024 * 1024;
         private const int AcceptPollMilliseconds = 25;
         private const int RestartReleaseWaitMilliseconds = 1500;
         private const int StartRetryWaitMilliseconds = 2500;
@@ -414,37 +425,46 @@ namespace DotCraft.Editor.AppBinding
         {
             using (client)
             using (var stream = client.GetStream())
-            using (var reader = new StreamReader(stream, Encoding.UTF8, false, 8192, leaveOpen: true))
             {
                 try
                 {
-                    var requestLine = await reader.ReadLineAsync().ConfigureAwait(false);
-                    if (string.IsNullOrWhiteSpace(requestLine))
+                    var request = await ReadHttpRequestAsync(stream, ct).ConfigureAwait(false);
+                    if (request == null || string.IsNullOrWhiteSpace(request.Method) || string.IsNullOrWhiteSpace(request.Target))
                     {
                         await WriteResponseAsync(stream, 400, "Bad Request", "Missing request line.", ct).ConfigureAwait(false);
                         return;
                     }
 
-                    string header;
-                    do
+                    if (!IsAllowedOrigin(request.Headers))
                     {
-                        header = await reader.ReadLineAsync().ConfigureAwait(false);
-                    } while (!string.IsNullOrEmpty(header));
-
-                    var parts = requestLine.Split(' ');
-                    if (parts.Length < 2 || !string.Equals(parts[0], "GET", StringComparison.OrdinalIgnoreCase))
-                    {
-                        await WriteResponseAsync(stream, 405, "Method Not Allowed", "Only GET is supported.", ct).ConfigureAwait(false);
+                        await WriteResponseAsync(stream, 403, "Forbidden", "Invalid request origin.", ct).ConfigureAwait(false);
                         return;
                     }
 
-                    if (TryHandleAdminRequest(parts[1], stream, ct, out var adminTask))
+                    if (ToolGatewayHttpHandler.CanHandle(request.Target))
+                    {
+                        var response = await ToolGatewayHttpHandler.HandleAsync(
+                            request.Method,
+                            request.Target,
+                            request.Body,
+                            ct).ConfigureAwait(false);
+                        await WriteRawResponseAsync(stream, response, ct).ConfigureAwait(false);
+                        return;
+                    }
+
+                    if (!string.Equals(request.Method, "GET", StringComparison.OrdinalIgnoreCase))
+                    {
+                        await WriteResponseAsync(stream, 405, "Method Not Allowed", "Only GET is supported for App Binding handoff routes.", ct).ConfigureAwait(false);
+                        return;
+                    }
+
+                    if (TryHandleAdminRequest(request.Target, stream, ct, out var adminTask))
                     {
                         await adminTask.ConfigureAwait(false);
                         return;
                     }
 
-                    var handoff = ParseHandoff(parts[1]);
+                    var handoff = ParseHandoff(request.Target);
                     var message = await _handler(handoff, ct).ConfigureAwait(false);
                     await WriteResponseAsync(stream, 200, "OK", message, ct).ConfigureAwait(false);
                 }
@@ -464,6 +484,123 @@ namespace DotCraft.Editor.AppBinding
                     }
                 }
             }
+        }
+
+        private static async Task<UnityAppBindingHttpRequest> ReadHttpRequestAsync(
+            NetworkStream stream,
+            CancellationToken ct)
+        {
+            var buffer = new byte[4096];
+            var bytes = new List<byte>();
+            var headerEnd = -1;
+
+            while (headerEnd < 0)
+            {
+                var read = await stream.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+                if (read == 0)
+                    break;
+
+                for (var i = 0; i < read; i++)
+                    bytes.Add(buffer[i]);
+
+                if (bytes.Count > MaxHeaderBytes)
+                    throw new InvalidOperationException("HTTP request headers are too large.");
+
+                headerEnd = FindHeaderEnd(bytes);
+            }
+
+            if (headerEnd < 0)
+                return null;
+
+            var headerText = Encoding.ASCII.GetString(bytes.Take(headerEnd).ToArray());
+            var lines = headerText.Split(new[] { "\r\n" }, StringSplitOptions.None);
+            if (lines.Length == 0 || string.IsNullOrWhiteSpace(lines[0]))
+                return null;
+
+            var requestLine = lines[0].Split(' ');
+            if (requestLine.Length < 2)
+                return null;
+
+            var request = new UnityAppBindingHttpRequest
+            {
+                Method = requestLine[0],
+                Target = requestLine[1]
+            };
+
+            for (var i = 1; i < lines.Length; i++)
+            {
+                var line = lines[i];
+                if (string.IsNullOrWhiteSpace(line))
+                    continue;
+
+                var separator = line.IndexOf(':');
+                if (separator <= 0)
+                    continue;
+
+                var key = line.Substring(0, separator).Trim();
+                var value = line.Substring(separator + 1).Trim();
+                request.Headers[key] = value;
+            }
+
+            var contentLength = 0;
+            if (request.Headers.TryGetValue("Content-Length", out var rawContentLength)
+                && (!int.TryParse(rawContentLength, out contentLength) || contentLength < 0))
+            {
+                throw new InvalidOperationException("Invalid HTTP Content-Length header.");
+            }
+
+            if (contentLength > MaxBodyBytes)
+                throw new InvalidOperationException("HTTP request body is too large.");
+
+            if (contentLength > 0)
+            {
+                var bodyStart = headerEnd + 4;
+                var bodyBytes = bytes.Skip(bodyStart).Take(contentLength).ToList();
+                while (bodyBytes.Count < contentLength)
+                {
+                    var remaining = contentLength - bodyBytes.Count;
+                    var read = await stream.ReadAsync(buffer, 0, Math.Min(buffer.Length, remaining), ct)
+                        .ConfigureAwait(false);
+                    if (read == 0)
+                        break;
+
+                    for (var i = 0; i < read; i++)
+                        bodyBytes.Add(buffer[i]);
+                }
+
+                request.Body = Encoding.UTF8.GetString(bodyBytes.Take(contentLength).ToArray());
+            }
+
+            return request;
+        }
+
+        private static int FindHeaderEnd(IReadOnlyList<byte> bytes)
+        {
+            for (var i = 3; i < bytes.Count; i++)
+            {
+                if (bytes[i - 3] == (byte)'\r'
+                    && bytes[i - 2] == (byte)'\n'
+                    && bytes[i - 1] == (byte)'\r'
+                    && bytes[i] == (byte)'\n')
+                {
+                    return i - 3;
+                }
+            }
+
+            return -1;
+        }
+
+        private static bool IsAllowedOrigin(IReadOnlyDictionary<string, string> headers)
+        {
+            if (headers == null || !headers.TryGetValue("Origin", out var origin) || string.IsNullOrWhiteSpace(origin))
+                return true;
+
+            if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                return false;
+
+            return string.Equals(uri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(uri.Host, "::1", StringComparison.OrdinalIgnoreCase);
         }
 
         private bool TryHandleAdminRequest(
@@ -912,6 +1049,27 @@ namespace DotCraft.Editor.AppBinding
             var headerBytes = Encoding.ASCII.GetBytes(headers);
             await stream.WriteAsync(headerBytes, 0, headerBytes.Length, ct).ConfigureAwait(false);
             await stream.WriteAsync(bytes, 0, bytes.Length, ct).ConfigureAwait(false);
+        }
+
+        private static async Task WriteRawResponseAsync(
+            NetworkStream stream,
+            ToolGatewayHttpResponse response,
+            CancellationToken ct)
+        {
+            var body = response?.Body ?? string.Empty;
+            var bytes = Encoding.UTF8.GetBytes(body);
+            var status = response?.Status ?? 500;
+            var reason = response?.Reason ?? "Internal Server Error";
+            var contentType = response?.ContentType ?? "text/plain; charset=utf-8";
+            var headers =
+                $"HTTP/1.1 {status} {reason}\r\n" +
+                $"Content-Type: {contentType}\r\n" +
+                $"Content-Length: {bytes.Length}\r\n" +
+                "Connection: close\r\n\r\n";
+            var headerBytes = Encoding.ASCII.GetBytes(headers);
+            await stream.WriteAsync(headerBytes, 0, headerBytes.Length, ct).ConfigureAwait(false);
+            if (bytes.Length > 0)
+                await stream.WriteAsync(bytes, 0, bytes.Length, ct).ConfigureAwait(false);
         }
 
         private static string BuildHtml(string message)

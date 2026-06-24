@@ -4,19 +4,21 @@
 
 [中文](./README_ZH.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](https://github.com/DotHarness/dotcraft-unity)
 
-Use DotCraft inside the Unity Editor.
+Agent-native Unity Editor integration for DotCraft.
+
+Build, debug, and iterate game worlds with DotCraft.
 
 </div>
 
 ## About
 
-dotcraft-unity is the Unity editor client for [DotCraft](https://github.com/DotHarness/dotcraft). It connects Unity projects to DotCraft via the Agent Client Protocol (ACP) and provides an in-editor chat window.Besides DotCraft, it also supports any Agent that implements the ACP protocol, such as Claude Code, Cursor, and Codex.
+dotcraft-unity is the agent-native Unity Editor integration for [DotCraft](https://github.com/DotHarness/dotcraft). It brings DotCraft into Unity through in-editor ACP chat, App Binding for bound DotCraft threads, and a local MCP Tool Gateway for external agents. Besides DotCraft, it also supports any agent that implements the ACP protocol, such as Claude Code, Cursor, and Codex.
 
 - Editor native: open DotCraft from **Tools → DotCraft Assistant** without leaving Unity.
 - Project aware: the Unity project root becomes the DotCraft workspace by default.
 - ACP based: DotCraft runs as the agent process while Unity acts as the editor client.
 - App Binding: expose enabled Unity tools to any bound DotCraft thread while the Unity Editor is running.
-- Unity context: built-in read-only tools expose scene, selection, console, and project information.
+- Unity context: built-in tools expose scene, selection, console, project information, and C# execution.
 
 ## Get Started
 
@@ -49,15 +51,15 @@ Open **Edit → Project Settings → DotCraft** to configure the client.
 | **Auto Reconnect** | `true` | Reconnect after Unity Domain Reload. |
 | **Verbose Logging** | `false` | Print DotCraft stderr to the Unity Console. |
 | **Show Thinking Content** | `false` | Show agent reasoning text in expandable chat rows. When disabled, only lightweight thinking status is shown. |
-| **Enable Builtin Unity Tools** | `true` | Declare the built-in read-only Unity runtime tools and enable their `_unity/*` handlers when using the `DotCraft` connection profile. |
+| **Enable Builtin Unity Tools** | `true` | Declare built-in Unity runtime tools, including read tools and `ExecuteCSharp`, when using the `DotCraft` connection profile. |
 | **Plugin Tools** | disabled | Attribute-discovered plugin runtime tools. Each tool must be enabled explicitly in **Unity Tools → Plugin Tools (DotCraft only)**. |
-| **Enable Local Server** | `true` | Start the localhost App Binding handoff server on port `39777` while Unity Editor is open. |
+| **Enable Local Server** | `true` | Start the localhost App Binding and Tool Gateway server on port `39777` while Unity Editor is open. |
 
 For API keys, prefer environment variables in Project Settings instead of committing secrets to project files.
 
 ## Built-in Tools
 
-dotcraft-unity declares four read-only Unity runtime tools to DotCraft during ACP initialization:
+dotcraft-unity declares built-in Unity runtime tools to DotCraft during ACP initialization:
 
 | Tool | Description |
 |------|-------------|
@@ -65,8 +67,31 @@ dotcraft-unity declares four read-only Unity runtime tools to DotCraft during AC
 | `unity_get_selection` | Read the current Unity Editor selection. |
 | `unity_get_console_logs` | Retrieve recent Unity Console log entries. |
 | `unity_get_project_info` | Read Unity version, project name, and package information. |
+| `ExecuteCSharp` | Compile and execute a C# method-body snippet in the Unity Editor process. |
 
-These tools help DotCraft understand the current scene and project state. The model-visible tool descriptors live in this Unity client; the `_unity/*` ACP methods are private callbacks used to execute them. For full Unity editing automation, combine DotCraft with a dedicated Unity tool package such as [SkillsForUnity](https://github.com/BestyAIGC/Unity-Skills) or [unity-mcp](https://github.com/CoplayDev/unity-mcp).
+The read tools help DotCraft understand the current scene and project state. `ExecuteCSharp` lets bound agents inspect or mutate Unity Editor state by compiling and running C# on the Unity main thread. The model-visible tool descriptors live in this Unity client; the `_unity/*` ACP methods are private callbacks used to execute stable built-in read tools, while App Binding exposes all enabled tools under the `unity` namespace.
+
+## Tool Gateway
+
+dotcraft-unity also exposes a local Unity Agent OS Tool Gateway for external agents. While Unity Editor is running, MCP clients such as Codex and Claude Code can connect to:
+
+```text
+http://127.0.0.1:39777/dotcraft/mcp
+```
+
+The gateway currently exposes the canonical `ExecuteCSharp` tool through MCP `tools/list` and `tools/call`. Plain HTTP adapters are available at `GET /dotcraft/gateway/tools?format=canonical|openai-responses|openai-chat|claude` and `POST /dotcraft/gateway/call`.
+
+Codex config example:
+
+```toml
+[mcp_servers.dotcraft_unity]
+url = "http://127.0.0.1:39777/dotcraft/mcp"
+enabled = true
+tool_timeout_sec = 60
+default_tools_approval_mode = "approve"
+```
+
+See [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md) for the gateway contract.
 
 ## App Binding
 
