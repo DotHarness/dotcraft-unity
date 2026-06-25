@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DotCraft.Editor.AppBinding;
+using DotCraft.Editor.McpSetup;
 using DotCraft.Editor.RuntimeTools;
 using UnityEditor;
 using UnityEngine;
@@ -81,96 +82,15 @@ namespace DotCraft.Editor.Settings
 
             EditorGUILayout.Space(10);
 
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("DotCraft Configuration", EditorStyles.boldLabel);
-                EditorGUILayout.Space(5);
-
-                EditorGUILayout.LabelField("Connection Settings", EditorStyles.boldLabel);
-                DrawConnectionSettings();
-            }
+            DrawOverviewSection();
 
             EditorGUILayout.Space(10);
 
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("Environment Variables", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox(
-                    "Add environment variables like API keys. These will be injected into the DotCraft process.",
-                    MessageType.Info);
-
-                EditorGUI.indentLevel++;
-
-                var keys = new List<string>(_settings.EnvironmentVariables.Keys);
-                for (int i = 0; i < keys.Count; i++)
-                {
-                    EditorGUILayout.BeginHorizontal();
-                    var key = EditorGUILayout.TextField(keys[i], GUILayout.Width(150));
-                    var value = EditorGUILayout.TextField(_settings.EnvironmentVariables[keys[i]]);
-
-                    if (key != keys[i])
-                    {
-                        _settings.EnvironmentVariables.Remove(keys[i]);
-                        if (!string.IsNullOrEmpty(key))
-                        {
-                            _settings.EnvironmentVariables[key] = value;
-                        }
-                    }
-                    else
-                    {
-                        _settings.EnvironmentVariables[keys[i]] = value;
-                    }
-
-                    if (GUILayout.Button("×", GUILayout.Width(25)))
-                    {
-                        _settings.EnvironmentVariables.Remove(keys[i]);
-                        GUIUtility.ExitGUI();
-                    }
-
-                    EditorGUILayout.EndHorizontal();
-                }
-
-                EditorGUILayout.BeginHorizontal();
-                GUILayout.Space(EditorGUI.indentLevel * 15);
-                if (GUILayout.Button("+ Add Variable", GUILayout.Width(120)))
-                {
-                    _settings.EnvironmentVariables["NEW_KEY"] = "";
-                }
-                EditorGUILayout.EndHorizontal();
-
-                EditorGUI.indentLevel--;
-            }
+            DrawInEditorAgentChatSection();
 
             EditorGUILayout.Space(10);
 
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("General Settings", EditorStyles.boldLabel);
-                EditorGUI.indentLevel++;
-
-                _settings.AutoReconnect = EditorGUILayout.Toggle(
-                    new GUIContent("Auto Reconnect", "Automatically reconnect after Domain Reload"),
-                    _settings.AutoReconnect);
-
-                _settings.VerboseLogging = EditorGUILayout.Toggle(
-                    new GUIContent("Verbose Logging", "Enable detailed logging for debugging"),
-                    _settings.VerboseLogging);
-
-                _settings.ShowThinkingContent = EditorGUILayout.Toggle(
-                    new GUIContent("Show Thinking Content",
-                        "Show agent reasoning text in expandable chat rows. When disabled, DotCraft still shows live thinking status."),
-                    _settings.ShowThinkingContent);
-
-                _settings.RequestTimeoutSeconds = EditorGUILayout.IntSlider(
-                    new GUIContent("Request Timeout (s)", "Timeout for ACP requests in seconds"),
-                    _settings.RequestTimeoutSeconds, 5, 120);
-
-                _settings.MaxHistoryMessages = EditorGUILayout.IntField(
-                    new GUIContent("Max History Messages", "Maximum number of messages to keep in history"),
-                    _settings.MaxHistoryMessages);
-
-                EditorGUI.indentLevel--;
-            }
+            DrawMcpToolGatewaySection();
 
             EditorGUILayout.Space(10);
 
@@ -178,11 +98,7 @@ namespace DotCraft.Editor.Settings
 
             EditorGUILayout.Space(10);
 
-            DrawAppBindingSection();
-
-            EditorGUILayout.Space(10);
-
-            DrawMcpServersSection();
+            DrawAdvancedDotCraftSection();
 
             EditorGUILayout.Space(10);
 
@@ -228,6 +144,68 @@ namespace DotCraft.Editor.Settings
             }
         }
 
+        private void DrawOverviewSection()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("DotCraft Unity", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(
+                    "Use coding agents with Unity Editor: chat inside Unity, or expose Unity tools to external MCP clients.",
+                    EditorStyles.wordWrappedMiniLabel);
+                EditorGUILayout.Space(6);
+
+                var service = UnityAppBindingService.Instance;
+                var counts = GetEnabledToolCounts();
+                DrawReadonlyRow("In-Editor Agent Chat", _settings.AgentConnection == DotCraftSettings.AgentConnectionDotCraft
+                    ? "DotCraft profile"
+                    : "Custom ACP Agent");
+                DrawReadonlyRow("Local Tool Gateway", service.IsLocalServerRunning ? "Running" : "Stopped");
+                DrawReadonlyRow("MCP Endpoint", McpGatewaySetupDefaults.Endpoint);
+                DrawReadonlyRow("Enabled Unity Tools", $"{counts.builtIn} built-in, {counts.custom} custom");
+
+                EditorGUILayout.Space(6);
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("Open Assistant", GUILayout.Width(130)))
+                        global::DotCraft.Editor.Window.DotCraftEditorWindow.ShowWindow();
+
+                    if (GUILayout.Button("Setup MCP Clients", GUILayout.Width(150)))
+                        McpGatewaySetupWindow.ShowWindow();
+
+                    if (GUILayout.Button("Restart Gateway", GUILayout.Width(130)))
+                    {
+                        _settings.EnableAppBindingLocalServer = true;
+                        _settings.Save();
+                        UnityAppBindingService.Instance.RestartLocalServer();
+                    }
+
+                    if (GUILayout.Button("Copy Endpoint", GUILayout.Width(120)))
+                        EditorGUIUtility.systemCopyBuffer = McpGatewaySetupDefaults.Endpoint;
+                }
+            }
+        }
+
+        private void DrawInEditorAgentChatSection()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("In-Editor Agent Chat", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(
+                    "Use Unity as an ACP client and chat with a coding agent inside the Editor.",
+                    EditorStyles.wordWrappedMiniLabel);
+                EditorGUILayout.Space(5);
+
+                DrawConnectionSettings();
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Space(EditorGUI.indentLevel * 15);
+                    if (GUILayout.Button("Open DotCraft Assistant", GUILayout.Width(180)))
+                        global::DotCraft.Editor.Window.DotCraftEditorWindow.ShowWindow();
+                }
+            }
+        }
+
         private void DrawConnectionSettings()
         {
             EditorGUI.indentLevel++;
@@ -237,7 +215,7 @@ namespace DotCraft.Editor.Settings
                 _settings.AgentConnection,
                 DotCraftSettings.AgentConnectionDotCraft);
             connectionIndex = EditorGUILayout.Popup(
-                new GUIContent("Agent Connection", "Use DotCraft's Hub-aware ACP bridge, or a raw custom ACP command."),
+                new GUIContent("Agent", "Use DotCraft's Hub-aware ACP bridge, or configure a raw custom ACP agent."),
                 connectionIndex,
                 AgentConnectionLabels);
             _settings.AgentConnection = AgentConnectionOptions[connectionIndex];
@@ -296,6 +274,53 @@ namespace DotCraft.Editor.Settings
             EditorGUI.indentLevel--;
         }
 
+        private void DrawMcpToolGatewaySection()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("MCP Tool Gateway", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(
+                    "Expose enabled Unity tools to Claude Code, Codex, Cursor, and other MCP-compatible coding agents. This path is independent from the in-editor chat connection.",
+                    EditorStyles.wordWrappedMiniLabel);
+
+                EditorGUI.indentLevel++;
+
+                var enabled = EditorGUILayout.Toggle(
+                    new GUIContent("Enable Local Tool Gateway", "Listen on localhost for MCP clients and DotCraft App Binding handoffs."),
+                    _settings.EnableAppBindingLocalServer);
+                if (enabled != _settings.EnableAppBindingLocalServer)
+                {
+                    _settings.EnableAppBindingLocalServer = enabled;
+                    UnityAppBindingBootstrap.ApplySettings();
+                }
+
+                var service = UnityAppBindingService.Instance;
+                var counts = GetEnabledToolCounts();
+                DrawReadonlyRow("Endpoint", McpGatewaySetupDefaults.Endpoint);
+                DrawReadonlyRow("Status", service.IsLocalServerRunning ? "Running" : "Stopped");
+                DrawReadonlyRow("Tools", $"{counts.builtIn} built-in, {counts.custom} custom");
+                if (!string.IsNullOrWhiteSpace(service.LastError))
+                    EditorGUILayout.HelpBox(service.LastError, MessageType.Error);
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    GUILayout.Space(EditorGUI.indentLevel * 15);
+                    if (GUILayout.Button("Setup MCP Clients", GUILayout.Width(150)))
+                        McpGatewaySetupWindow.ShowWindow();
+                    if (GUILayout.Button("Restart Gateway", GUILayout.Width(130)))
+                    {
+                        _settings.EnableAppBindingLocalServer = true;
+                        _settings.Save();
+                        service.RestartLocalServer();
+                    }
+                    if (GUILayout.Button("Copy Endpoint", GUILayout.Width(120)))
+                        EditorGUIUtility.systemCopyBuffer = McpGatewaySetupDefaults.Endpoint;
+                }
+
+                EditorGUI.indentLevel--;
+            }
+        }
+
         private static int IndexOfOrDefault(string[] options, string value, string defaultValue)
         {
             var index = Array.IndexOf(options, value);
@@ -310,19 +335,15 @@ namespace DotCraft.Editor.Settings
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.LabelField("Unity Tools", EditorStyles.boldLabel);
-
-                if (_settings.AgentConnection != DotCraftSettings.AgentConnectionDotCraft)
-                {
-                    EditorGUILayout.HelpBox(
-                        "Runtime dynamic tools are DotCraft-only and are not declared for Custom ACP agents.",
-                        MessageType.Info);
-                }
+                EditorGUILayout.LabelField(
+                    "Choose which Unity tools are available to DotCraft and to MCP clients connected through the Gateway.",
+                    EditorStyles.wordWrappedMiniLabel);
 
                 EditorGUI.indentLevel++;
 
                 var enableBuiltinTools = EditorGUILayout.Toggle(
-                    new GUIContent("Enable Builtin Tools",
-                        "Declare built-in Unity runtime tools, including read tools and unity_execute_csharp. DotCraft connection only."),
+                    new GUIContent("Enable Built-in Unity Tools",
+                        "Expose built-in Unity read tools and unity_execute_csharp through the DotCraft profile and MCP Tool Gateway."),
                     _settings.EnableBuiltinUnityTools);
                 if (enableBuiltinTools != _settings.EnableBuiltinUnityTools)
                 {
@@ -330,10 +351,14 @@ namespace DotCraft.Editor.Settings
                     UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                 }
 
+                EditorGUILayout.LabelField(
+                    "Built-in: scene query, selection, console logs, project info, and C# automation via unity_execute_csharp.",
+                    EditorStyles.wordWrappedMiniLabel);
+
                 EditorGUILayout.Space(6);
-                EditorGUILayout.LabelField("Plugin Tools (DotCraft only)", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("Custom Project Tools", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(
-                    "Methods marked with AgentToolAttribute are discovered here. New plugin tools default to disabled.",
+                    "Static Editor methods marked with AgentToolAttribute are discovered here. Enabled custom tools are available to DotCraft and to MCP clients through the Gateway.",
                     MessageType.Info);
 
                 _runtimeToolCatalog ??= RuntimeToolCatalog.Discover();
@@ -341,11 +366,14 @@ namespace DotCraft.Editor.Settings
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.Space(EditorGUI.indentLevel * 15);
-                    if (GUILayout.Button("Refresh Plugin Tools", GUILayout.Width(150)))
+                    if (GUILayout.Button("Refresh Custom Tools", GUILayout.Width(160)))
                     {
                         RefreshRuntimeToolCatalog();
                         UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                     }
+
+                    if (GUILayout.Button("Setup MCP Clients", GUILayout.Width(150)))
+                        McpGatewaySetupWindow.ShowWindow();
                 }
 
                 var pluginTools = _runtimeToolCatalog.Tools
@@ -354,7 +382,7 @@ namespace DotCraft.Editor.Settings
 
                 if (pluginTools.Count == 0)
                 {
-                    EditorGUILayout.LabelField("No plugin runtime tools discovered.", EditorStyles.miniLabel);
+                    EditorGUILayout.LabelField("No custom project tools discovered.", EditorStyles.miniLabel);
                 }
                 else
                 {
@@ -402,64 +430,166 @@ namespace DotCraft.Editor.Settings
             }
         }
 
-        private void DrawAppBindingSection()
+        private void DrawAdvancedDotCraftSection()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("App Binding / Tool Gateway", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox(
-                    "Expose Unity runtime tools through local DotCraft App Binding handoffs and the Unity Agent OS Tool Gateway.",
-                    MessageType.Info);
+                EditorGUILayout.LabelField("Advanced DotCraft", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(
+                    "DotCraft-specific settings for App Binding, ACP sessions, environment variables, and MCP servers injected into DotCraft sessions.",
+                    EditorStyles.wordWrappedMiniLabel);
 
-                EditorGUI.indentLevel++;
+                EditorGUILayout.Space(8);
+                DrawAppBindingStatusRows();
 
-                var enabled = EditorGUILayout.Toggle(
-                    new GUIContent("Enable Local Server", "Listen on localhost for DotCraft App Binding handoffs and MCP/HTTP Tool Gateway calls."),
-                    _settings.EnableAppBindingLocalServer);
-                if (enabled != _settings.EnableAppBindingLocalServer)
+                EditorGUILayout.Space(8);
+                DrawGeneralSettingsSection();
+
+                EditorGUILayout.Space(8);
+                DrawEnvironmentVariablesSection();
+
+                EditorGUILayout.Space(8);
+                DrawMcpServersSection();
+            }
+        }
+
+        private void DrawAppBindingStatusRows()
+        {
+            EditorGUILayout.LabelField("DotCraft App Binding", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                "Advanced handoffs for DotCraft Desktop, TUI, automations, and AppServer workflows. The Local Tool Gateway setting above controls the shared localhost server.",
+                EditorStyles.wordWrappedMiniLabel);
+
+            EditorGUI.indentLevel++;
+            var service = UnityAppBindingService.Instance;
+            DrawReadonlyRow("Handoff URL", service.LocalServerUrl);
+
+            var bindings = service.ActiveBindings.ToList();
+            if (bindings.Count == 0)
+            {
+                EditorGUILayout.LabelField("Active Bindings", "None", EditorStyles.miniLabel);
+            }
+            else
+            {
+                foreach (var binding in bindings)
                 {
-                    _settings.EnableAppBindingLocalServer = enabled;
-                    UnityAppBindingBootstrap.ApplySettings();
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        EditorGUILayout.LabelField(
+                            "Active Binding",
+                            $"{binding.ThreadId} ({binding.ToolCount} tools)",
+                            EditorStyles.miniLabel);
+                        if (GUILayout.Button("Remove", GUILayout.Width(80)))
+                            service.RemoveActiveBinding(binding.BindingId);
+                    }
                 }
+            }
 
-                var service = UnityAppBindingService.Instance;
-                EditorGUILayout.LabelField("Handoff URL", service.LocalServerUrl);
-                EditorGUILayout.LabelField("Status", service.IsLocalServerRunning ? "Running" : "Stopped");
-                if (!string.IsNullOrWhiteSpace(service.LastError))
-                    EditorGUILayout.HelpBox(service.LastError, MessageType.Error);
+            EditorGUI.indentLevel--;
+        }
 
-                var bindings = service.ActiveBindings.ToList();
-                if (bindings.Count == 0)
+        private void DrawGeneralSettingsSection()
+        {
+            EditorGUILayout.LabelField("General Settings", EditorStyles.boldLabel);
+            EditorGUI.indentLevel++;
+
+            _settings.AutoReconnect = EditorGUILayout.Toggle(
+                new GUIContent("Auto Reconnect", "Automatically reconnect after Domain Reload"),
+                _settings.AutoReconnect);
+
+            _settings.VerboseLogging = EditorGUILayout.Toggle(
+                new GUIContent("Verbose Logging", "Enable detailed logging for debugging"),
+                _settings.VerboseLogging);
+
+            _settings.ShowThinkingContent = EditorGUILayout.Toggle(
+                new GUIContent("Show Thinking Content",
+                    "Show agent reasoning text in expandable chat rows. When disabled, DotCraft still shows live thinking status."),
+                _settings.ShowThinkingContent);
+
+            _settings.RequestTimeoutSeconds = EditorGUILayout.IntSlider(
+                new GUIContent("Request Timeout (s)", "Timeout for ACP requests in seconds"),
+                _settings.RequestTimeoutSeconds, 5, 120);
+
+            _settings.MaxHistoryMessages = EditorGUILayout.IntField(
+                new GUIContent("Max History Messages", "Maximum number of messages to keep in history"),
+                _settings.MaxHistoryMessages);
+
+            EditorGUI.indentLevel--;
+        }
+
+        private void DrawEnvironmentVariablesSection()
+        {
+            EditorGUILayout.LabelField("Environment Variables", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox(
+                "Add environment variables like API keys. These are injected into the in-editor agent process only; MCP Gateway setup never writes secrets.",
+                MessageType.Info);
+
+            EditorGUI.indentLevel++;
+
+            var keys = new List<string>(_settings.EnvironmentVariables.Keys);
+            for (int i = 0; i < keys.Count; i++)
+            {
+                EditorGUILayout.BeginHorizontal();
+                var key = EditorGUILayout.TextField(keys[i], GUILayout.Width(150));
+                var value = EditorGUILayout.TextField(_settings.EnvironmentVariables[keys[i]]);
+
+                if (key != keys[i])
                 {
-                    EditorGUILayout.LabelField("Active Bindings", "None", EditorStyles.miniLabel);
+                    _settings.EnvironmentVariables.Remove(keys[i]);
+                    if (!string.IsNullOrEmpty(key))
+                    {
+                        _settings.EnvironmentVariables[key] = value;
+                    }
                 }
                 else
                 {
-                    foreach (var binding in bindings)
-                    {
-                        using (new EditorGUILayout.HorizontalScope())
-                        {
-                            EditorGUILayout.LabelField(
-                                "Active Binding",
-                                $"{binding.ThreadId} ({binding.ToolCount} tools)",
-                                EditorStyles.miniLabel);
-                            if (GUILayout.Button("Remove", GUILayout.Width(80)))
-                                service.RemoveActiveBinding(binding.BindingId);
-                        }
-                    }
+                    _settings.EnvironmentVariables[keys[i]] = value;
                 }
 
-                using (new EditorGUILayout.HorizontalScope())
+                if (GUILayout.Button("×", GUILayout.Width(25)))
                 {
-                    GUILayout.Space(EditorGUI.indentLevel * 15);
-                    if (GUILayout.Button("Restart Server", GUILayout.Width(130)))
-                    {
-                        _settings.EnableAppBindingLocalServer = true;
-                        service.RestartLocalServer();
-                    }
+                    _settings.EnvironmentVariables.Remove(keys[i]);
+                    GUIUtility.ExitGUI();
                 }
 
-                EditorGUI.indentLevel--;
+                EditorGUILayout.EndHorizontal();
+            }
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUI.indentLevel * 15);
+            if (GUILayout.Button("+ Add Variable", GUILayout.Width(120)))
+            {
+                _settings.EnvironmentVariables["NEW_KEY"] = "";
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUI.indentLevel--;
+        }
+
+        private (int builtIn, int custom) GetEnabledToolCounts()
+        {
+            _runtimeToolCatalog ??= RuntimeToolCatalog.Discover();
+            var enabledPluginToolIds = new HashSet<string>(
+                _settings.DynamicToolEnabledById
+                    .Where(pair => pair.Value)
+                    .Select(pair => pair.Key),
+                StringComparer.Ordinal);
+            var resolution = RuntimeToolCatalog.ResolveEnabledTools(
+                _runtimeToolCatalog,
+                _settings.EnableBuiltinUnityTools,
+                id => enabledPluginToolIds.Contains(id));
+
+            return (
+                resolution.Tools.Count(tool => tool.Source == RuntimeToolSource.Builtin),
+                resolution.Tools.Count(tool => tool.Source == RuntimeToolSource.Plugin));
+        }
+
+        private static void DrawReadonlyRow(string label, string value)
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                EditorGUILayout.LabelField(label, EditorStyles.miniBoldLabel, GUILayout.Width(140));
+                EditorGUILayout.LabelField(value ?? string.Empty, EditorStyles.miniLabel);
             }
         }
 
@@ -472,10 +602,10 @@ namespace DotCraft.Editor.Settings
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("MCP Servers", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("MCP Servers for DotCraft Sessions", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(
                     "MCP servers defined here are injected into every new DotCraft session via the ACP " +
-                    "mcpServers field, supplementing any servers in .craft/config.json.",
+                    "mcpServers field. This does not configure dotcraft-unity as an MCP server for external clients; use MCP Tool Gateway Setup above for that.",
                     MessageType.Info);
 
                 // Ensure foldout list is in sync with server list length

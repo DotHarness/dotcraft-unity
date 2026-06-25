@@ -1,16 +1,17 @@
-# DotCraft Runtime Dynamic Tools
+# Custom Project Tools
 
-This document defines how Unity Editor plugins expose DotCraft-only runtime dynamic tools through dotcraft-unity.
+This document defines how Unity Editor code exposes Custom Project Tools through dotcraft-unity.
 
-Related: [Unity Agent OS Tool Gateway](tool-gateway.md).
+Related: [MCP Tool Gateway](tool-gateway.md).
 
 ## Contract
 
-- Runtime dynamic tools are declared only when **Project Settings > DotCraft > Agent Connection** is `DotCraft`.
-- `Custom ACP` agents do not receive these tools, even if they support ACP extension methods.
+- Custom Project Tools are declared to in-editor ACP sessions only when **Project Settings > DotCraft > Agent** is `DotCraft`.
+- `Custom ACP` agents connected through the in-editor chat do not receive these tools, even if they support ACP extension methods.
+- Enabled Custom Project Tools are also available to external MCP clients through the MCP Tool Gateway.
 - Tools are discovered from loaded Editor assemblies that reference `DotCraft.Editor`.
 - A tool method must be `static`, non-generic, and must not use `ref` or `out` parameters.
-- Newly discovered plugin tools default to disabled. Users enable them in **Project Settings > DotCraft > Unity Tools > Plugin Tools (DotCraft only)**.
+- Newly discovered custom tools default to disabled. Users enable them in **Project Settings > DotCraft > Unity Tools > Custom Project Tools**.
 - Settings changes apply on the next connect, reconnect, new session, or loaded session.
 
 ## Registration API
@@ -67,7 +68,7 @@ When the metadata is omitted, dotcraft-unity infers it from `Kind`:
 - `edit`, `move`, and `delete` use `unity.edit` with `mutate` risk.
 - `execute` and `other` use `unity.execute` with `mutate` risk.
 
-Only tools enabled in Project Settings are attached. Plugin tools still default to disabled, and App Binding does not add a second enablement list.
+Only tools enabled in Project Settings are attached. Custom tools still default to disabled, and App Binding does not add a second enablement list.
 
 ## Schema Inference
 

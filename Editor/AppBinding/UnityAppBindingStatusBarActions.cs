@@ -1,4 +1,5 @@
 using System;
+using DotCraft.Editor.McpSetup;
 using UnityEditor;
 using UnityEngine;
 
@@ -9,6 +10,8 @@ namespace DotCraft.Editor.AppBinding
         internal static Action OpenAssistantOverride { get; set; }
 
         internal static Action OpenSettingsOverride { get; set; }
+
+        internal static Action OpenSetupOverride { get; set; }
 
         internal static Action<string> CopyMcpUrlOverride { get; set; }
 
@@ -47,6 +50,17 @@ namespace DotCraft.Editor.AppBinding
             }
 
             SettingsService.OpenProjectSettings("Project/DotCraft");
+        }
+
+        internal static void OpenSetup()
+        {
+            if (OpenSetupOverride != null)
+            {
+                OpenSetupOverride();
+                return;
+            }
+
+            McpGatewaySetupWindow.ShowWindow();
         }
 
         internal static void CopyMcpUrl(string url)

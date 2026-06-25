@@ -349,7 +349,7 @@ namespace DotCraft.Editor.Tests
             Assert.That(summary.ToolCount, Is.EqualTo(8));
             Assert.That(summary.GatewayMcpUrl, Is.EqualTo("http://127.0.0.1:39777/dotcraft/mcp"));
             Assert.That(summary.Tooltip, Does.Contain("connected to 2 thread(s), 8 tool(s)"));
-            Assert.That(summary.Tooltip, Does.Contain("Tool Gateway MCP"));
+            Assert.That(summary.Tooltip, Does.Contain("MCP Tool Gateway"));
         }
 
         [Test]

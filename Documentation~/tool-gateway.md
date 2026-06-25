@@ -1,4 +1,4 @@
-# Unity Agent OS Tool Gateway
+# MCP Tool Gateway
 
 | Field | Value |
 |-------|-------|
@@ -9,13 +9,13 @@
 
 ## Purpose
 
-The Tool Gateway is the dotcraft-unity-owned local entry point that lets external agents discover and invoke Unity Editor tools while the editor is running.
+The MCP Tool Gateway is the dotcraft-unity-owned local entry point that lets external agents discover and invoke Unity Editor tools while the editor is running.
 
-The gateway belongs to the Unity package. It is not part of DotCraft Core, DotCraft AppServer, or the DotCraft App Binding protocol. App Binding remains a separate path for attaching Unity tools to DotCraft threads; the Tool Gateway is the direct local surface for MCP-compatible agents, OpenAI function-call hosts, and Claude tool-use hosts.
+The gateway belongs to the Unity package. It is not part of DotCraft Core, DotCraft AppServer, or the DotCraft App Binding protocol. App Binding remains a separate path for attaching Unity tools to DotCraft threads; the MCP Tool Gateway is the direct local surface for MCP-compatible agents, OpenAI function-call hosts, and Claude tool-use hosts.
 
 ```text
 LLM / Agent Host
-  -> Tool Gateway (MCP / HTTP adapters)
+  -> MCP Tool Gateway (MCP / HTTP adapters)
   -> Unity Tool Gateway registry
   -> Execution Core or Runtime Tool Invoker
   -> Unity Runtime
@@ -25,7 +25,7 @@ LLM / Agent Host
 
 - dotcraft-unity owns tool discovery, schema projection, request validation, Unity main-thread dispatch, and result normalization.
 - External agent hosts own model prompting, approval UX, tool-call scheduling, retries, and model-result replay.
-- DotCraft AppServer is not required for Tool Gateway discovery or invocation.
+- DotCraft AppServer is not required for MCP Tool Gateway discovery or invocation.
 - App Binding descriptors do not define the Tool Gateway contract.
 
 ## Runtime Tool Registry
@@ -34,9 +34,9 @@ LLM / Agent Host
 
 Settings rules:
 
-- **Enable Local Server** starts or stops the localhost server used by App Binding and the Tool Gateway.
-- **Enable Builtin Tools** controls all built-in Unity runtime tools exposed through the gateway, including `unity_execute_csharp`.
-- Plugin tools are exposed only when their `AgentToolAttribute` entry is enabled in **Project Settings > DotCraft > Unity Tools > Plugin Tools**.
+- **Enable Local Tool Gateway** starts or stops the localhost server used by App Binding and the MCP Tool Gateway.
+- **Enable Built-in Unity Tools** controls all built-in Unity runtime tools exposed through the gateway, including `unity_execute_csharp`.
+- Custom Project Tools are exposed only when their `AgentToolAttribute` entry is enabled in **Project Settings > DotCraft > Unity Tools > Custom Project Tools**.
 - The gateway does not add a second per-tool enablement list.
 
 Name rules:
@@ -71,6 +71,74 @@ POST /dotcraft/gateway/call
 ```
 
 The server accepts loopback requests only. Requests with an `Origin` header must come from localhost or loopback addresses.
+
+## Setup UI
+
+Open **Tools > DotCraft > MCP Gateway Setup** or click **Setup MCP Clients** in **Project Settings > DotCraft**.
+
+The setup window:
+
+- Writes project-level configuration only.
+- Writes only the loopback MCP endpoint.
+- Shows a preview before installing.
+- Creates a timestamped `.bak` backup before modifying an existing file.
+- Merges existing JSON config and preserves unrelated TOML content.
+- Supports uninstall by removing only the `dotcraft-unity` server block.
+- Tests the gateway with MCP `initialize` and `tools/list`.
+
+Supported targets:
+
+| Client | Project file | Notes |
+|--------|--------------|-------|
+| Claude Code | `.mcp.json` | Project-scoped servers require approval in Claude Code before use. |
+| Codex | `.codex/config.toml` | Uses prompt approval by default. The Codex Read-only preset writes an `enabled_tools` allowlist. |
+| Cursor | `.cursor/mcp.json` | Verify the server in Cursor MCP settings after opening the project. |
+
+Claude Code:
+
+```json
+{
+  "mcpServers": {
+    "dotcraft-unity": {
+      "type": "http",
+      "url": "http://127.0.0.1:39777/dotcraft/mcp"
+    }
+  }
+}
+```
+
+Codex:
+
+```toml
+[mcp_servers.dotcraft_unity]
+url = "http://127.0.0.1:39777/dotcraft/mcp"
+enabled = true
+tool_timeout_sec = 60
+default_tools_approval_mode = "prompt"
+```
+
+Cursor:
+
+```json
+{
+  "mcpServers": {
+    "dotcraft-unity": {
+      "url": "http://127.0.0.1:39777/dotcraft/mcp"
+    }
+  }
+}
+```
+
+The Codex Read-only preset adds:
+
+```toml
+enabled_tools = [
+  "unity_scene_query",
+  "unity_get_selection",
+  "unity_get_console_logs",
+  "unity_get_project_info",
+]
+```
 
 ## MCP Flow
 
@@ -217,7 +285,7 @@ Failed structured result:
 
 ## Extension Rules
 
-Plugin authors use `AgentToolAttribute` to expose static Editor methods. New plugin tools are discovered in Project Settings, default to disabled, and appear in the gateway only after the user enables them.
+Project and plugin authors use `AgentToolAttribute` to expose static Editor methods as Custom Project Tools. New custom tools are discovered in Project Settings, default to disabled, and appear in the gateway only after the user enables them.
 
 New built-in gateway tools should be added to the runtime tool catalog unless they need a dedicated result contract like `unity_execute_csharp`. Dedicated handlers must:
 

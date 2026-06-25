@@ -98,14 +98,14 @@ namespace DotCraft.Editor.AppBinding
             if (BindingCount > 0)
             {
                 var serverText = IsLocalServerRunning
-                    ? $" Tool Gateway MCP: {GatewayMcpUrl}."
+                    ? $" MCP Tool Gateway: {GatewayMcpUrl}."
                     : " Local server is stopped.";
                 return $"DotCraft App Binding: connected to {ThreadCount} thread(s), {ToolCount} tool(s)." +
                        serverText +
                        " Click for status and actions.";
             }
 
-            return $"DotCraft Tool Gateway running. MCP endpoint: {GatewayMcpUrl}. Click for status and actions.";
+            return $"DotCraft MCP Tool Gateway running. MCP endpoint: {GatewayMcpUrl}. Click for status and actions.";
         }
 
         private static string BuildGatewayMcpUrl(string localServerUrl)

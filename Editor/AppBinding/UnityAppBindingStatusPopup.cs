@@ -5,8 +5,8 @@ namespace DotCraft.Editor.AppBinding
 {
     internal sealed class UnityAppBindingStatusPopup : PopupWindowContent
     {
-        private const float Width = 340f;
-        private const float Height = 194f;
+        private const float Width = 360f;
+        private const float Height = 196f;
         private const float AboveActivatorGap = 6f;
 
         private readonly UnityAppBindingStatusSummary _summary;
@@ -76,10 +76,16 @@ namespace DotCraft.Editor.AppBinding
             EditorGUILayout.Space(8);
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Open Assistant", GUILayout.Height(24)))
+                if (GUILayout.Button("Assistant", GUILayout.Height(24)))
                 {
                     editorWindow?.Close();
                     UnityAppBindingStatusBarActions.OpenAssistant();
+                }
+
+                if (GUILayout.Button("Setup MCP", GUILayout.Width(96), GUILayout.Height(24)))
+                {
+                    editorWindow?.Close();
+                    UnityAppBindingStatusBarActions.OpenSetup();
                 }
 
                 if (GUILayout.Button("Settings", GUILayout.Width(96), GUILayout.Height(24)))
@@ -139,8 +145,8 @@ namespace DotCraft.Editor.AppBinding
                 return "Local server is stopped.";
 
             return _summary.BindingCount <= 0
-                ? "Tool Gateway is running. No DotCraft bindings are active."
-                : $"Tool Gateway is running with {_summary.ThreadCount} bound thread(s).";
+                ? "MCP Tool Gateway is running. No DotCraft bindings are active."
+                : $"MCP Tool Gateway is running with {_summary.ThreadCount} bound thread(s).";
         }
 
         private string FormatBindings()

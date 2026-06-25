@@ -4,34 +4,62 @@
 
 [English](./README.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](https://github.com/DotHarness/dotcraft-unity)
 
-面向 agent 的 Unity Editor 集成。用 DotCraft 构建、调试并迭代游戏世界。
+让 coding agent 使用 Unity Editor。
+
+既可以在 Unity 内直接对话，也可以把 Unity 工具通过 MCP 暴露给 Claude Code、Codex、Cursor 等外部 agent。
 
 </div>
 
-## 简介
+## 你可以用它做什么
 
-dotcraft-unity 是面向 agent 的 Unity Editor 集成。它通过编辑器内 ACP 聊天、面向已绑定 DotCraft thread 的 App Binding，以及供外部 agent 使用的本地 MCP Tool Gateway，把 DotCraft 带入 Unity。
-除了 [DotCraft](https://github.com/DotHarness/dotcraft) ，它也支持 Claude Code、Cursor、Codex 等任何已实现 ACP 协议的 agent。
+| 工作流 | 适用场景 | 入口 |
+|--------|----------|------|
+| Unity 内 Agent 对话 | 想直接在 Unity 中和 DotCraft 或其他 ACP agent 对话 | **Tools → DotCraft Assistant** |
+| MCP Tool Gateway | 想让 Claude Code、Codex、Cursor 等外部 MCP client 调用 Unity 工具 | **Tools → DotCraft → MCP Gateway Setup** |
+| C# 自动化 | 想让 agent 写 C# 批量读写 Unity | `unity_execute_csharp` |
+| 项目自定义工具 | 想暴露项目专属 Unity 操作 | `[AgentTool]` |
+| DotCraft 高级 App Binding | 使用 DotCraft Desktop、TUI、automations 或 AppServer 工作流 | Project Settings → DotCraft |
 
-- 编辑器原生：通过 **Tools → DotCraft Assistant** 直接打开 DotCraft。
-- 项目感知：默认将 Unity 项目根目录作为 DotCraft 工作区。
-- 基于 ACP：DotCraft 作为 agent 进程运行，Unity 作为编辑器客户端。
-- App Binding：Unity Editor 运行时，可把已启用的 Unity 工具暴露给任意已绑定的 DotCraft thread。
-- Unity 上下文：内置工具可暴露场景、选中对象、控制台、项目信息，并支持 C# 执行。
+Unity 内聊天和 MCP Tool Gateway 是两条独立路径。
+
+- Unity 内聊天会启动一个 ACP agent 进程，并在 Unity 面板中和它对话。
+- MCP Tool Gateway 会启动一个本地 Unity 工具端点，供外部 MCP client 连接。
+- 通过 Unity 内聊天连接的 Custom ACP agent 不会自动获得 DotCraft runtime dynamic tools。
+- MCP client 可以在 Unity Editor 运行时访问已启用的 Tool Gateway 工具面。
 
 ## 快速开始
 
-1. 安装并配置 [DotCraft](https://github.com/DotHarness/dotcraft)。
-2. 打开 **Window → Package Manager**，添加这个 Git URL：
+### Option A：在 Unity 内聊天
+
+1. 从 Package Manager 安装 dotcraft-unity。
+2. 打开 **Tools → DotCraft Assistant**。
+3. 在 **Project Settings → DotCraft** 中选择 **DotCraft** 或 **Custom ACP Agent**。
+4. 点击 **Connect**。
+
+### Option B：通过 MCP 使用 Claude Code / Codex / Cursor
+
+1. 打开 Unity 项目。
+2. 在 **Project Settings → DotCraft** 中启用 **Local Tool Gateway**。
+3. 运行 **Tools → DotCraft → MCP Gateway Setup**。
+4. 选择客户端：Claude Code、Codex 或 Cursor。
+5. 从项目根目录启动你的 coding agent。
+
+### Option C：添加项目自定义工具
+
+1. 创建一个带 `[AgentTool]` 的静态 Editor 方法。
+2. 等待 Unity 编译。
+3. 在 **Project Settings → DotCraft → Unity Tools** 中启用这个工具。
+4. 从 DotCraft 或任何已连接 gateway 的 MCP client 使用它。
+
+### 通过 Git 安装
+
+打开 **Window → Package Manager**，添加这个 Git URL：
 
    ```text
    https://github.com/DotHarness/dotcraft-unity.git
    ```
 
-   Unity 会自动解析官方 `com.unity.nuget.newtonsoft-json` 依赖。
-
-3. 打开 **Tools → DotCraft Assistant**。
-4. 点击 **Connect**，然后在 Unity 编辑器中开始对话。
+Unity 会自动解析官方 `com.unity.nuget.newtonsoft-json` 依赖。
 
 最低 Unity 版本：**2022.3**，推荐版本 **Unity 6**。
 
@@ -41,7 +69,7 @@ dotcraft-unity 是面向 agent 的 Unity Editor 集成。它通过编辑器内 A
 
 | 设置 | 默认值 | 描述 |
 |------|--------|------|
-| **Agent Connection** | `DotCraft` | `DotCraft` 使用 Hub 感知启动；`Custom ACP` 保留原始命令/参数用于其他 ACP agent。 |
+| **Agent** | `DotCraft` | `DotCraft` 用于 Unity 内聊天的 Hub 感知启动；`Custom ACP` 保留原始命令/参数用于其他 ACP agent。 |
 | **DotCraft Command** | `dotcraft` | DotCraft 可执行文件名或完整路径，用于启动 Hub 和 ACP bridge。 |
 | **DotCraft AppServer** | `Local via Hub` | `Local via Hub` 通过 Hub 获取工作区 AppServer，再启动 `dotcraft -acp --remote ...`；`Remote AppServer` 使用手动填写的 WebSocket URL。 |
 | **Command / Arguments** | `dotcraft` / `-acp` | 仅在 `Custom ACP` 下显示，直接启动配置的 ACP 进程。 |
@@ -50,13 +78,66 @@ dotcraft-unity 是面向 agent 的 Unity Editor 集成。它通过编辑器内 A
 | **Auto Reconnect** | `true` | Unity Domain Reload 后自动重连。 |
 | **Verbose Logging** | `false` | 将 DotCraft stderr 输出到 Unity Console。 |
 | **Show Thinking Content** | `false` | 在可展开的聊天行中显示 agent 思考内容。关闭时仅显示轻量的思考状态。 |
-| **Enable Builtin Unity Tools** | `true` | 在 `DotCraft` 连接模式下声明内置 Unity 运行时工具，包括只读工具和 `unity_execute_csharp`。 |
-| **Plugin Tools** | 关闭 | 通过 attribute 发现的插件运行时工具。每个工具都需要在 **Unity Tools → Plugin Tools (DotCraft only)** 中显式开启。 |
-| **Enable Local Server** | `true` | Unity Editor 打开时，在 `39777` 端口启动 localhost App Binding 与 Tool Gateway 服务。 |
+| **Enable Built-in Unity Tools** | `true` | 向 DotCraft 和 MCP Tool Gateway 暴露内置 Unity 工具，包括只读工具和 `unity_execute_csharp`。 |
+| **Custom Project Tools** | 关闭 | 通过 `[AgentTool]` 发现的项目自定义工具。每个工具都需要在 **Unity Tools → Custom Project Tools** 中显式开启。 |
+| **Enable Local Tool Gateway** | `true` | Unity Editor 打开时，在 `39777` 端口启动 localhost App Binding 与 MCP Tool Gateway 服务。 |
 
 配置 API key 时，建议使用 Project Settings 里的环境变量，不要把密钥提交到项目文件。
 
-## 内置工具
+## MCP Tool Gateway
+
+dotcraft-unity 会暴露一个本地 MCP Tool Gateway，供外部 coding agent 使用。Unity Editor 运行时，MCP client 可以连接：
+
+```text
+http://127.0.0.1:39777/dotcraft/mcp
+```
+
+Setup 窗口只写项目级配置；写入前会展示 preview；修改已有文件前会创建 `.bak` 备份；uninstall 只删除 `dotcraft-unity` server block。
+
+首版支持：
+
+- Claude Code：`.mcp.json`
+- Codex：`.codex/config.toml`
+- Cursor：`.cursor/mcp.json`
+
+Claude Code 项目配置：
+
+```json
+{
+  "mcpServers": {
+    "dotcraft-unity": {
+      "type": "http",
+      "url": "http://127.0.0.1:39777/dotcraft/mcp"
+    }
+  }
+}
+```
+
+Codex 项目配置：
+
+```toml
+[mcp_servers.dotcraft_unity]
+url = "http://127.0.0.1:39777/dotcraft/mcp"
+enabled = true
+tool_timeout_sec = 60
+default_tools_approval_mode = "prompt"
+```
+
+Cursor 项目配置：
+
+```json
+{
+  "mcpServers": {
+    "dotcraft-unity": {
+      "url": "http://127.0.0.1:39777/dotcraft/mcp"
+    }
+  }
+}
+```
+
+完整 gateway 契约与 setup 说明见 [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md)。
+
+## Unity 工具面
 
 dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明内置 Unity 运行时工具：
 
@@ -68,29 +149,7 @@ dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明内置 Unity 运行时�
 | `unity_get_project_info` | 读取 Unity 版本、项目名称和包信息。 |
 | `unity_execute_csharp` | 在 Unity Editor 进程中编译并执行一段 C# 方法体代码。 |
 
-只读工具帮助 DotCraft 理解当前场景与项目状态。`unity_execute_csharp` 允许已绑定的 agent 在 Unity 主线程编译并运行 C#，从而读取或修改 Editor 状态。模型可见的工具描述符位于这个 Unity 客户端中；`_unity/*` ACP 方法用于稳定内置工具，App Binding 会把所有已启用工具暴露在 `unity` namespace 下。
-
-## Tool Gateway
-
-dotcraft-unity 也会暴露一个本地 Unity Agent OS Tool Gateway，供外部 agent 使用。Unity Editor 运行时，Codex、Claude Code 等 MCP client 可以连接：
-
-```text
-http://127.0.0.1:39777/dotcraft/mcp
-```
-
-当前 gateway 会通过 MCP `tools/list` 和 `tools/call` 暴露已启用的运行时工具面，包括内置 Unity 工具、`unity_execute_csharp` 和已启用的插件工具。普通 HTTP adapter 位于 `GET /dotcraft/gateway/tools?format=canonical|openai-responses|openai-chat|claude` 和 `POST /dotcraft/gateway/call`。
-
-Codex 配置示例：
-
-```toml
-[mcp_servers.dotcraft_unity]
-url = "http://127.0.0.1:39777/dotcraft/mcp"
-enabled = true
-tool_timeout_sec = 60
-default_tools_approval_mode = "approve"
-```
-
-完整 gateway 契约见 [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md)。
+只读工具帮助 agent 理解当前场景与项目状态。`unity_execute_csharp` 是运行在 Unity Editor 内的可信本地 C# 执行能力；它是强大的自动化工具，不是远程安全沙箱。
 
 ## App Binding
 
@@ -98,9 +157,9 @@ default_tools_approval_mode = "approve"
 
 这条路径独立于 Unity 内的 ACP 聊天窗口：Desktop、TUI、automations 或其他 AppServer 客户端中的 agent，都可以在绑定后调用 Unity 工具。Unity 关闭或脚本重载后，绑定会变为 offline，需要重新绑定。
 
-## 插件运行时工具
+## 项目自定义工具
 
-其他 Unity Editor 插件可以通过给静态方法添加 `AgentToolAttribute`，向 DotCraft 暴露仅 DotCraft 可用的运行时工具。新插件工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭，并且只会在 `DotCraft` 连接模式下注入。
+Unity Editor 代码可以通过给静态方法添加 `AgentToolAttribute`，暴露项目自定义工具。新工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭；启用后可由 DotCraft 或已连接 gateway 的 MCP client 使用。
 
 ```csharp
 using System.ComponentModel;
@@ -127,7 +186,8 @@ public static class ExampleDotCraftTools
 | `Failed to start DotCraft process` | `dotcraft` 不在 `PATH` 中 | 安装 DotCraft 并加入 `PATH`，或在 **Command** 中设置完整路径。 |
 | 卡在 `Connecting...` | DotCraft 启动失败 | 启用 **Verbose Logging** 并查看 Unity Console。 |
 | 脚本编译后断开连接 | 自动重连已关闭 | 在 Project Settings 中启用 **Auto Reconnect**。 |
-| 工具不可用 | 运行时工具描述符没有声明或没有被接受 | 启用 **Builtin Unity Tools**，并使用支持 ACP runtime dynamic tools 的 DotCraft 版本。 |
+| MCP client 无法连接 | Local Tool Gateway 已停止或 Unity 已关闭 | 打开 Unity，启用 **Local Tool Gateway**，然后重新运行 **MCP Gateway Setup** 或复制 endpoint。 |
+| 工具不可用 | 运行时工具描述符没有声明或没有被接受 | 启用 **Built-in Unity Tools**，并启用所需的 Custom Project Tools。 |
 
 ## 贡献代码
 
