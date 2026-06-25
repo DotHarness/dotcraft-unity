@@ -8,7 +8,7 @@ using UnityEngine.UIElements;
 namespace DotCraft.Editor.AppBinding
 {
     /// <summary>
-    /// Injects a compact DotCraft App Binding indicator into Unity's bottom-right status bar area.
+    /// Injects a compact DotCraft status indicator into Unity's bottom-right status bar area.
     /// </summary>
     [InitializeOnLoad]
     internal static class UnityAppBindingStatusBarIndicator
@@ -129,11 +129,11 @@ namespace DotCraft.Editor.AppBinding
             if (s_serviceEventsRegistered)
                 return;
 
-            UnityAppBindingService.Instance.ActiveBindingsChanged += OnActiveBindingsChanged;
+            UnityAppBindingService.Instance.StatusChanged += OnStatusChanged;
             s_serviceEventsRegistered = true;
         }
 
-        private static void OnActiveBindingsChanged()
+        private static void OnStatusChanged()
         {
             TryInject();
         }
@@ -249,7 +249,12 @@ namespace DotCraft.Editor.AppBinding
             }
 
             RefreshLayout();
-            s_summary = UnityAppBindingStatusSummary.FromBindings(UnityAppBindingService.Instance.ActiveBindings);
+            var service = UnityAppBindingService.Instance;
+            s_summary = UnityAppBindingStatusSummary.FromState(
+                service.IsLocalServerRunning,
+                service.LocalServerUrl,
+                service.LastError,
+                service.ActiveBindings);
             s_indicator.style.display = s_summary.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
             s_indicator.tooltip = s_summary.Tooltip;
             s_indicator.MarkDirtyRepaint();
@@ -415,7 +420,7 @@ namespace DotCraft.Editor.AppBinding
             var evt = Event.current;
             if (evt.type == EventType.MouseDown && totalRect.Contains(evt.mousePosition))
             {
-                UnityAppBindingStatusBarActions.OpenAssistant();
+                UnityAppBindingStatusBarActions.OpenStatusPopup(totalRect, s_summary);
                 evt.Use();
             }
 

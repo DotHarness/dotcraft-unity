@@ -36,6 +36,7 @@ namespace DotCraft.Editor.Tests
         [Test]
         public void BuiltinToolsUseStableUnityExtensionMethods()
         {
+            AssertBuiltinTool("unity_execute_csharp", "_unity/execute_csharp");
             AssertBuiltinTool("unity_scene_query", "_unity/scene_query");
             AssertBuiltinTool("unity_get_selection", "_unity/get_selection");
             AssertBuiltinTool("unity_get_console_logs", "_unity/get_console_logs");

@@ -294,35 +294,101 @@ namespace DotCraft.Editor.Tests
         }
 
         [Test]
-        public void StatusSummaryHidesWithoutActiveBindings()
+        public void StatusSummaryHidesWhenServerStoppedWithoutActiveBindings()
         {
-            var summary = UnityAppBindingStatusSummary.FromBindings(System.Array.Empty<UnityAppBindingService.ActiveBinding>());
+            var summary = UnityAppBindingStatusSummary.FromState(
+                false,
+                "http://127.0.0.1:39777/dotcraft/",
+                null,
+                Array.Empty<UnityAppBindingService.ActiveBinding>());
 
             Assert.That(summary.IsVisible, Is.False);
+            Assert.That(summary.IsLocalServerRunning, Is.False);
             Assert.That(summary.ThreadCount, Is.EqualTo(0));
             Assert.That(summary.ToolCount, Is.EqualTo(0));
+            Assert.That(summary.BindingCount, Is.EqualTo(0));
             Assert.That(summary.Tooltip, Is.EqualTo(string.Empty));
         }
 
         [Test]
-        public void StatusSummaryCountsThreadsAndTools()
+        public void StatusSummaryShowsRunningServerWithoutActiveBindings()
         {
-            var summary = UnityAppBindingStatusSummary.FromBindings(new[]
+            var summary = UnityAppBindingStatusSummary.FromState(
+                true,
+                "http://127.0.0.1:39777/dotcraft/",
+                null,
+                Array.Empty<UnityAppBindingService.ActiveBinding>());
+
+            Assert.That(summary.IsVisible, Is.True);
+            Assert.That(summary.IsLocalServerRunning, Is.True);
+            Assert.That(summary.BindingCount, Is.EqualTo(0));
+            Assert.That(summary.ThreadCount, Is.EqualTo(0));
+            Assert.That(summary.ToolCount, Is.EqualTo(0));
+            Assert.That(summary.GatewayMcpUrl, Is.EqualTo("http://127.0.0.1:39777/dotcraft/mcp"));
+            Assert.That(summary.Tooltip, Does.Contain("Tool Gateway"));
+            Assert.That(summary.Tooltip, Does.Contain("MCP endpoint"));
+        }
+
+        [Test]
+        public void StatusSummaryCountsThreadsAndToolsWhenServerRunning()
+        {
+            var summary = UnityAppBindingStatusSummary.FromState(
+                true,
+                "http://127.0.0.1:39777/dotcraft/",
+                null,
+                new[]
             {
                 new UnityAppBindingService.ActiveBinding { BindingId = "binding_1", ThreadId = "thread_a", ToolCount = 3 },
                 new UnityAppBindingService.ActiveBinding { BindingId = "binding_2", ThreadId = "thread_b", ToolCount = 5 }
             });
 
             Assert.That(summary.IsVisible, Is.True);
+            Assert.That(summary.IsLocalServerRunning, Is.True);
+            Assert.That(summary.BindingCount, Is.EqualTo(2));
             Assert.That(summary.ThreadCount, Is.EqualTo(2));
             Assert.That(summary.ToolCount, Is.EqualTo(8));
-            Assert.That(
-                summary.Tooltip,
-                Is.EqualTo("DotCraft App Binding: connected to 2 thread(s), 8 tool(s). Click to open DotCraft Assistant."));
+            Assert.That(summary.GatewayMcpUrl, Is.EqualTo("http://127.0.0.1:39777/dotcraft/mcp"));
+            Assert.That(summary.Tooltip, Does.Contain("connected to 2 thread(s), 8 tool(s)"));
+            Assert.That(summary.Tooltip, Does.Contain("Tool Gateway MCP"));
         }
 
         [Test]
-        public void StatusBarOpenAssistantActionCanBeOverriddenForTests()
+        public void StatusBarOpenStatusPopupActionCanBeOverriddenForTests()
+        {
+            var opened = false;
+            Rect capturedRect = default;
+            UnityAppBindingStatusSummary capturedSummary = null;
+            var summary = UnityAppBindingStatusSummary.FromState(
+                true,
+                "http://127.0.0.1:39777/dotcraft/",
+                null,
+                Array.Empty<UnityAppBindingService.ActiveBinding>());
+
+            UnityAppBindingStatusBarActions.OpenStatusPopupOverride = (rect, popupSummary) =>
+            {
+                opened = true;
+                capturedRect = rect;
+                capturedSummary = popupSummary;
+            };
+            try
+            {
+                UnityAppBindingStatusBarActions.OpenStatusPopup(new Rect(1, 2, 3, 4), summary);
+            }
+            finally
+            {
+                UnityAppBindingStatusBarActions.OpenStatusPopupOverride = null;
+            }
+
+            Assert.That(opened, Is.True);
+            Assert.That(capturedRect.x, Is.EqualTo(1));
+            Assert.That(capturedRect.y, Is.EqualTo(2));
+            Assert.That(capturedRect.width, Is.EqualTo(3));
+            Assert.That(capturedRect.height, Is.EqualTo(4));
+            Assert.That(capturedSummary, Is.SameAs(summary));
+        }
+
+        [Test]
+        public void StatusPopupOpenAssistantActionCanBeOverriddenForTests()
         {
             var opened = false;
             UnityAppBindingStatusBarActions.OpenAssistantOverride = () => opened = true;
@@ -345,8 +411,11 @@ namespace DotCraft.Editor.Tests
             var bindings = GetActiveBindingsForTests(service);
             var bindingId = $"test_binding_{Guid.NewGuid():N}";
             var fired = 0;
+            var statusFired = 0;
             void OnChanged() => fired++;
+            void OnStatusChanged() => statusFired++;
             service.ActiveBindingsChanged += OnChanged;
+            service.StatusChanged += OnStatusChanged;
             try
             {
                 bindings[bindingId] = new UnityAppBindingService.ActiveBinding
@@ -359,10 +428,12 @@ namespace DotCraft.Editor.Tests
 
                 Assert.That(service.RemoveActiveBinding(bindingId), Is.True);
                 Assert.That(fired, Is.EqualTo(1));
+                Assert.That(statusFired, Is.EqualTo(1));
             }
             finally
             {
                 service.ActiveBindingsChanged -= OnChanged;
+                service.StatusChanged -= OnStatusChanged;
                 bindings.TryRemove(bindingId, out _);
             }
         }

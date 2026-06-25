@@ -40,6 +40,8 @@ namespace DotCraft.Editor.AppBinding
 
         internal event Action ActiveBindingsChanged;
 
+        internal event Action StatusChanged;
+
         public void ApplySettings()
         {
             if (DotCraftSettings.Instance.EnableAppBindingLocalServer)
@@ -52,17 +54,20 @@ namespace DotCraft.Editor.AppBinding
         {
             RefreshHandoffSnapshot();
             _localServer.Start();
+            NotifyStatusChanged();
         }
 
         public void StopLocalServer()
         {
             _localServer.Stop();
+            NotifyStatusChanged();
         }
 
         public void RestartLocalServer()
         {
             RefreshHandoffSnapshot();
             _localServer.Restart();
+            NotifyStatusChanged();
         }
 
         public bool RemoveActiveBinding(string bindingId)
@@ -94,13 +99,15 @@ namespace DotCraft.Editor.AppBinding
 
         public void Shutdown()
         {
-            StopLocalServer();
+            _localServer.Stop();
             var hadBindings = !_activeBindings.IsEmpty;
             foreach (var binding in _activeBindings.Values)
                 binding.Client?.Dispose();
             _activeBindings.Clear();
             if (hadBindings)
                 NotifyActiveBindingsChanged();
+            else
+                NotifyStatusChanged();
         }
 
         private async Task<string> HandleHandoffAsync(UnityAppBindingHandoff handoff, CancellationToken ct)
@@ -253,7 +260,16 @@ namespace DotCraft.Editor.AppBinding
 
         private void NotifyActiveBindingsChanged()
         {
-            MainThreadDispatcher.RunOrEnqueue(() => ActiveBindingsChanged?.Invoke());
+            MainThreadDispatcher.RunOrEnqueue(() =>
+            {
+                ActiveBindingsChanged?.Invoke();
+                StatusChanged?.Invoke();
+            });
+        }
+
+        private void NotifyStatusChanged()
+        {
+            MainThreadDispatcher.RunOrEnqueue(() => StatusChanged?.Invoke());
         }
 
         private Task HandleAppServerNotificationAsync(

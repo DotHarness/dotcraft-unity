@@ -322,7 +322,7 @@ namespace DotCraft.Editor.Settings
 
                 var enableBuiltinTools = EditorGUILayout.Toggle(
                     new GUIContent("Enable Builtin Tools",
-                        "Declare built-in read-only Unity runtime tools and enable their _unity/* handlers. DotCraft connection only."),
+                        "Declare built-in Unity runtime tools, including read tools and unity_execute_csharp. DotCraft connection only."),
                     _settings.EnableBuiltinUnityTools);
                 if (enableBuiltinTools != _settings.EnableBuiltinUnityTools)
                 {
@@ -406,15 +406,15 @@ namespace DotCraft.Editor.Settings
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("App Binding", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("App Binding / Tool Gateway", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(
-                    "Expose the enabled Unity runtime tools to DotCraft threads through a local App Binding handoff server.",
+                    "Expose Unity runtime tools through local DotCraft App Binding handoffs and the Unity Agent OS Tool Gateway.",
                     MessageType.Info);
 
                 EditorGUI.indentLevel++;
 
                 var enabled = EditorGUILayout.Toggle(
-                    new GUIContent("Enable Local Server", "Listen on localhost for DotCraft App Binding connect and bind handoffs."),
+                    new GUIContent("Enable Local Server", "Listen on localhost for DotCraft App Binding handoffs and MCP/HTTP Tool Gateway calls."),
                     _settings.EnableAppBindingLocalServer);
                 if (enabled != _settings.EnableAppBindingLocalServer)
                 {
