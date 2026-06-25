@@ -1,6 +1,6 @@
 {
     "name": "com.dotcraft.unityclient",
-    "version": "0.1.6",
+    "version": "0.2.0",
     "displayName": "dotcraft-unity",
     "description": "Unity Editor client for DotCraft using Agent Client Protocol (ACP).",
     "unity": "2022.3",
