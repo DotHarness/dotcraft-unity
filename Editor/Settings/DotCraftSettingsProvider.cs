@@ -200,7 +200,7 @@ namespace DotCraft.Editor.Settings
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     GUILayout.Space(EditorGUI.indentLevel * 15);
-                    if (GUILayout.Button("Open DotCraft Assistant", GUILayout.Width(180)))
+                    if (GUILayout.Button("Open AI Assistant", GUILayout.Width(180)))
                         global::DotCraft.Editor.Window.DotCraftEditorWindow.ShowWindow();
                 }
             }
@@ -279,14 +279,11 @@ namespace DotCraft.Editor.Settings
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.LabelField("MCP Tool Gateway", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField(
-                    "Expose C# automation and enabled custom project tools to Claude Code, Codex, Cursor, and other MCP-compatible coding agents. This path is independent from the in-editor chat connection.",
-                    EditorStyles.wordWrappedMiniLabel);
 
                 EditorGUI.indentLevel++;
 
                 var enabled = EditorGUILayout.Toggle(
-                    new GUIContent("Enable Local Tool Gateway", "Listen on localhost for MCP clients and DotCraft App Binding handoffs."),
+                    new GUIContent("Enable", "Listen on localhost for MCP clients and DotCraft App Binding handoffs."),
                     _settings.EnableAppBindingLocalServer);
                 if (enabled != _settings.EnableAppBindingLocalServer)
                 {
@@ -334,14 +331,12 @@ namespace DotCraft.Editor.Settings
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.LabelField("Unity Tools", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField(
-                    "Choose whether C# automation and custom project tools are available to DotCraft and to MCP clients connected through the Gateway.",
-                    EditorStyles.wordWrappedMiniLabel);
 
                 EditorGUI.indentLevel++;
 
+                EditorGUILayout.LabelField("C# Automation", EditorStyles.boldLabel);
                 var enableCSharpAutomation = EditorGUILayout.Toggle(
-                    new GUIContent("Enable C# Automation",
+                    new GUIContent("Enable",
                         "Expose unity_execute_csharp through the DotCraft profile and MCP Tool Gateway."),
                     _settings.EnableCSharpAutomation);
                 if (enableCSharpAutomation != _settings.EnableCSharpAutomation)
@@ -350,15 +345,8 @@ namespace DotCraft.Editor.Settings
                     UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                 }
 
-                EditorGUILayout.LabelField(
-                    "C# Automation exposes unity_execute_csharp for local Unity Editor scripting.",
-                    EditorStyles.wordWrappedMiniLabel);
-
                 EditorGUILayout.Space(6);
                 EditorGUILayout.LabelField("Custom Project Tools", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox(
-                    "Static Editor methods marked with AgentToolAttribute are discovered here. Enabled custom tools are available to DotCraft and to MCP clients through the Gateway.",
-                    MessageType.Info);
 
                 _runtimeToolCatalog ??= RuntimeToolCatalog.Discover();
 
@@ -370,9 +358,6 @@ namespace DotCraft.Editor.Settings
                         RefreshRuntimeToolCatalog();
                         UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                     }
-
-                    if (GUILayout.Button("Setup MCP Clients", GUILayout.Width(150)))
-                        McpGatewaySetupWindow.ShowWindow();
                 }
 
                 var pluginTools = _runtimeToolCatalog.Tools

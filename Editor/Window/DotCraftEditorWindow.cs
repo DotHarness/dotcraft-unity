@@ -98,7 +98,7 @@ namespace DotCraft.Editor.Window
         // Coalesced scroll: set to true on any session update; the update loop scrolls once per frame
         private bool _scrollDirty;
 
-        [MenuItem("Tools/DotCraft Assistant")]
+        [MenuItem("Tools/DotCraft/AI Assistant")]
         public static void ShowWindow()
         {
             var window = GetWindow<DotCraftEditorWindow>();
