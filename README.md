@@ -14,10 +14,10 @@ Chat with an agent inside Unity, or expose Unity tools to Claude Code, Codex, Cu
 
 | Workflow | Use this when | Entry point |
 |----------|---------------|-------------|
-| In-Editor Agent Chat | You want to chat with DotCraft or another ACP agent inside Unity | **Tools → DotCraft → AI Assistant** |
+| In-Unity Agent Chat | You want to chat with DotCraft or another ACP agent inside Unity | **Tools → DotCraft → AI Assistant** |
 | MCP Tool Gateway | You want external MCP clients such as Claude Code, Codex, or Cursor to call Unity tools | **Tools → DotCraft → MCP Gateway Setup** |
 | C# Automation | You want an agent to perform batch operations in Unity | `unity_execute_csharp` |
-| Custom Project Tools | You want to expose project-specific Unity tools | `[AgentTool]` |
+| Custom Tools | You want to expose project-specific Unity tools | `[AgentTool]` |
 
 In-editor ACP chat and MCP Tool Gateway are separate paths.
 
@@ -45,14 +45,14 @@ Minimum Unity version: **2022.3**, recommended version: **Unity 6**.
 3. Select **DotCraft** or **Custom ACP Agent** in **Project Settings → DotCraft**.
 4. Click **Connect**.
 
-### Option B: Use Claude Code / Codex / Cursor through MCP
+### Option B: Use MCP to operate Unity
 
-![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
+![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
 
 1. Open the Unity project.
 2. Enable **Local Tool Gateway** in **Project Settings → DotCraft**.
 3. Run **Tools → DotCraft → MCP Gateway Setup**.
-4. Choose your client: Claude Code, Codex, or Cursor.
+4. Choose your client: DotCraft, Claude Code, Codex, or Cursor.
 5. Start your coding agent from the project root.
 
 ### Option C: Add project-specific tools
@@ -63,6 +63,8 @@ Minimum Unity version: **2022.3**, recommended version: **Unity 6**.
 4. Use it from DotCraft or any MCP client connected to the gateway.
 
 ## MCP Tool Gateway
+
+![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
 
 dotcraft-unity exposes a local MCP Tool Gateway for external coding agents. While Unity Editor is running, MCP clients can connect to:
 

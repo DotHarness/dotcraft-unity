@@ -4,7 +4,7 @@
 
 [English](./README.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](https://github.com/DotHarness/dotcraft-unity)
 
-让 coding agent 使用 Unity Editor。
+让 coding agents 使用 Unity Editor。
 
 既可以在 Unity 内直接对话，也可以把 Unity 工具通过 MCP 暴露给 Claude Code、Codex、Cursor 等 agents。
 
@@ -17,7 +17,7 @@
 | Unity 内 Agent 对话 | 想直接在 Unity 中和 DotCraft 或其他 ACP agent 对话 | **Tools → DotCraft → AI Assistant** |
 | MCP Tool Gateway | 想让 Claude Code、Codex、Cursor 等外部 MCP client 调用 Unity 工具 | **Tools → DotCraft → MCP Gateway Setup** |
 | C# 自动化 | 想让 agent 批量操作 Unity | `unity_execute_csharp` |
-| 项目自定义工具 | 想暴露项目专属 Unity 工具 | `[AgentTool]` |
+| 自定义工具 | 想暴露项目专属 Unity 工具 | `[AgentTool]` |
 
 Unity 内聊天和 MCP Tool Gateway 是两条独立路径。
 
@@ -45,14 +45,14 @@ Unity 内聊天和 MCP Tool Gateway 是两条独立路径。
 3. 在 **Project Settings → DotCraft** 中选择 **DotCraft** 或 **Custom ACP Agent**。
 4. 点击 **Connect**。
 
-### Option B：通过 MCP 使用 Claude Code / Codex / Cursor
+### Option B：通过 MCP 操作 Unity
 
-![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
+![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
 
 1. 打开 Unity 项目。
 2. 在 **Project Settings → DotCraft** 中启用 **Local Tool Gateway**。
 3. 运行 **Tools → DotCraft → MCP Gateway Setup**。
-4. 选择客户端：Claude Code、Codex 或 Cursor。
+4. 选择 Agent 工具：DotCraft、Claude Code、Codex 或 Cursor。
 5. 从项目根目录启动你的 coding agent。
 
 ### Option C：添加项目自定义工具
@@ -63,6 +63,8 @@ Unity 内聊天和 MCP Tool Gateway 是两条独立路径。
 4. 从 DotCraft 或任何已连接 gateway 的 MCP client 使用它。
 
 ## MCP Tool Gateway
+
+![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
 
 dotcraft-unity 会暴露一个本地 MCP Tool Gateway，供外部 coding agent 使用。Unity Editor 运行时，MCP client 可以连接：
 
