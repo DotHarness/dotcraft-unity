@@ -34,7 +34,7 @@ Open **Window → Package Manager** and add this Git URL:
    https://github.com/DotHarness/dotcraft-unity.git
    ```
 
-Minimum Unity version: **2022.3**, recommended version: **Unity 6**.
+Minimum Unity version: **2021.3**, recommended version: **Unity 6**.
 
 ### Option A: Chat inside Unity
 

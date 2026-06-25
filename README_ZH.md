@@ -34,7 +34,7 @@ Unity 内聊天和 MCP Tool Gateway 是两条独立路径。
    https://github.com/DotHarness/dotcraft-unity.git
    ```
 
-最低 Unity 版本：**2022.3**，推荐版本 **Unity 6**。
+最低 Unity 版本：**2021.3**，推荐版本 **Unity 6**。
 
 ### Option A：在 Unity 内聊天
 
