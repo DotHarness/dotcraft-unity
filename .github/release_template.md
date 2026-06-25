@@ -4,7 +4,7 @@
 
 Use coding agents with Unity Editor.
 
-Chat with an agent inside Unity, or expose Unity tools to Claude Code, Codex, Cursor, and other MCP clients.
+Chat with an agent inside Unity, or expose Unity tools to Claude Code, Codex, Cursor, and other agents.
 
 ## Install
 
