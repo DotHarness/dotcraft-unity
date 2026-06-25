@@ -7,22 +7,14 @@ namespace DotCraft.Editor.McpSetup
 {
     internal static class McpGatewaySetupDefaults
     {
-        public static readonly string[] ReadOnlyToolNames =
-        {
-            "unity_scene_query",
-            "unity_get_selection",
-            "unity_get_console_logs",
-            "unity_get_project_info"
-        };
-
         public static string ProjectRoot =>
             Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
 
         public static string Endpoint =>
             $"http://127.0.0.1:{UnityAppBindingConstants.LocalServerPort}/dotcraft/mcp";
 
-        public static McpInstallOptions CreateOptions(McpInstallPreset preset) =>
-            new(Endpoint, preset, ReadOnlyToolNames);
+        public static McpInstallOptions CreateOptions() =>
+            new(Endpoint);
 
         public static bool IsLoopbackEndpoint(string endpoint)
         {

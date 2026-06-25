@@ -78,7 +78,7 @@ Unity 会自动解析官方 `com.unity.nuget.newtonsoft-json` 依赖。
 | **Auto Reconnect** | `true` | Unity Domain Reload 后自动重连。 |
 | **Verbose Logging** | `false` | 将 DotCraft stderr 输出到 Unity Console。 |
 | **Show Thinking Content** | `false` | 在可展开的聊天行中显示 agent 思考内容。关闭时仅显示轻量的思考状态。 |
-| **Enable Built-in Unity Tools** | `true` | 向 DotCraft 和 MCP Tool Gateway 暴露内置 Unity 工具，包括只读工具和 `unity_execute_csharp`。 |
+| **Enable C# Automation** | `true` | 向 DotCraft 和 MCP Tool Gateway 暴露 `unity_execute_csharp`。 |
 | **Custom Project Tools** | 关闭 | 通过 `[AgentTool]` 发现的项目自定义工具。每个工具都需要在 **Unity Tools → Custom Project Tools** 中显式开启。 |
 | **Enable Local Tool Gateway** | `true` | Unity Editor 打开时，在 `39777` 端口启动 localhost App Binding 与 MCP Tool Gateway 服务。 |
 
@@ -139,17 +139,13 @@ Cursor 项目配置：
 
 ## Unity 工具面
 
-dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明内置 Unity 运行时工具：
+dotcraft-unity 会在 ACP 初始化时向 DotCraft 声明一个内置 Unity 运行时工具：
 
 | 工具 | 描述 |
 |------|------|
-| `unity_scene_query` | 查询场景层级结构，可选包含组件详情。 |
-| `unity_get_selection` | 读取 Unity 编辑器当前选中对象。 |
-| `unity_get_console_logs` | 获取最近的 Unity Console 日志。 |
-| `unity_get_project_info` | 读取 Unity 版本、项目名称和包信息。 |
 | `unity_execute_csharp` | 在 Unity Editor 进程中编译并执行一段 C# 方法体代码。 |
 
-只读工具帮助 agent 理解当前场景与项目状态。`unity_execute_csharp` 是运行在 Unity Editor 内的可信本地 C# 执行能力；它是强大的自动化工具，不是远程安全沙箱。
+可以通过 `unity_execute_csharp` 编写 C# snippet 来读取或修改场景状态、选中对象、Console 输出、项目元数据和资源。重复使用的工作流建议用 `[AgentTool]` 封装成项目自定义工具。`unity_execute_csharp` 是运行在 Unity Editor 内的可信本地 C# 执行能力；它是强大的自动化工具，不是远程安全沙箱。
 
 ## App Binding
 
@@ -187,7 +183,7 @@ public static class ExampleDotCraftTools
 | 卡在 `Connecting...` | DotCraft 启动失败 | 启用 **Verbose Logging** 并查看 Unity Console。 |
 | 脚本编译后断开连接 | 自动重连已关闭 | 在 Project Settings 中启用 **Auto Reconnect**。 |
 | MCP client 无法连接 | Local Tool Gateway 已停止或 Unity 已关闭 | 打开 Unity，启用 **Local Tool Gateway**，然后重新运行 **MCP Gateway Setup** 或复制 endpoint。 |
-| 工具不可用 | 运行时工具描述符没有声明或没有被接受 | 启用 **Built-in Unity Tools**，并启用所需的 Custom Project Tools。 |
+| 工具不可用 | 运行时工具描述符没有声明或没有被接受 | 启用 **C# Automation**，并启用所需的 Custom Project Tools。 |
 
 ## 贡献代码
 

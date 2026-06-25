@@ -234,7 +234,7 @@ namespace DotCraft.Editor.Tests
             var editTool = FindTool(nameof(AppBindingInferredEditTool));
             var settings = new DotCraftSettings
             {
-                EnableBuiltinUnityTools = false
+                EnableCSharpAutomation = false
             };
             settings.DynamicToolEnabledById[readTool.Id] = true;
             settings.DynamicToolEnabledById[editTool.Id] = true;
@@ -262,7 +262,7 @@ namespace DotCraft.Editor.Tests
             var editTool = FindTool(nameof(AppBindingInferredEditTool));
             var settings = new DotCraftSettings
             {
-                EnableBuiltinUnityTools = false
+                EnableCSharpAutomation = false
             };
             settings.DynamicToolEnabledById[editTool.Id] = true;
 

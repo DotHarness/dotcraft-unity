@@ -25,28 +25,28 @@ namespace DotCraft.Editor.Tests
             var descriptor = new AcpRuntimeToolDescriptor
             {
                 Namespace = "unity",
-                Name = "unity_scene_query",
-                Description = "Query scene hierarchy.",
+                Name = "unity_execute_csharp",
+                Description = "Compile and execute C# in Unity.",
                 InputSchema = new Dictionary<string, object>
                 {
                     ["type"] = "object",
                     ["properties"] = new Dictionary<string, object>
                     {
-                        ["includeComponents"] = new Dictionary<string, object>
+                        ["code"] = new Dictionary<string, object>
                         {
-                            ["type"] = "boolean"
+                            ["type"] = "string"
                         }
                     }
                 },
-                AcpMethod = "_unity/scene_query",
-                Kind = AcpToolKind.Unity
+                AcpMethod = "_unity/execute_csharp",
+                Kind = AcpToolKind.Execute
             };
 
             var json = DotCraftJson.Serialize(descriptor);
 
             Assert.That(json, Does.Contain("\"inputSchema\""));
-            Assert.That(json, Does.Contain("\"acpMethod\":\"_unity/scene_query\""));
-            Assert.That(json, Does.Contain("\"includeComponents\""));
+            Assert.That(json, Does.Contain("\"acpMethod\":\"_unity/execute_csharp\""));
+            Assert.That(json, Does.Contain("\"code\""));
             Assert.That(json, Does.Not.Contain("deferLoading"));
             Assert.That(json, Does.Not.Contain("approval"));
         }

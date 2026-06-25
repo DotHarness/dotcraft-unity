@@ -29,5 +29,17 @@ namespace DotCraft.Editor.Tests
             Assert.That(json, Does.Not.Contain("\"url\": null"));
             Assert.That(json, Does.Not.Contain("\"headers\": null"));
         }
+
+        [Test]
+        public void SettingsSerializationUsesCSharpAutomationKey()
+        {
+            var settings = DotCraftSettings.FromJson("{\"enableCSharpAutomation\":false}");
+
+            var json = settings.ToJson();
+
+            Assert.That(settings.EnableCSharpAutomation, Is.False);
+            Assert.That(json, Does.Contain("\"enableCSharpAutomation\""));
+            Assert.That(json, Does.Not.Contain("enableBuiltinUnityTools"));
+        }
     }
 }

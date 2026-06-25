@@ -15,7 +15,6 @@ namespace DotCraft.Editor.McpSetup
         private readonly McpGatewayStatusProbe _probe = new();
         private IMcpClientConfigProvider[] _providers;
         private bool[] _selected;
-        private McpInstallPreset _preset = McpInstallPreset.Recommended;
         private Vector2 _scroll;
         private string _previewText = "Click Preview Changes to inspect the project-level config updates.";
         private string _resultText = string.Empty;
@@ -53,8 +52,6 @@ namespace DotCraft.Editor.McpSetup
             EditorGUILayout.Space(10);
             DrawTargetsSection();
             EditorGUILayout.Space(10);
-            DrawPresetSection();
-            EditorGUILayout.Space(10);
             DrawActionsSection();
             EditorGUILayout.Space(10);
             DrawPreviewSection();
@@ -67,7 +64,7 @@ namespace DotCraft.Editor.McpSetup
             {
                 EditorGUILayout.LabelField("MCP Tool Gateway", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField(
-                    "Connect external MCP clients to the enabled Unity tool surface while this Editor is running.",
+                    "Connect external MCP clients to C# automation and enabled custom project tools while this Editor is running.",
                     EditorStyles.wordWrappedMiniLabel);
                 EditorGUILayout.Space(6);
 
@@ -122,31 +119,6 @@ namespace DotCraft.Editor.McpSetup
                             EditorStyles.boldLabel);
                         EditorGUILayout.LabelField(provider.GetSetupHint(BuildOptions()), EditorStyles.wordWrappedMiniLabel);
                     }
-                }
-            }
-        }
-
-        private void DrawPresetSection()
-        {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("Preset", EditorStyles.boldLabel);
-                _preset = (McpInstallPreset)EditorGUILayout.Popup(
-                    "Mode",
-                    (int)_preset,
-                    new[] { "Recommended", "Codex Read-only" });
-
-                if (_preset == McpInstallPreset.CodexReadOnly)
-                {
-                    EditorGUILayout.HelpBox(
-                        "Codex config will include an enabled_tools allowlist for read-only Unity tools. Claude Code and Cursor still rely on their own MCP approval controls.",
-                        MessageType.Info);
-                }
-                else
-                {
-                    EditorGUILayout.LabelField(
-                        "Recommended uses prompt approval where supported and exposes the enabled Unity tool surface.",
-                        EditorStyles.wordWrappedMiniLabel);
                 }
             }
         }
@@ -264,7 +236,7 @@ namespace DotCraft.Editor.McpSetup
         }
 
         private McpInstallOptions BuildOptions() =>
-            McpGatewaySetupDefaults.CreateOptions(_preset);
+            McpGatewaySetupDefaults.CreateOptions();
 
         private IMcpClientConfigProvider[] SelectedProviders() =>
             _providers.Where((_, index) => _selected[index]).ToArray();

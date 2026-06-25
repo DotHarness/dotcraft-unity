@@ -77,7 +77,7 @@ namespace DotCraft.Editor.ToolGateway
             var registrations = new List<GatewayToolRegistration>();
             var reservedNames = new HashSet<string>(StringComparer.Ordinal);
 
-            if (settings.EnableBuiltinUnityTools)
+            if (settings.EnableCSharpAutomation)
                 AddExecuteCSharpRegistration(registrations, reservedNames);
             else
                 reservedNames.Add(ExecuteCSharpToolName);
@@ -92,7 +92,7 @@ namespace DotCraft.Editor.ToolGateway
 
             var resolution = RuntimeToolCatalog.ResolveEnabledTools(
                 RuntimeToolCatalog.Discover(),
-                settings.EnableBuiltinUnityTools,
+                settings.EnableCSharpAutomation,
                 id => enabledPluginToolIds.Contains(id),
                 reservedNames.ToArray());
 

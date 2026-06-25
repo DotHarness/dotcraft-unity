@@ -150,18 +150,18 @@ namespace DotCraft.Editor.Settings
             {
                 EditorGUILayout.LabelField("DotCraft Unity", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField(
-                    "Use coding agents with Unity Editor: chat inside Unity, or expose Unity tools to external MCP clients.",
+                    "Use coding agents with Unity Editor: chat inside Unity, or expose C# automation and custom project tools to external MCP clients.",
                     EditorStyles.wordWrappedMiniLabel);
                 EditorGUILayout.Space(6);
 
                 var service = UnityAppBindingService.Instance;
-                var counts = GetEnabledToolCounts();
                 DrawReadonlyRow("In-Editor Agent Chat", _settings.AgentConnection == DotCraftSettings.AgentConnectionDotCraft
                     ? "DotCraft profile"
                     : "Custom ACP Agent");
                 DrawReadonlyRow("Local Tool Gateway", service.IsLocalServerRunning ? "Running" : "Stopped");
                 DrawReadonlyRow("MCP Endpoint", McpGatewaySetupDefaults.Endpoint);
-                DrawReadonlyRow("Enabled Unity Tools", $"{counts.builtIn} built-in, {counts.custom} custom");
+                DrawReadonlyRow("C# Automation", _settings.EnableCSharpAutomation ? "Enabled" : "Disabled");
+                DrawReadonlyRow("Custom Project Tools", $"{GetEnabledCustomToolCount()} enabled");
 
                 EditorGUILayout.Space(6);
                 using (new EditorGUILayout.HorizontalScope())
@@ -280,7 +280,7 @@ namespace DotCraft.Editor.Settings
             {
                 EditorGUILayout.LabelField("MCP Tool Gateway", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField(
-                    "Expose enabled Unity tools to Claude Code, Codex, Cursor, and other MCP-compatible coding agents. This path is independent from the in-editor chat connection.",
+                    "Expose C# automation and enabled custom project tools to Claude Code, Codex, Cursor, and other MCP-compatible coding agents. This path is independent from the in-editor chat connection.",
                     EditorStyles.wordWrappedMiniLabel);
 
                 EditorGUI.indentLevel++;
@@ -295,10 +295,9 @@ namespace DotCraft.Editor.Settings
                 }
 
                 var service = UnityAppBindingService.Instance;
-                var counts = GetEnabledToolCounts();
                 DrawReadonlyRow("Endpoint", McpGatewaySetupDefaults.Endpoint);
                 DrawReadonlyRow("Status", service.IsLocalServerRunning ? "Running" : "Stopped");
-                DrawReadonlyRow("Tools", $"{counts.builtIn} built-in, {counts.custom} custom");
+                DrawReadonlyRow("Tools", FormatEnabledToolSummary());
                 if (!string.IsNullOrWhiteSpace(service.LastError))
                     EditorGUILayout.HelpBox(service.LastError, MessageType.Error);
 
@@ -336,23 +335,23 @@ namespace DotCraft.Editor.Settings
             {
                 EditorGUILayout.LabelField("Unity Tools", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField(
-                    "Choose which Unity tools are available to DotCraft and to MCP clients connected through the Gateway.",
+                    "Choose whether C# automation and custom project tools are available to DotCraft and to MCP clients connected through the Gateway.",
                     EditorStyles.wordWrappedMiniLabel);
 
                 EditorGUI.indentLevel++;
 
-                var enableBuiltinTools = EditorGUILayout.Toggle(
-                    new GUIContent("Enable Built-in Unity Tools",
-                        "Expose built-in Unity read tools and unity_execute_csharp through the DotCraft profile and MCP Tool Gateway."),
-                    _settings.EnableBuiltinUnityTools);
-                if (enableBuiltinTools != _settings.EnableBuiltinUnityTools)
+                var enableCSharpAutomation = EditorGUILayout.Toggle(
+                    new GUIContent("Enable C# Automation",
+                        "Expose unity_execute_csharp through the DotCraft profile and MCP Tool Gateway."),
+                    _settings.EnableCSharpAutomation);
+                if (enableCSharpAutomation != _settings.EnableCSharpAutomation)
                 {
-                    _settings.EnableBuiltinUnityTools = enableBuiltinTools;
+                    _settings.EnableCSharpAutomation = enableCSharpAutomation;
                     UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                 }
 
                 EditorGUILayout.LabelField(
-                    "Built-in: scene query, selection, console logs, project info, and C# automation via unity_execute_csharp.",
+                    "C# Automation exposes unity_execute_csharp for local Unity Editor scripting.",
                     EditorStyles.wordWrappedMiniLabel);
 
                 EditorGUILayout.Space(6);
@@ -566,7 +565,13 @@ namespace DotCraft.Editor.Settings
             EditorGUI.indentLevel--;
         }
 
-        private (int builtIn, int custom) GetEnabledToolCounts()
+        private string FormatEnabledToolSummary()
+        {
+            var csharp = _settings.EnableCSharpAutomation ? "C# Automation enabled" : "C# Automation disabled";
+            return $"{csharp}, {GetEnabledCustomToolCount()} custom";
+        }
+
+        private int GetEnabledCustomToolCount()
         {
             _runtimeToolCatalog ??= RuntimeToolCatalog.Discover();
             var enabledPluginToolIds = new HashSet<string>(
@@ -576,12 +581,13 @@ namespace DotCraft.Editor.Settings
                 StringComparer.Ordinal);
             var resolution = RuntimeToolCatalog.ResolveEnabledTools(
                 _runtimeToolCatalog,
-                _settings.EnableBuiltinUnityTools,
-                id => enabledPluginToolIds.Contains(id));
+                false,
+                id => enabledPluginToolIds.Contains(id),
+                _settings.EnableCSharpAutomation
+                    ? new[] { "unity_execute_csharp" }
+                    : Array.Empty<string>());
 
-            return (
-                resolution.Tools.Count(tool => tool.Source == RuntimeToolSource.Builtin),
-                resolution.Tools.Count(tool => tool.Source == RuntimeToolSource.Plugin));
+            return resolution.Tools.Count(tool => tool.Source == RuntimeToolSource.Plugin);
         }
 
         private static void DrawReadonlyRow(string label, string value)

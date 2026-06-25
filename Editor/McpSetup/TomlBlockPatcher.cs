@@ -39,15 +39,6 @@ namespace DotCraft.Editor.McpSetup
             builder.AppendLine("enabled = true");
             builder.AppendLine("tool_timeout_sec = 60");
             builder.AppendLine("default_tools_approval_mode = \"prompt\"");
-
-            if (options.UseCodexReadOnly)
-            {
-                builder.AppendLine("enabled_tools = [");
-                foreach (var toolName in options.ReadOnlyToolNames)
-                    builder.AppendLine($"  {Quote(toolName)},");
-                builder.AppendLine("]");
-            }
-
             builder.AppendLine(EndMarker);
             return builder.ToString();
         }

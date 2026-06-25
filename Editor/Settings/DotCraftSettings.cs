@@ -164,11 +164,10 @@ namespace DotCraft.Editor.Settings
         public int MaxHistoryMessages { get; set; } = 1000;
 
         /// <summary>
-        /// Declare built-in Unity runtime tools and enable their _unity/* handlers.
-        /// Disable if using external Unity integration.
+        /// Enables the built-in C# automation tool and its _unity/* handler.
         /// </summary>
-        [JsonProperty("enableBuiltinUnityTools")]
-        public bool EnableBuiltinUnityTools { get; set; } = true;
+        [JsonProperty("enableCSharpAutomation")]
+        public bool EnableCSharpAutomation { get; set; } = true;
 
         /// <summary>
         /// Starts the local localhost server used by DotCraft App Binding and the Tool Gateway.
@@ -405,7 +404,7 @@ namespace DotCraft.Editor.Settings
             ShowThinkingContent = false;
             RequestTimeoutSeconds = 30;
             MaxHistoryMessages = 1000;
-            EnableBuiltinUnityTools = true;
+            EnableCSharpAutomation = true;
             EnableAppBindingLocalServer = true;
             DynamicToolEnabledById = new Dictionary<string, bool>();
             McpServers = new List<McpServerEntry>();

@@ -78,7 +78,7 @@ Open **Edit → Project Settings → DotCraft** to configure the client.
 | **Auto Reconnect** | `true` | Reconnect after Unity Domain Reload. |
 | **Verbose Logging** | `false` | Print DotCraft stderr to the Unity Console. |
 | **Show Thinking Content** | `false` | Show agent reasoning text in expandable chat rows. When disabled, only lightweight thinking status is shown. |
-| **Enable Built-in Unity Tools** | `true` | Expose built-in Unity tools, including read tools and `unity_execute_csharp`, to DotCraft and the MCP Tool Gateway. |
+| **Enable C# Automation** | `true` | Expose `unity_execute_csharp` to DotCraft and the MCP Tool Gateway. |
 | **Custom Project Tools** | disabled | Attribute-discovered `[AgentTool]` tools. Each custom tool must be enabled explicitly in **Unity Tools → Custom Project Tools**. |
 | **Enable Local Tool Gateway** | `true` | Start the localhost App Binding and MCP Tool Gateway server on port `39777` while Unity Editor is open. |
 
@@ -139,17 +139,13 @@ See [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md) for the g
 
 ## Unity tool surface
 
-dotcraft-unity declares built-in Unity runtime tools to DotCraft during ACP initialization:
+dotcraft-unity declares one built-in Unity runtime tool to DotCraft during ACP initialization:
 
 | Tool | Description |
 |------|-------------|
-| `unity_scene_query` | Query scene hierarchy with optional component details. |
-| `unity_get_selection` | Read the current Unity Editor selection. |
-| `unity_get_console_logs` | Retrieve recent Unity Console log entries. |
-| `unity_get_project_info` | Read Unity version, project name, and package information. |
 | `unity_execute_csharp` | Compile and execute a C# method-body snippet in the Unity Editor process. |
 
-The read tools help agents understand the current scene and project state. `unity_execute_csharp` is trusted local C# execution inside Unity Editor; it is powerful automation, not a remote security sandbox.
+Use `unity_execute_csharp` to inspect or modify scene state, selection, console output, project metadata, or assets with a C# snippet. For repeated workflows, expose a custom project tool with `[AgentTool]`. `unity_execute_csharp` is trusted local C# execution inside Unity Editor; it is powerful automation, not a remote security sandbox.
 
 ## App Binding
 
@@ -187,7 +183,7 @@ Method parameters are converted to a JSON Schema with Newtonsoft.Json naming rul
 | Stuck at `Connecting...` | DotCraft failed during startup | Enable **Verbose Logging** and check the Unity Console. |
 | Disconnects after script compilation | Auto reconnect is disabled | Enable **Auto Reconnect** in Project Settings. |
 | MCP client cannot connect | Local Tool Gateway is stopped or Unity is closed | Open Unity, enable **Local Tool Gateway**, then run **MCP Gateway Setup** or copy the endpoint again. |
-| Tools are unavailable | Runtime tool descriptors were not declared or accepted | Enable **Built-in Unity Tools** and enable any required Custom Project Tools. |
+| Tools are unavailable | Runtime tool descriptors were not declared or accepted | Enable **C# Automation** and enable any required Custom Project Tools. |
 
 ## Contributing
 

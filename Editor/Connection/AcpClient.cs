@@ -610,7 +610,7 @@ namespace DotCraft.Editor.Connection
             var snapshot = RuntimeToolCatalog.Discover();
             var resolved = RuntimeToolCatalog.ResolveEnabledTools(
                 snapshot,
-                _settings.EnableBuiltinUnityTools,
+                _settings.EnableCSharpAutomation,
                 id => _settings.DynamicToolEnabledById.TryGetValue(id, out var enabled) && enabled);
             _extensionRouter.RegisterRuntimeTools(resolved.Tools);
             _activeRuntimeToolDescriptors.AddRange(resolved.Tools.Select(tool => tool.Descriptor));

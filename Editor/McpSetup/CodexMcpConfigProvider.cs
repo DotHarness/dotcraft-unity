@@ -8,9 +8,7 @@ namespace DotCraft.Editor.McpSetup
 
         public override string GetSetupHint(McpInstallOptions options)
         {
-            return options.UseCodexReadOnly
-                ? "Codex will load only the read-only Unity tools from this server."
-                : "Start Codex in the project root; tools use prompt approval by default.";
+            return "Start Codex in the project root; tools use prompt approval by default.";
         }
 
         public override McpPatchPreview Preview(string projectRoot, McpInstallOptions options)

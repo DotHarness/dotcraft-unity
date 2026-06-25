@@ -92,17 +92,14 @@ namespace DotCraft.Editor.Tests
         }
 
         [Test]
-        public void CodexReadOnlyPresetWritesOnlyReadOnlyToolAllowlist()
+        public void CodexProviderDoesNotWriteToolAllowlist()
         {
             var provider = new CodexMcpConfigProvider();
-            var result = provider.Install(_tempRoot, Options(McpInstallPreset.CodexReadOnly));
+            var result = provider.Install(_tempRoot, Options());
 
             Assert.That(result.Success, Is.True, result.Error);
             var toml = File.ReadAllText(Path.Combine(_tempRoot, ".codex", "config.toml"));
-            Assert.That(toml, Does.Contain("enabled_tools = ["));
-            foreach (var toolName in McpGatewaySetupDefaults.ReadOnlyToolNames)
-                Assert.That(toml, Does.Contain($"\"{toolName}\""));
-            Assert.That(toml, Does.Not.Contain("\"unity_execute_csharp\""));
+            Assert.That(toml, Does.Not.Contain("enabled_tools"));
         }
 
         [Test]
@@ -192,16 +189,16 @@ namespace DotCraft.Editor.Tests
         [Test]
         public async Task GatewayProbeReportsToolNames()
         {
-            var probe = new McpGatewayStatusProbe(SuccessfulProbeResponder("unity_scene_query", "unity_get_project_info"));
+            var probe = new McpGatewayStatusProbe(SuccessfulProbeResponder("unity_execute_csharp"));
 
             var result = await probe.ProbeAsync(McpGatewaySetupDefaults.Endpoint, CancellationToken.None);
 
             Assert.That(result.Success, Is.True);
-            Assert.That(result.ToolNames, Is.EqualTo(new[] { "unity_scene_query", "unity_get_project_info" }));
+            Assert.That(result.ToolNames, Is.EqualTo(new[] { "unity_execute_csharp" }));
         }
 
-        private static McpInstallOptions Options(McpInstallPreset preset = McpInstallPreset.Recommended) =>
-            new(McpGatewaySetupDefaults.Endpoint, preset, McpGatewaySetupDefaults.ReadOnlyToolNames);
+        private static McpInstallOptions Options() =>
+            new(McpGatewaySetupDefaults.Endpoint);
 
         private static Func<string, string, string, CancellationToken, Task<McpGatewayProbeHttpResponse>> SuccessfulProbeResponder(
             params string[] toolNames)

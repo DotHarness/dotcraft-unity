@@ -10,9 +10,7 @@ namespace DotCraft.Editor.McpSetup
 
         public override string GetSetupHint(McpInstallOptions options)
         {
-            return options.UseCodexReadOnly
-                ? "Claude Code uses project approval and /mcp to control this server; read-only allowlists are not written here."
-                : "Start Claude Code in the project root and approve the project-scoped MCP server when prompted.";
+            return "Start Claude Code in the project root and approve the project-scoped MCP server when prompted.";
         }
 
         public override McpPatchPreview Preview(string projectRoot, McpInstallOptions options)

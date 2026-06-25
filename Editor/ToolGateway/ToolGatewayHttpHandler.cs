@@ -194,7 +194,7 @@ namespace DotCraft.Editor.ToolGateway
                     title = "dotcraft-unity Tool Gateway",
                     version = "0.1.6"
                 },
-                instructions = "Use unity_execute_csharp to inspect or modify the running Unity Editor. The gateway exposes enabled Unity runtime tools registered by dotcraft-unity."
+                instructions = "Use unity_execute_csharp to inspect or modify the running Unity Editor. The gateway also exposes enabled custom project tools registered with dotcraft-unity."
             };
         }
 

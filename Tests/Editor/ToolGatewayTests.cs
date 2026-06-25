@@ -26,7 +26,11 @@ namespace DotCraft.Editor.Tests
 
         private static readonly string[] BuiltinToolNames =
         {
-            ExecuteCSharpToolName,
+            ExecuteCSharpToolName
+        };
+
+        private static readonly string[] RemovedReadToolNames =
+        {
             "unity_scene_query",
             "unity_get_selection",
             "unity_get_console_logs",
@@ -36,14 +40,17 @@ namespace DotCraft.Editor.Tests
         [Test]
         public void GatewayListsEnabledRuntimeToolsByDefault()
         {
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var tools = UnityToolGateway.Instance.ListTools();
                 var names = tools.Select(tool => tool.Name).ToArray();
 
                 foreach (var toolName in BuiltinToolNames)
                     Assert.That(names, Does.Contain(toolName));
+                foreach (var toolName in RemovedReadToolNames)
+                    Assert.That(names, Does.Not.Contain(toolName));
 
+                Assert.That(names, Is.EquivalentTo(BuiltinToolNames));
                 Assert.That(names, Does.Not.Contain("ExecuteCSharp"));
                 Assert.That(names, Does.Not.Contain("execute_csharp"));
                 Assert.That(tools.Single(tool => tool.Name == ExecuteCSharpToolName)
@@ -52,9 +59,9 @@ namespace DotCraft.Editor.Tests
         }
 
         [Test]
-        public void GatewayRespectsBuiltinToolSetting()
+        public void GatewayRespectsCSharpAutomationSetting()
         {
-            WithGatewaySettings(enableBuiltins: false, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: false, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var names = UnityToolGateway.Instance.ListTools()
                     .Select(tool => tool.Name)
@@ -73,7 +80,7 @@ namespace DotCraft.Editor.Tests
             var conflictingPlugin = FindPluginTool(ExecuteCSharpToolName);
 
             WithGatewaySettings(
-                enableBuiltins: false,
+                enableCSharpAutomation: false,
                 enabledPluginToolIds: new[] { enabled.Id, conflictingPlugin.Id },
                 () =>
             {
@@ -92,7 +99,7 @@ namespace DotCraft.Editor.Tests
         {
             var conflictingPlugin = FindPluginTool(ExecuteCSharpToolName);
 
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: new[] { conflictingPlugin.Id }, () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: new[] { conflictingPlugin.Id }, () =>
             {
                 var names = UnityToolGateway.Instance.ListTools()
                     .Select(tool => tool.Name)
@@ -133,7 +140,7 @@ namespace DotCraft.Editor.Tests
         [Test]
         public void McpToolsListExposesEnabledRuntimeTools()
         {
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var response = WaitForResult(ToolGatewayHttpHandler.HandleAsync(
                     "POST",
@@ -146,6 +153,8 @@ namespace DotCraft.Editor.Tests
                 Assert.That(tools, Is.Not.Null);
                 foreach (var toolName in BuiltinToolNames)
                     Assert.That(names, Does.Contain(toolName));
+                foreach (var toolName in RemovedReadToolNames)
+                    Assert.That(names, Does.Not.Contain(toolName));
 
                 Assert.That(names, Does.Not.Contain("ExecuteCSharp"));
                 Assert.That(names, Does.Not.Contain("execute_csharp"));
@@ -157,7 +166,7 @@ namespace DotCraft.Editor.Tests
         [Test]
         public void McpToolsCallRunsExecuteCSharp()
         {
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var result = CallMcpTool(
                     ExecuteCSharpToolName,
@@ -179,7 +188,7 @@ namespace DotCraft.Editor.Tests
         {
             var name = $"DotCraft Gateway Test {Guid.NewGuid():N}";
 
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 try
                 {
@@ -208,7 +217,7 @@ namespace DotCraft.Editor.Tests
         [Test]
         public void McpToolsCallInvalidCSharpReturnsCompilerDiagnostics()
         {
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var result = CallMcpTool(
                     ExecuteCSharpToolName,
@@ -231,7 +240,7 @@ namespace DotCraft.Editor.Tests
         {
             Assume.That(EditorApplication.isPlaying, Is.False);
 
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var result = CallMcpTool(
                     ExecuteCSharpToolName,
@@ -252,14 +261,15 @@ namespace DotCraft.Editor.Tests
         [TestCase("unity_get_selection")]
         [TestCase("unity_get_console_logs")]
         [TestCase("unity_get_project_info")]
-        public void McpToolsCallRunsBuiltinRuntimeTool(string toolName)
+        public void McpToolsCallDoesNotExposeRemovedReadTools(string toolName)
         {
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var result = CallMcpTool(toolName, new JObject(), timeoutMilliseconds: 10000);
 
-                Assert.That(result?["isError"]?.Value<bool>(), Is.False);
-                Assert.That(result?["structuredContent"], Is.Not.Null);
+                Assert.That(result?["isError"]?.Value<bool>(), Is.True);
+                Assert.That(result?["structuredContent"]?["success"]?.Value<bool>(), Is.False);
+                Assert.That(result?["structuredContent"]?["errorCode"]?.Value<string>(), Is.EqualTo("ToolNotFound"));
             });
         }
 
@@ -268,7 +278,7 @@ namespace DotCraft.Editor.Tests
         {
             var plugin = FindPluginTool("test_gateway_plugin_echo");
 
-            WithGatewaySettings(enableBuiltins: false, enabledPluginToolIds: new[] { plugin.Id }, () =>
+            WithGatewaySettings(enableCSharpAutomation: false, enabledPluginToolIds: new[] { plugin.Id }, () =>
             {
                 var result = CallMcpTool(
                     plugin.Descriptor.Name,
@@ -285,7 +295,7 @@ namespace DotCraft.Editor.Tests
         {
             var plugin = FindPluginTool("test_gateway_plugin_requires_int");
 
-            WithGatewaySettings(enableBuiltins: false, enabledPluginToolIds: new[] { plugin.Id }, () =>
+            WithGatewaySettings(enableCSharpAutomation: false, enabledPluginToolIds: new[] { plugin.Id }, () =>
             {
                 var result = CallMcpTool(
                     plugin.Descriptor.Name,
@@ -302,7 +312,7 @@ namespace DotCraft.Editor.Tests
         [TestCase("execute_csharp")]
         public void McpToolsCallDoesNotAcceptLegacyExecuteCSharpAliases(string toolName)
         {
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: Array.Empty<string>(), () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: Array.Empty<string>(), () =>
             {
                 var result = CallMcpTool(
                     toolName,
@@ -323,7 +333,7 @@ namespace DotCraft.Editor.Tests
         {
             var plugin = FindPluginTool("test_gateway_plugin_echo");
 
-            WithGatewaySettings(enableBuiltins: true, enabledPluginToolIds: new[] { plugin.Id }, () =>
+            WithGatewaySettings(enableCSharpAutomation: true, enabledPluginToolIds: new[] { plugin.Id }, () =>
             {
                 var canonical = GetProjectedTools("canonical");
                 var responses = GetProjectedTools("openai-responses");
@@ -414,19 +424,19 @@ namespace DotCraft.Editor.Tests
         }
 
         private static void WithGatewaySettings(
-            bool enableBuiltins,
+            bool enableCSharpAutomation,
             IEnumerable<string> enabledPluginToolIds,
             Action action)
         {
             var settings = DotCraftSettings.Instance;
-            var originalEnableBuiltins = settings.EnableBuiltinUnityTools;
+            var originalEnableCSharpAutomation = settings.EnableCSharpAutomation;
             var originalDynamicTools = settings.DynamicToolEnabledById == null
                 ? new Dictionary<string, bool>(StringComparer.Ordinal)
                 : new Dictionary<string, bool>(settings.DynamicToolEnabledById, StringComparer.Ordinal);
 
             try
             {
-                settings.EnableBuiltinUnityTools = enableBuiltins;
+                settings.EnableCSharpAutomation = enableCSharpAutomation;
                 settings.DynamicToolEnabledById = new Dictionary<string, bool>(StringComparer.Ordinal);
                 foreach (var id in enabledPluginToolIds ?? Array.Empty<string>())
                     settings.DynamicToolEnabledById[id] = true;
@@ -435,7 +445,7 @@ namespace DotCraft.Editor.Tests
             }
             finally
             {
-                settings.EnableBuiltinUnityTools = originalEnableBuiltins;
+                settings.EnableCSharpAutomation = originalEnableCSharpAutomation;
                 settings.DynamicToolEnabledById = originalDynamicTools;
             }
         }

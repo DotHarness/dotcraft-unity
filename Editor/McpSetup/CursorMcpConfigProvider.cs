@@ -10,9 +10,7 @@ namespace DotCraft.Editor.McpSetup
 
         public override string GetSetupHint(McpInstallOptions options)
         {
-            return options.UseCodexReadOnly
-                ? "Cursor uses its own MCP approval and tool controls; read-only allowlists are not written here."
-                : "Open Cursor from the project root and verify the server in Cursor MCP settings.";
+            return "Open Cursor from the project root and verify the server in Cursor MCP settings.";
         }
 
         public override McpPatchPreview Preview(string projectRoot, McpInstallOptions options)

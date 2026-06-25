@@ -35,7 +35,7 @@ LLM / Agent Host
 Settings rules:
 
 - **Enable Local Tool Gateway** starts or stops the localhost server used by App Binding and the MCP Tool Gateway.
-- **Enable Built-in Unity Tools** controls all built-in Unity runtime tools exposed through the gateway, including `unity_execute_csharp`.
+- **Enable C# Automation** controls the built-in `unity_execute_csharp` tool exposed through the gateway.
 - Custom Project Tools are exposed only when their `AgentToolAttribute` entry is enabled in **Project Settings > DotCraft > Unity Tools > Custom Project Tools**.
 - The gateway does not add a second per-tool enablement list.
 
@@ -46,13 +46,9 @@ Name rules:
 - The legacy names `ExecuteCSharp` and `execute_csharp` are not aliases.
 - `unity_execute_csharp` is a reserved gateway name with a dedicated execution handler. Enabled runtime tools with the same name are skipped by name de-duplication.
 
-Default built-in tool list:
+Default built-in tool:
 
 - `unity_execute_csharp`
-- `unity_scene_query`
-- `unity_get_selection`
-- `unity_get_console_logs`
-- `unity_get_project_info`
 
 ## Local HTTP Surface
 
@@ -91,7 +87,7 @@ Supported targets:
 | Client | Project file | Notes |
 |--------|--------------|-------|
 | Claude Code | `.mcp.json` | Project-scoped servers require approval in Claude Code before use. |
-| Codex | `.codex/config.toml` | Uses prompt approval by default. The Codex Read-only preset writes an `enabled_tools` allowlist. |
+| Codex | `.codex/config.toml` | Uses prompt approval by default. |
 | Cursor | `.cursor/mcp.json` | Verify the server in Cursor MCP settings after opening the project. |
 
 Claude Code:
@@ -127,17 +123,6 @@ Cursor:
     }
   }
 }
-```
-
-The Codex Read-only preset adds:
-
-```toml
-enabled_tools = [
-  "unity_scene_query",
-  "unity_get_selection",
-  "unity_get_console_logs",
-  "unity_get_project_info",
-]
 ```
 
 ## MCP Flow

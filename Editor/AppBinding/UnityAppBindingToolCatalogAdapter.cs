@@ -28,7 +28,7 @@ namespace DotCraft.Editor.AppBinding
                 .ToArray();
             return Build(
                 RuntimeToolCatalog.Discover(),
-                settings.EnableBuiltinUnityTools,
+                settings.EnableCSharpAutomation,
                 enabledPluginToolIds,
                 grantedScopes);
         }

@@ -85,7 +85,7 @@ namespace DotCraft.Editor.AppBinding
             var snapshot = new HandoffSnapshot
             {
                 AccountLabel = BuildAccountLabel(Application.productName),
-                EnableBuiltinUnityTools = settings.EnableBuiltinUnityTools,
+                EnableCSharpAutomation = settings.EnableCSharpAutomation,
                 EnabledPluginToolIds = enabledPluginToolIds,
                 RequestTimeoutSeconds = Math.Max(5, settings.RequestTimeoutSeconds),
                 RuntimeTools = RuntimeToolCatalog.Discover()
@@ -189,7 +189,7 @@ namespace DotCraft.Editor.AppBinding
 
                 var attachment = UnityAppBindingToolCatalogAdapter.Build(
                     snapshot.RuntimeTools,
-                    snapshot.EnableBuiltinUnityTools,
+                    snapshot.EnableCSharpAutomation,
                     snapshot.EnabledPluginToolIds,
                     grantedScopes);
                 foreach (var diagnostic in attachment.Diagnostics.Take(8))
@@ -351,7 +351,7 @@ namespace DotCraft.Editor.AppBinding
         internal sealed class HandoffSnapshot
         {
             public string AccountLabel { get; set; }
-            public bool EnableBuiltinUnityTools { get; set; }
+            public bool EnableCSharpAutomation { get; set; }
             public string[] EnabledPluginToolIds { get; set; } = Array.Empty<string>();
             public int RequestTimeoutSeconds { get; set; }
             public RuntimeToolCatalogSnapshot RuntimeTools { get; set; }
