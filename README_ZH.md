@@ -6,7 +6,7 @@
 
 让 coding agents 使用 Unity Editor。
 
-既可以在 Unity 内直接对话，也可以把 Unity 工具通过 MCP 暴露给 Claude Code、Codex、Cursor 等 agents。
+既可以在 Unity 内直接对话，也可以把 Unity 工具通过 MCP 暴露给 DotCraft、Claude Code、Codex、Cursor 等 agents。
 
 </div>
 

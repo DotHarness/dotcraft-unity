@@ -6,7 +6,7 @@
 
 Use coding agents with Unity Editor.
 
-Chat with an agent inside Unity, or expose Unity tools to Claude Code, Codex, Cursor, and other agents.
+Chat with an agent inside Unity, or expose Unity tools to DotCraft, Claude Code, Codex, Cursor, and other agents.
 
 </div>
 
