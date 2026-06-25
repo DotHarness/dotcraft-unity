@@ -15,18 +15,18 @@ namespace DotCraft.Editor.AppBinding
     {
         internal const string IndicatorName = "dotcraft-app-binding-status-indicator";
 
-        private const float FallbackRightOffset = 104f;
+        private const float StatusBarRightOffset = 76f;
         private const float IndicatorWidth = 30f;
         private const float IndicatorHeight = 19f;
         private const float PeerSpacing = 4f;
         private const float MaxPeerWidth = 160f;
-        private const float MaxComputedPeerRightOffset = FallbackRightOffset + MaxPeerWidth;
+        private const float MaxComputedPeerRightOffset = StatusBarRightOffset + MaxPeerWidth;
         private const float MaxStatusBarPeerHeight = 24f;
         private const float MaxStatusBarPeerTop = 3f;
         private const float LogoSize = 16f;
         private const float LogoLeft = 2f;
         private const float StatusDotSize = 5f;
-        private const float StatusDotRight = 3f;
+        private const float StatusDotRight = 6f;
         private const float StatusDotVerticalNudge = 2.5f;
         private const double InjectRetryIntervalSeconds = 1.0;
         private const long LayoutRefreshIntervalMilliseconds = 1000;
@@ -272,9 +272,9 @@ namespace DotCraft.Editor.AppBinding
         internal static float ResolveRightOffset(VisualElement root, VisualElement self)
         {
             if (root == null)
-                return FallbackRightOffset;
+                return StatusBarRightOffset;
 
-            var offset = FallbackRightOffset;
+            var offset = StatusBarRightOffset;
             foreach (var child in root.Children())
             {
                 if (child == null || ReferenceEquals(child, self))

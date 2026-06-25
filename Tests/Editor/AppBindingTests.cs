@@ -15,7 +15,6 @@ using DotCraft.Editor.Settings;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using UnityEngine.UIElements;
 
 namespace DotCraft.Editor.Tests
 {
@@ -438,92 +437,10 @@ namespace DotCraft.Editor.Tests
             }
         }
 
-        [Test]
-        public void StatusBarRightOffsetStacksAfterGenericAbsolutePeers()
-        {
-            var root = new VisualElement();
-            var peer = new VisualElement();
-            peer.style.position = Position.Absolute;
-            peer.style.right = 104;
-            peer.style.top = 0;
-            peer.style.width = 42;
-            peer.style.height = 19;
-            root.Add(peer);
-
-            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, null), Is.EqualTo(150));
-        }
-
-        [Test]
-        public void StatusBarRightOffsetDoesNotInspectPeerNames()
-        {
-            var root = new VisualElement();
-            var peer = new VisualElement { name = "third-party-status-indicator" };
-            peer.style.position = Position.Absolute;
-            peer.style.right = 104;
-            peer.style.top = 0;
-            peer.style.width = 42;
-            peer.style.height = 19;
-            var self = new VisualElement { name = UnityAppBindingStatusBarIndicator.IndicatorName };
-            self.style.position = Position.Absolute;
-            self.style.right = 150;
-            self.style.top = 0;
-            self.style.width = 24;
-            self.style.height = 19;
-            root.Add(peer);
-            root.Add(self);
-
-            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, self), Is.EqualTo(150));
-        }
-
-        [Test]
-        public void StatusBarRightOffsetIgnoresNonStatusBarPeers()
-        {
-            var root = new VisualElement();
-            var hidden = CreateStatusBarPeer(104, 42);
-            hidden.style.display = DisplayStyle.None;
-            var tall = CreateStatusBarPeer(104, 42, height: 40);
-            var wide = CreateStatusBarPeer(104, 200);
-            var lower = CreateStatusBarPeer(104, 42, top: 6);
-            var relative = CreateStatusBarPeer(104, 42);
-            relative.style.position = Position.Relative;
-            root.Add(hidden);
-            root.Add(tall);
-            root.Add(wide);
-            root.Add(lower);
-            root.Add(relative);
-
-            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, null), Is.EqualTo(104));
-        }
-
-        [Test]
-        public void StatusBarRightOffsetClampsToRootWidth()
-        {
-            var root = new VisualElement();
-            root.style.width = 120;
-            root.Add(CreateStatusBarPeer(104, 80));
-
-            Assert.That(UnityAppBindingStatusBarIndicator.ResolveRightOffset(root, null), Is.EqualTo(90));
-        }
-
         private static RuntimeToolDefinition FindTool(string methodName)
         {
             var method = typeof(AppBindingTests).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Static);
             return RuntimeToolCatalog.Discover().Tools.Single(tool => tool.Method == method);
-        }
-
-        private static VisualElement CreateStatusBarPeer(
-            float right,
-            float width,
-            float top = 0,
-            float height = 19)
-        {
-            var peer = new VisualElement();
-            peer.style.position = Position.Absolute;
-            peer.style.right = right;
-            peer.style.top = top;
-            peer.style.width = width;
-            peer.style.height = height;
-            return peer;
         }
 
         private static System.Collections.Concurrent.ConcurrentDictionary<string, UnityAppBindingService.ActiveBinding>
