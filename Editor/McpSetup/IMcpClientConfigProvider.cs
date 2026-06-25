@@ -8,6 +8,8 @@ namespace DotCraft.Editor.McpSetup
 
         bool IsRecommendedByDefault { get; }
 
+        bool IsConfigured(string projectRoot);
+
         string GetSetupHint(McpInstallOptions options);
 
         McpPatchPreview Preview(string projectRoot, McpInstallOptions options);

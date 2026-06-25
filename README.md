@@ -92,7 +92,7 @@ dotcraft-unity exposes a local MCP Tool Gateway for external coding agents. Whil
 http://127.0.0.1:39777/dotcraft/mcp
 ```
 
-The setup window writes project-level config only, shows a preview before writing, creates `.bak` backups for existing files, and can remove only the `dotcraft-unity` server block later.
+The setup window writes project-level config only, shows each client's current setup state, creates `.bak` backups for existing files, and can remove only the `dotcraft-unity` server block later.
 
 Supported first-run targets:
 

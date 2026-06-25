@@ -25,9 +25,8 @@ namespace DotCraft.Editor.AppBinding
                 return;
             }
 
-            PopupWindow.Show(
-                UnityAppBindingStatusPopup.ResolveStatusBarActivatorRect(activatorRect, summary),
-                new UnityAppBindingStatusPopup(summary));
+            var screenRect = GUIUtility.GUIToScreenRect(activatorRect);
+            UnityAppBindingStatusDropdown.Show(screenRect, summary ?? UnityAppBindingStatusSummary.Empty);
         }
 
         internal static void OpenAssistant()

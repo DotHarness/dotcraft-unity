@@ -11,6 +11,17 @@ namespace DotCraft.Editor.McpSetup
 
         public virtual bool IsRecommendedByDefault => true;
 
+        public bool IsConfigured(string projectRoot)
+        {
+            var path = ResolvePath(projectRoot);
+            var before = ReadExisting(path);
+            if (string.IsNullOrWhiteSpace(before))
+                return false;
+
+            var preview = PreviewUninstall(path, before);
+            return preview.IsValid && preview.HasChanges;
+        }
+
         public abstract string GetSetupHint(McpInstallOptions options);
 
         public abstract McpPatchPreview Preview(string projectRoot, McpInstallOptions options);

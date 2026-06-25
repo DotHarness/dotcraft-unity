@@ -92,7 +92,7 @@ dotcraft-unity 会暴露一个本地 MCP Tool Gateway，供外部 coding agent �
 http://127.0.0.1:39777/dotcraft/mcp
 ```
 
-Setup 窗口只写项目级配置；写入前会展示 preview；修改已有文件前会创建 `.bak` 备份；uninstall 只删除 `dotcraft-unity` server block。
+Setup 窗口只写项目级配置；会显示各客户端当前的配置状态；修改已有文件前会创建 `.bak` 备份；uninstall 只删除 `dotcraft-unity` server block。
 
 首版支持：
 
