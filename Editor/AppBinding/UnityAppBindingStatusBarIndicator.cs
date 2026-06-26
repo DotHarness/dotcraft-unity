@@ -1,4 +1,3 @@
-using System;
 using System.Reflection;
 using DotCraft.Editor.Settings;
 using UnityEditor;

@@ -25,6 +25,18 @@ namespace DotCraft.Editor.Tests
         }
 
         [Test]
+        public void ExecuteCSharpCanUseApiHelpersWithoutExtraUsings()
+        {
+            var result = Execute(
+                "var type = Dcu.Type(\"UnityEngine.GameObject\"); " +
+                "var members = Dcu.Members(type, \"transform\"); " +
+                "return members.Any(m => m.Kind == \"property\" && m.Name == \"transform\");");
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.ReturnValue, Is.True);
+        }
+
+        [Test]
         public void ExecuteCSharpCanCreateGameObjectInEditorMode()
         {
             var name = $"DotCraft ExecuteCSharp Test {Guid.NewGuid():N}";

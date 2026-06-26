@@ -8,9 +8,11 @@ namespace DotCraft.Editor.McpSetup
 
         public override string RelativePath => ".cursor/mcp.json";
 
+        public override string SkillRelativePath => ".agents/skills/dotcraft-unity";
+
         public override string GetSetupHint(McpInstallOptions options)
         {
-            return "Open Cursor from the project root and verify the server in Cursor MCP settings.";
+            return "Open Cursor from the project root; setup also installs the shared project skill under .agents/skills.";
         }
 
         public override McpPatchPreview Preview(string projectRoot, McpInstallOptions options)

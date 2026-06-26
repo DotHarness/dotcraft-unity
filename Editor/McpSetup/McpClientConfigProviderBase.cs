@@ -9,6 +9,8 @@ namespace DotCraft.Editor.McpSetup
 
         public abstract string RelativePath { get; }
 
+        public abstract string SkillRelativePath { get; }
+
         public virtual bool IsRecommendedByDefault => true;
 
         public bool IsConfigured(string projectRoot)

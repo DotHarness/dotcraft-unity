@@ -1807,14 +1807,27 @@ namespace DotCraft.Editor.UI
             langLabel.style.color = new Color(0.6f, 0.6f, 0.6f);
             headerBar.Add(langLabel);
 
-            var copyButton = UIHelper.CreateButton("Copy", "code-block-copy-button");
+            var copyButton = UIHelper.CreateButton("", "code-block-copy-button");
+            copyButton.tooltip = "Copy code";
+            var copyIcon = UIHelper.CreateCopyIcon("code-copy-icon");
+            var copyCheck = UIHelper.CreateLabel("✓", "code-copy-check");
+            copyCheck.style.display = DisplayStyle.None;
+            copyButton.Add(copyIcon);
+            copyButton.Add(copyCheck);
+
             var capturedCode = codeText;
             copyButton.clicked += () =>
             {
                 GUIUtility.systemCopyBuffer = capturedCode;
-                copyButton.text = "Copied!";
-                // Reset text after a short delay via EditorApplication
-                EditorApplication.delayCall += () => copyButton.text = "Copy";
+                copyButton.tooltip = "Copied";
+                copyIcon.style.display = DisplayStyle.None;
+                copyCheck.style.display = DisplayStyle.Flex;
+                copyButton.schedule.Execute(() =>
+                {
+                    copyButton.tooltip = "Copy code";
+                    copyCheck.style.display = DisplayStyle.None;
+                    copyIcon.style.display = DisplayStyle.Flex;
+                }).StartingIn(1000);
             };
             headerBar.Add(copyButton);
 
@@ -2121,6 +2134,19 @@ namespace DotCraft.Editor.UI
                 button.AddToClassList(className);
             }
             return button;
+        }
+
+        public static VisualElement CreateCopyIcon(params string[] classNames)
+        {
+            var icon = CreateElement(classNames);
+            icon.AddToClassList("copy-icon");
+
+            var back = CreateElement("copy-icon-back");
+            icon.Add(back);
+
+            var front = CreateElement("copy-icon-front");
+            icon.Add(front);
+            return icon;
         }
 
         public static TextField CreateTextField(bool multiline, params string[] classNames)

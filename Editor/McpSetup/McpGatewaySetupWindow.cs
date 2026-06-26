@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Threading;
 using DotCraft.Editor.AppBinding;
 using DotCraft.Editor.Settings;
 using DotCraft.Editor.ToolGateway;
@@ -12,23 +10,17 @@ namespace DotCraft.Editor.McpSetup
 {
     internal sealed class McpGatewaySetupWindow : EditorWindow
     {
-        private readonly McpGatewayStatusProbe _probe = new();
         private readonly List<ClientCardView> _clientCards = new();
 
         private IMcpClientConfigProvider[] _providers;
-        private McpGatewayProbeResult _probeResult;
-        private bool _isTestingGateway;
-        private CancellationTokenSource _probeCts;
+        private AgentSkillInstaller _skillInstaller;
 
         private VisualElement _statusDot;
         private Label _statusText;
         private Label _statusSub;
         private Label _toolsValue;
-        private Button _testButton;
         private VisualElement _gatewayBanner;
         private Label _gatewayBannerText;
-        private VisualElement _probeBanner;
-        private Label _probeBannerText;
 
         public static void ShowWindow()
         {
@@ -40,11 +32,6 @@ namespace DotCraft.Editor.McpSetup
         private void OnEnable()
         {
             EnsureProviders();
-        }
-
-        private void OnDisable()
-        {
-            CancelProbe();
         }
 
         public void CreateGUI()
@@ -70,7 +57,6 @@ namespace DotCraft.Editor.McpSetup
             content.Add(BuildClientsSection());
 
             RefreshGatewayStatus();
-            RefreshProbeBanner();
             foreach (var card in _clientCards)
                 RefreshChip(card);
         }
@@ -101,34 +87,32 @@ namespace DotCraft.Editor.McpSetup
             var endpointUrl = new Label(McpGatewaySetupDefaults.Endpoint);
             endpointUrl.AddToClassList("gw-endpoint-url");
             endpoint.Add(endpointUrl);
-            var copyButton = GatewayPanelView.Button(
-                "Copy",
-                () => GatewayPanelView.CopyToClipboard(McpGatewaySetupDefaults.Endpoint),
-                "gw-btn--mini");
+            var copyButton = GatewayPanelView.CopyIconButton(
+                "Copy MCP endpoint",
+                () => GatewayPanelView.CopyToClipboard(McpGatewaySetupDefaults.Endpoint));
             endpoint.Add(copyButton);
             card.Add(endpoint);
 
             var rootRow = GatewayPanelView.KeyValueRow("Project Root", McpGatewaySetupDefaults.ProjectRoot, out var rootValue);
             rootValue.tooltip = McpGatewaySetupDefaults.ProjectRoot;
-            var revealButton = GatewayPanelView.Button(
-                "Reveal",
+            var revealButton = GatewayPanelView.IconButton(
+                "Reveal project root",
                 () => EditorUtility.RevealInFinder(McpGatewaySetupDefaults.ProjectRoot),
-                "gw-btn--mini");
+                "↗",
+                "FolderOpened Icon",
+                "d_FolderOpened Icon",
+                "Folder Icon",
+                "d_Folder Icon");
             rootRow.Add(revealButton);
             card.Add(rootRow);
 
             card.Add(GatewayPanelView.KeyValueRow("Enabled Tools", string.Empty, out _toolsValue));
-
-            _probeBanner = GatewayPanelView.Banner("gw-banner--info", out _probeBannerText);
-            card.Add(_probeBanner);
 
             _gatewayBanner = GatewayPanelView.Banner("gw-banner--warn", out _gatewayBannerText);
             card.Add(_gatewayBanner);
 
             var buttons = new VisualElement();
             buttons.AddToClassList("gw-btn-row");
-            _testButton = GatewayPanelView.Button("Test Gateway", TestGateway);
-            buttons.Add(_testButton);
             buttons.Add(GatewayPanelView.Button("Enable / Restart Gateway", EnableAndRestartGateway, "gw-btn--primary"));
             card.Add(buttons);
 
@@ -171,6 +155,10 @@ namespace DotCraft.Editor.McpSetup
             hint.AddToClassList("gw-client-hint");
             card.Add(hint);
 
+            var skillPath = new Label("Skill: " + provider.SkillRelativePath);
+            skillPath.AddToClassList("gw-client-hint");
+            card.Add(skillPath);
+
             var result = new Label();
             result.AddToClassList("gw-client-result");
             result.style.display = DisplayStyle.None;
@@ -191,7 +179,11 @@ namespace DotCraft.Editor.McpSetup
         private void InstallClient(ClientCardView view)
         {
             var result = view.Provider.Install(McpGatewaySetupDefaults.ProjectRoot, BuildOptions());
-            ShowClientResult(view, result);
+            AgentSkillInstallResult skillResult = null;
+            if (result.Success)
+                skillResult = SkillInstaller.Install(McpGatewaySetupDefaults.ProjectRoot, view.Provider.SkillRelativePath);
+
+            ShowClientInstallResult(view, result, skillResult);
             RefreshChip(view);
             RefreshGatewayStatus();
         }
@@ -202,6 +194,36 @@ namespace DotCraft.Editor.McpSetup
             ShowClientResult(view, result);
             RefreshChip(view);
             RefreshGatewayStatus();
+        }
+
+        private static void ShowClientInstallResult(
+            ClientCardView view,
+            McpInstallResult mcpResult,
+            AgentSkillInstallResult skillResult)
+        {
+            if (!mcpResult.Success || skillResult == null)
+            {
+                ShowClientResult(view, mcpResult);
+                return;
+            }
+
+            var mcpStatus = mcpResult.Changed ? "MCP updated" : "MCP current";
+            var skillStatus = skillResult.Success
+                ? skillResult.Changed ? "skill installed" : "skill current"
+                : "skill failed: " + skillResult.Error;
+
+            var message = mcpStatus + "  ·  " + skillStatus;
+            var backups = new List<string>();
+            if (!string.IsNullOrWhiteSpace(mcpResult.BackupPath))
+                backups.Add(System.IO.Path.GetFileName(mcpResult.BackupPath));
+            if (!string.IsNullOrWhiteSpace(skillResult.BackupPath))
+                backups.Add(System.IO.Path.GetFileName(skillResult.BackupPath));
+            if (backups.Count > 0)
+                message += "  ·  backup: " + string.Join(", ", backups);
+
+            view.Result.text = message;
+            view.Result.EnableInClassList("gw-client-result--error", !skillResult.Success);
+            view.Result.style.display = DisplayStyle.Flex;
         }
 
         private static void ShowClientResult(ClientCardView view, McpInstallResult result)
@@ -262,70 +284,6 @@ namespace DotCraft.Editor.McpSetup
                 "gw-banner--warn");
         }
 
-        private void RefreshProbeBanner()
-        {
-            if (_probeBanner == null)
-                return;
-
-            if (_probeResult == null)
-            {
-                _probeBanner.style.display = DisplayStyle.None;
-                return;
-            }
-
-            var success = _probeResult.Success;
-            var text = success
-                ? $"{_probeResult.Status}: {_probeResult.ToolSummary}"
-                : $"{_probeResult.Status}: {_probeResult.Error}";
-
-            GatewayPanelView.SetBanner(
-                _probeBanner,
-                _probeBannerText,
-                text,
-                success ? "gw-banner--info" : "gw-banner--error");
-        }
-
-        private async void TestGateway()
-        {
-            if (_isTestingGateway)
-                return;
-
-            _isTestingGateway = true;
-            _probeResult = null;
-            UpdateTestButton();
-            RefreshProbeBanner();
-
-            CancelProbe();
-            _probeCts = new CancellationTokenSource();
-            try
-            {
-                _probeResult = await _probe.ProbeAsync(McpGatewaySetupDefaults.Endpoint, _probeCts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                _probeResult = McpGatewayProbeResult.Failed("Probe failed", ex.Message);
-            }
-            finally
-            {
-                _isTestingGateway = false;
-                UpdateTestButton();
-                RefreshProbeBanner();
-            }
-        }
-
-        private void UpdateTestButton()
-        {
-            if (_testButton == null)
-                return;
-
-            _testButton.text = _isTestingGateway ? "Testing..." : "Test Gateway";
-            _testButton.SetEnabled(!_isTestingGateway);
-        }
-
         private void EnableAndRestartGateway()
         {
             var settings = DotCraftSettings.Instance;
@@ -335,15 +293,11 @@ namespace DotCraft.Editor.McpSetup
             RefreshGatewayStatus();
         }
 
-        private void CancelProbe()
-        {
-            _probeCts?.Cancel();
-            _probeCts?.Dispose();
-            _probeCts = null;
-        }
-
         private static McpInstallOptions BuildOptions() =>
             McpGatewaySetupDefaults.CreateOptions();
+
+        private AgentSkillInstaller SkillInstaller =>
+            _skillInstaller ??= AgentSkillInstaller.CreateDefault();
 
         private void EnsureProviders()
         {

@@ -92,6 +92,30 @@ namespace DotCraft.Editor.McpSetup
             return button;
         }
 
+        public static Button IconButton(
+            string tooltip,
+            Action onClick,
+            string fallbackText,
+            params string[] iconNames)
+        {
+            var button = Button(fallbackText, onClick, "gw-btn--icon");
+            button.tooltip = tooltip ?? string.Empty;
+            SetEditorIcon(button, fallbackText, iconNames);
+            return button;
+        }
+
+        public static Button CopyIconButton(string tooltip, Action onClick)
+        {
+            return IconButton(
+                tooltip,
+                onClick,
+                "⧉",
+                "TreeEditor.Duplicate",
+                "d_TreeEditor.Duplicate",
+                "Duplicate",
+                "d_Duplicate");
+        }
+
         public static Label Chip(string text, string variantClass)
         {
             var chip = new Label(text);
@@ -154,6 +178,33 @@ namespace DotCraft.Editor.McpSetup
         public static void CopyToClipboard(string value)
         {
             EditorGUIUtility.systemCopyBuffer = value ?? string.Empty;
+        }
+
+        private static void SetEditorIcon(Button button, string fallbackText, params string[] iconNames)
+        {
+            foreach (var iconName in iconNames)
+            {
+                if (string.IsNullOrWhiteSpace(iconName))
+                    continue;
+
+                var icon = EditorGUIUtility.FindTexture(iconName);
+                if (icon == null)
+                    icon = EditorGUIUtility.IconContent(iconName).image as Texture2D;
+                if (icon == null)
+                    continue;
+
+                button.text = string.Empty;
+                button.style.backgroundImage = new StyleBackground(icon);
+                button.style.unityBackgroundImageTintColor = EditorGUIUtility.isProSkin
+                    ? new Color(0.82f, 0.82f, 0.82f)
+                    : new Color(0.22f, 0.22f, 0.22f);
+#if UNITY_2022_1_OR_NEWER
+                button.style.backgroundSize = new BackgroundSize(14, 14);
+#endif
+                return;
+            }
+
+            button.text = fallbackText ?? string.Empty;
         }
     }
 }

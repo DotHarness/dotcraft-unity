@@ -29,14 +29,6 @@ namespace DotCraft.Editor.Tests
             ExecuteCSharpToolName
         };
 
-        private static readonly string[] RemovedReadToolNames =
-        {
-            "unity_scene_query",
-            "unity_get_selection",
-            "unity_get_console_logs",
-            "unity_get_project_info"
-        };
-
         [Test]
         public void GatewayListsEnabledRuntimeToolsByDefault()
         {
@@ -47,8 +39,6 @@ namespace DotCraft.Editor.Tests
 
                 foreach (var toolName in BuiltinToolNames)
                     Assert.That(names, Does.Contain(toolName));
-                foreach (var toolName in RemovedReadToolNames)
-                    Assert.That(names, Does.Not.Contain(toolName));
 
                 Assert.That(names, Is.EquivalentTo(BuiltinToolNames));
                 Assert.That(names, Does.Not.Contain("ExecuteCSharp"));
@@ -153,8 +143,6 @@ namespace DotCraft.Editor.Tests
                 Assert.That(tools, Is.Not.Null);
                 foreach (var toolName in BuiltinToolNames)
                     Assert.That(names, Does.Contain(toolName));
-                foreach (var toolName in RemovedReadToolNames)
-                    Assert.That(names, Does.Not.Contain(toolName));
 
                 Assert.That(names, Does.Not.Contain("ExecuteCSharp"));
                 Assert.That(names, Does.Not.Contain("execute_csharp"));

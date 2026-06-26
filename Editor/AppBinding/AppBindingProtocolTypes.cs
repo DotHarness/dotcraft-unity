@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using DotCraft.Editor.Protocol;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 

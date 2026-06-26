@@ -72,8 +72,6 @@ dotcraft-unity exposes a local MCP Tool Gateway for external coding agents. Whil
 http://127.0.0.1:39777/dotcraft/mcp
 ```
 
-The setup window writes project-level config only, shows each client's current setup state, creates `.bak` backups for existing files, and can remove only the `dotcraft-unity` server block later.
-
 Currently supports Claude Code, Codex, and Cursor.
 
 ## Built-in tools
@@ -84,7 +82,7 @@ dotcraft-unity provides one built-in Unity runtime tool based on Roslyn:
 |------|-------------|
 | `unity_execute_csharp` | Compile and execute a C# method-body snippet in the Unity Editor process. |
 
-Use `unity_execute_csharp` to read or modify scene state, selected objects, Console output, project metadata, and assets with C# snippets. Repeated workflows should be wrapped as custom project tools with `[AgentTool]`.
+Use `unity_execute_csharp` to read or modify scene state, selected objects, Console output, project metadata, and assets with C# snippets.
 
 ## Custom tools
 

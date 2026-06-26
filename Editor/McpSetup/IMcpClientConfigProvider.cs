@@ -6,6 +6,8 @@ namespace DotCraft.Editor.McpSetup
 
         string RelativePath { get; }
 
+        string SkillRelativePath { get; }
+
         bool IsRecommendedByDefault { get; }
 
         bool IsConfigured(string projectRoot);

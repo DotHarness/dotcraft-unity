@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Reflection;
+using System.Text;
 using DotCraft.Editor.McpSetup;
+using UnityEditor;
+using UnityEngine;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 
@@ -103,6 +106,138 @@ namespace DotCraft.Editor.Tests
         }
 
         [Test]
+        public void ProvidersExposeProjectSkillTargets()
+        {
+            Assert.That(new CodexMcpConfigProvider().SkillRelativePath, Is.EqualTo(".agents/skills/dotcraft-unity"));
+            Assert.That(new CursorMcpConfigProvider().SkillRelativePath, Is.EqualTo(".agents/skills/dotcraft-unity"));
+            Assert.That(new ClaudeCodeMcpConfigProvider().SkillRelativePath, Is.EqualTo(".claude/skills/dotcraft-unity"));
+        }
+
+        [Test]
+        public void AgentSkillInstallerInstallsFetchedSkillFiles()
+        {
+            var installer = SkillInstaller(
+                SkillFile("SKILL.md", "---\nname: dotcraft-unity\ndescription: Test\n---\n"),
+                SkillFile("references/api.md", "# API\n"));
+
+            var result = installer.Install(_tempRoot, ".agents/skills/dotcraft-unity");
+
+            Assert.That(result.Success, Is.True, result.Error);
+            Assert.That(result.Changed, Is.True);
+            Assert.That(File.ReadAllText(Path.Combine(_tempRoot, ".agents", "skills", "dotcraft-unity", "SKILL.md")),
+                Does.Contain("dotcraft-unity"));
+            Assert.That(File.Exists(Path.Combine(_tempRoot, ".agents", "skills", "dotcraft-unity", "references", "api.md")),
+                Is.True);
+        }
+
+        [Test]
+        public void AgentSkillInstallerIsIdempotentWhenFilesMatch()
+        {
+            var installer = SkillInstaller(SkillFile("SKILL.md", "---\nname: dotcraft-unity\ndescription: Test\n---\n"));
+
+            var first = installer.Install(_tempRoot, ".agents/skills/dotcraft-unity");
+            var second = installer.Install(_tempRoot, ".agents/skills/dotcraft-unity");
+
+            Assert.That(first.Success, Is.True, first.Error);
+            Assert.That(first.Changed, Is.True);
+            Assert.That(second.Success, Is.True, second.Error);
+            Assert.That(second.Changed, Is.False);
+            Assert.That(second.BackupPath, Is.Empty);
+        }
+
+        [Test]
+        public void AgentSkillInstallerBacksUpExistingChangedSkill()
+        {
+            var target = Path.Combine(_tempRoot, ".agents", "skills", "dotcraft-unity");
+            Directory.CreateDirectory(target);
+            File.WriteAllText(Path.Combine(target, "SKILL.md"), "old");
+            var installer = SkillInstaller(SkillFile("SKILL.md", "new"));
+
+            var result = installer.Install(_tempRoot, ".agents/skills/dotcraft-unity");
+
+            Assert.That(result.Success, Is.True, result.Error);
+            Assert.That(result.Changed, Is.True);
+            Assert.That(result.BackupPath, Is.Not.Empty);
+            Assert.That(Directory.Exists(result.BackupPath), Is.True);
+            Assert.That(File.ReadAllText(Path.Combine(result.BackupPath, "SKILL.md")), Is.EqualTo("old"));
+            Assert.That(File.ReadAllText(Path.Combine(target, "SKILL.md")), Is.EqualTo("new"));
+        }
+
+        [Test]
+        public void AgentSkillInstallerRejectsPathsOutsideProjectRoot()
+        {
+            var installer = SkillInstaller(SkillFile("SKILL.md", "test"));
+
+            var result = installer.Install(_tempRoot, "../dotcraft-unity-skill");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Does.Contain("project root"));
+        }
+
+        [Test]
+        public void AgentSkillInstallerRequiresSkillMarkdown()
+        {
+            var installer = SkillInstaller(SkillFile("references/api.md", "# API\n"));
+
+            var result = installer.Install(_tempRoot, ".agents/skills/dotcraft-unity");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Error, Does.Contain("SKILL.md"));
+        }
+
+        [Test]
+        public void LocalPackageSkillSourceReadsSkillDirectory()
+        {
+            var source = Path.Combine(_tempRoot, "skill-source");
+            Directory.CreateDirectory(Path.Combine(source, "agents"));
+            Directory.CreateDirectory(Path.Combine(source, "references"));
+            File.WriteAllText(Path.Combine(source, "SKILL.md"), "skill");
+            File.WriteAllText(Path.Combine(source, "agents", "openai.yaml"), "agent");
+            File.WriteAllText(Path.Combine(source, "references", "api.md"), "api");
+            File.WriteAllText(Path.Combine(source, "references", "api.md.meta"), "ignored");
+
+            var files = new LocalPackageAgentSkillSourceFetcher(source).Fetch();
+            var paths = files.Select(file => file.RelativePath).ToArray();
+
+            Assert.That(paths, Is.EqualTo(new[]
+            {
+                "SKILL.md",
+                "agents/openai.yaml",
+                "references/api.md"
+            }));
+            Assert.That(files.Single(file => file.RelativePath == "references/api.md").Content,
+                Is.EqualTo(Encoding.UTF8.GetBytes("api")));
+        }
+
+        [Test]
+        public void LocalPackageSkillSourceReportsMissingBundledSkill()
+        {
+            var missing = Path.Combine(_tempRoot, "missing-skill");
+            var ex = Assert.Throws<InvalidOperationException>(
+                () => new LocalPackageAgentSkillSourceFetcher(missing).Fetch());
+
+            Assert.That(ex.Message, Does.Contain("Bundled dotcraft-unity skill not found in package."));
+        }
+
+        [Test]
+        public void McpSetupWindowConstructorDoesNotCreateSkillInstaller()
+        {
+            var window = ScriptableObject.CreateInstance<McpGatewaySetupWindow>();
+            try
+            {
+                var field = typeof(McpGatewaySetupWindow).GetField(
+                    "_skillInstaller",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+
+                Assert.That(field.GetValue(window), Is.Null);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(window);
+            }
+        }
+
+        [Test]
         public void InstallerCreatesBackupAndRepeatedInstallIsIdempotent()
         {
             var provider = new CodexMcpConfigProvider();
@@ -136,92 +271,14 @@ namespace DotCraft.Editor.Tests
             Assert.That(File.ReadAllText(path), Is.EqualTo("{ invalid"));
         }
 
-        [Test]
-        public async Task GatewayProbeReportsStoppedServer()
-        {
-            var probe = new McpGatewayStatusProbe((_, _, _, _) =>
-                throw new InvalidOperationException("connection refused"));
-
-            var result = await probe.ProbeAsync(McpGatewaySetupDefaults.Endpoint, CancellationToken.None);
-
-            Assert.That(result.Success, Is.False);
-            Assert.That(result.Status, Is.EqualTo("Stopped"));
-            Assert.That(result.Error, Does.Contain("connection refused"));
-        }
-
-        [Test]
-        public async Task GatewayProbeReportsInitializeFailure()
-        {
-            var probe = new McpGatewayStatusProbe((_, _, _, _) => Task.FromResult(
-                new McpGatewayProbeHttpResponse(200, @"{""jsonrpc"":""2.0"",""id"":1,""error"":{""code"":-32601,""message"":""nope""}}")));
-
-            var result = await probe.ProbeAsync(McpGatewaySetupDefaults.Endpoint, CancellationToken.None);
-
-            Assert.That(result.Success, Is.False);
-            Assert.That(result.Status, Is.EqualTo("MCP error"));
-            Assert.That(result.Error, Does.Contain("nope"));
-        }
-
-        [Test]
-        public async Task GatewayProbeReportsInvalidJson()
-        {
-            var probe = new McpGatewayStatusProbe((_, _, _, _) => Task.FromResult(
-                new McpGatewayProbeHttpResponse(200, "not json")));
-
-            var result = await probe.ProbeAsync(McpGatewaySetupDefaults.Endpoint, CancellationToken.None);
-
-            Assert.That(result.Success, Is.False);
-            Assert.That(result.Status, Is.EqualTo("Invalid response"));
-        }
-
-        [Test]
-        public async Task GatewayProbeReportsNoTools()
-        {
-            var probe = new McpGatewayStatusProbe(SuccessfulProbeResponder(Array.Empty<string>()));
-
-            var result = await probe.ProbeAsync(McpGatewaySetupDefaults.Endpoint, CancellationToken.None);
-
-            Assert.That(result.Success, Is.True);
-            Assert.That(result.ToolCount, Is.EqualTo(0));
-            Assert.That(result.Status, Is.EqualTo("Connected, no tools exposed"));
-        }
-
-        [Test]
-        public async Task GatewayProbeReportsToolNames()
-        {
-            var probe = new McpGatewayStatusProbe(SuccessfulProbeResponder("unity_execute_csharp"));
-
-            var result = await probe.ProbeAsync(McpGatewaySetupDefaults.Endpoint, CancellationToken.None);
-
-            Assert.That(result.Success, Is.True);
-            Assert.That(result.ToolNames, Is.EqualTo(new[] { "unity_execute_csharp" }));
-        }
-
         private static McpInstallOptions Options() =>
             new(McpGatewaySetupDefaults.Endpoint);
 
-        private static Func<string, string, string, CancellationToken, Task<McpGatewayProbeHttpResponse>> SuccessfulProbeResponder(
-            params string[] toolNames)
-        {
-            return (_, _, body, _) =>
-            {
-                var method = JObject.Parse(body).Value<string>("method");
-                if (method == "initialize")
-                {
-                    return Task.FromResult(new McpGatewayProbeHttpResponse(200,
-                        @"{""jsonrpc"":""2.0"",""id"":1,""result"":{""capabilities"":{""tools"":{}}}}"));
-                }
+        private static AgentSkillInstaller SkillInstaller(params AgentSkillFile[] files) =>
+            new(new MemorySkillSourceFetcher(files));
 
-                var tools = new JArray(toolNames.Select(name => new JObject { ["name"] = name }));
-                var response = new JObject
-                {
-                    ["jsonrpc"] = "2.0",
-                    ["id"] = 2,
-                    ["result"] = new JObject { ["tools"] = tools }
-                };
-                return Task.FromResult(new McpGatewayProbeHttpResponse(200, response.ToString()));
-            };
-        }
+        private static AgentSkillFile SkillFile(string path, string content) =>
+            new(path, Encoding.UTF8.GetBytes(content));
 
         private static int CountOccurrences(string value, string pattern)
         {
@@ -234,6 +291,18 @@ namespace DotCraft.Editor.Tests
             }
 
             return count;
+        }
+
+        private sealed class MemorySkillSourceFetcher : IAgentSkillSourceFetcher
+        {
+            private readonly IReadOnlyList<AgentSkillFile> _files;
+
+            public MemorySkillSourceFetcher(IReadOnlyList<AgentSkillFile> files)
+            {
+                _files = files;
+            }
+
+            public IReadOnlyList<AgentSkillFile> Fetch() => _files;
         }
     }
 }

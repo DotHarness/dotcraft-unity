@@ -61,14 +61,13 @@ namespace DotCraft.Editor.AppBinding
                 url.AddToClassList("gw-endpoint-url");
                 endpoint.Add(url);
 
-                endpoint.Add(GatewayPanelView.Button(
-                    "Copy",
+                endpoint.Add(GatewayPanelView.CopyIconButton(
+                    "Copy MCP endpoint",
                     () =>
                     {
                         UnityAppBindingStatusBarActions.CopyMcpUrl(_summary.GatewayMcpUrl);
                         Close();
-                    },
-                    "gw-btn--mini"));
+                    }));
                 panel.Add(endpoint);
             }
 

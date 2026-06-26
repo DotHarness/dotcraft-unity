@@ -6,9 +6,11 @@ namespace DotCraft.Editor.McpSetup
 
         public override string RelativePath => ".codex/config.toml";
 
+        public override string SkillRelativePath => ".agents/skills/dotcraft-unity";
+
         public override string GetSetupHint(McpInstallOptions options)
         {
-            return "Start Codex in the project root; tools use prompt approval by default.";
+            return "Start Codex in the project root; setup also installs the project skill under .agents/skills.";
         }
 
         public override McpPatchPreview Preview(string projectRoot, McpInstallOptions options)

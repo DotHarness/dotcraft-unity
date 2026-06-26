@@ -72,8 +72,6 @@ dotcraft-unity 会暴露一个本地 MCP Tool Gateway，供外部 coding agent �
 http://127.0.0.1:39777/dotcraft/mcp
 ```
 
-Setup 窗口只写项目级配置；会显示各客户端当前的配置状态；修改已有文件前会创建 `.bak` 备份；uninstall 只删除 `dotcraft-unity` server block。
-
 目前支持 Claude Code、Codex、Cursor.
 
 ## 内置工具
@@ -84,7 +82,7 @@ dotcraft-unity 基于 Roslyn 提供了一个内置 Unity 运行时工具：
 |------|------|
 | `unity_execute_csharp` | 在 Unity Editor 进程中编译并执行一段 C# 方法体代码。 |
 
-可以通过 `unity_execute_csharp` 编写 C# snippet 来读取或修改场景状态、选中对象、Console 输出、项目元数据和资源。重复使用的工作流建议用 `[AgentTool]` 封装成项目自定义工具。
+可以通过 `unity_execute_csharp` 编写 C# snippet 来读取或修改场景状态、选中对象、Console 输出、项目元数据和资源。
 
 ## 自定义工具
 

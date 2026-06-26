@@ -8,9 +8,11 @@ namespace DotCraft.Editor.McpSetup
 
         public override string RelativePath => ".mcp.json";
 
+        public override string SkillRelativePath => ".claude/skills/dotcraft-unity";
+
         public override string GetSetupHint(McpInstallOptions options)
         {
-            return "Start Claude Code in the project root and approve the project-scoped MCP server when prompted.";
+            return "Start Claude Code in the project root; setup also installs the project skill under .claude/skills.";
         }
 
         public override McpPatchPreview Preview(string projectRoot, McpInstallOptions options)
