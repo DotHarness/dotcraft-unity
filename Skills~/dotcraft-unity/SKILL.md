@@ -1,6 +1,6 @@
 ---
 name: dotcraft-unity
-description: Use when a DotCraft thread is connected to Unity Editor through dotcraft-unity, when unity_execute_csharp is available, or when the user asks to inspect, automate, capture, or debug a Unity project from the Editor. Provides safe background-first rules for Unity Editor automation and GameView capture.
+description: Use when dotcraft-unity MCP or unity_execute_csharp is available, or when the user asks to inspect, automate, capture, or debug Unity Editor state, scenes, assets, Console logs, or GameView output. Provides safe background-first Unity Editor automation rules.
 ---
 
 # DotCraft Unity
