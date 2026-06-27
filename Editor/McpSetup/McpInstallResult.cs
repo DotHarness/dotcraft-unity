@@ -6,14 +6,12 @@ namespace DotCraft.Editor.McpSetup
             bool success,
             string path,
             bool changed,
-            string backupPath = null,
             string message = null,
             string error = null)
         {
             Success = success;
             Path = path ?? string.Empty;
             Changed = changed;
-            BackupPath = backupPath ?? string.Empty;
             Message = message ?? string.Empty;
             Error = error ?? string.Empty;
         }
@@ -23,8 +21,6 @@ namespace DotCraft.Editor.McpSetup
         public string Path { get; }
 
         public bool Changed { get; }
-
-        public string BackupPath { get; }
 
         public string Message { get; }
 

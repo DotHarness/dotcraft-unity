@@ -142,11 +142,10 @@ namespace DotCraft.Editor.Tests
             Assert.That(first.Changed, Is.True);
             Assert.That(second.Success, Is.True, second.Error);
             Assert.That(second.Changed, Is.False);
-            Assert.That(second.BackupPath, Is.Empty);
         }
 
         [Test]
-        public void AgentSkillInstallerBacksUpExistingChangedSkill()
+        public void AgentSkillInstallerReplacesExistingChangedSkill()
         {
             var target = Path.Combine(_tempRoot, ".agents", "skills", "dotcraft-unity");
             Directory.CreateDirectory(target);
@@ -157,9 +156,6 @@ namespace DotCraft.Editor.Tests
 
             Assert.That(result.Success, Is.True, result.Error);
             Assert.That(result.Changed, Is.True);
-            Assert.That(result.BackupPath, Is.Not.Empty);
-            Assert.That(Directory.Exists(result.BackupPath), Is.True);
-            Assert.That(File.ReadAllText(Path.Combine(result.BackupPath, "SKILL.md")), Is.EqualTo("old"));
             Assert.That(File.ReadAllText(Path.Combine(target, "SKILL.md")), Is.EqualTo("new"));
         }
 
@@ -238,7 +234,7 @@ namespace DotCraft.Editor.Tests
         }
 
         [Test]
-        public void InstallerCreatesBackupAndRepeatedInstallIsIdempotent()
+        public void InstallerUpdatesAndRepeatedInstallIsIdempotent()
         {
             var provider = new CodexMcpConfigProvider();
             var path = Path.Combine(_tempRoot, ".codex", "config.toml");
@@ -248,8 +244,6 @@ namespace DotCraft.Editor.Tests
             var first = provider.Install(_tempRoot, Options());
             Assert.That(first.Success, Is.True, first.Error);
             Assert.That(first.Changed, Is.True);
-            Assert.That(first.BackupPath, Is.Not.Empty);
-            Assert.That(File.Exists(first.BackupPath), Is.True);
 
             var second = provider.Install(_tempRoot, Options());
             Assert.That(second.Success, Is.True, second.Error);

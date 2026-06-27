@@ -7,7 +7,7 @@ namespace DotCraft.Editor.RuntimeTools
     /// Marks a static editor method as an agent runtime dynamic tool.
     /// These tools are DotCraft-specific ACP extensions and are not declared for Custom ACP agents.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = false)]
+    [AttributeUsage(AttributeTargets.Method, Inherited = false)]
     public sealed class AgentToolAttribute : Attribute
     {
         /// <summary>

@@ -43,14 +43,12 @@ namespace DotCraft.Editor.McpSetup
                 if (!string.IsNullOrEmpty(directory))
                     Directory.CreateDirectory(directory);
 
-                var backupPath = ConfigBackup.CreateBackupIfExists(preview.Path);
                 File.WriteAllText(preview.Path, preview.After);
                 return new McpInstallResult(
                     true,
                     preview.Path,
                     true,
-                    backupPath,
-                    string.IsNullOrEmpty(backupPath) ? "Installed." : "Installed with backup.");
+                    message: "Installed.");
             }
             catch (Exception ex)
             {
@@ -71,14 +69,12 @@ namespace DotCraft.Editor.McpSetup
 
             try
             {
-                var backupPath = ConfigBackup.CreateBackupIfExists(path);
                 File.WriteAllText(path, preview.After);
                 return new McpInstallResult(
                     true,
                     path,
                     true,
-                    backupPath,
-                    string.IsNullOrEmpty(backupPath) ? "Removed." : "Removed with backup.");
+                    message: "Removed.");
             }
             catch (Exception ex)
             {

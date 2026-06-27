@@ -7,6 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using DotCraft.Editor.Settings;
 using DotCraft.Editor.ToolGateway;
 using Process = System.Diagnostics.Process;
 using UnityEditor;
@@ -121,7 +122,7 @@ namespace DotCraft.Editor.AppBinding
                 var stoppedOwnedServer = false;
                 if (HasLocalResources())
                 {
-                    StopCore(waitForHandlers: true, logStop: true, clearSessionToken: true);
+                    StopCore(waitForHandlers: true, clearSessionToken: true);
                     stoppedOwnedServer = true;
                 }
 
@@ -145,7 +146,7 @@ namespace DotCraft.Editor.AppBinding
         {
             lock (LifecycleGate)
             {
-                StopCore(waitForHandlers: true, logStop: true, clearSessionToken: true);
+                StopCore(waitForHandlers: true, clearSessionToken: true);
                 if (!WaitUntilPortCanBind(TimeSpan.FromMilliseconds(RestartReleaseWaitMilliseconds)))
                 {
                     Debug.LogWarning(
@@ -161,7 +162,7 @@ namespace DotCraft.Editor.AppBinding
         {
             lock (LifecycleGate)
             {
-                StopCore(waitForHandlers: true, logStop: true, clearSessionToken: true);
+                StopCore(waitForHandlers: true, clearSessionToken: true);
             }
         }
 
@@ -239,7 +240,12 @@ namespace DotCraft.Editor.AppBinding
 
                 RegisterCurrentServer();
                 thread.Start();
-                Debug.Log($"[DotCraft] App Binding local server started on 127.0.0.1:{_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
+                
+                if (DotCraftSettings.Instance.VerboseLogging)
+                {
+                    Debug.Log($"[DotCraft] App Binding local server started on 127.0.0.1:{_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
+                }
+
                 return true;
             }
             catch (Exception ex)
@@ -410,7 +416,9 @@ namespace DotCraft.Editor.AppBinding
             catch (Exception ex)
             {
                 if (!ct.IsCancellationRequested)
+                {
                     Debug.LogWarning($"[DotCraft] App Binding local server client error: {ex.Message}");
+                }
             }
             finally
             {
@@ -642,7 +650,12 @@ namespace DotCraft.Editor.AppBinding
         {
             await WriteResponseAsync(stream, 200, "OK", "DotCraft App Binding local server stopped.", ct)
                 .ConfigureAwait(false);
-            Debug.Log($"[DotCraft] App Binding local server admin shutdown accepted on port {_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
+            
+            if (DotCraftSettings.Instance.VerboseLogging)
+            {
+                Debug.Log($"[DotCraft] App Binding local server admin shutdown accepted on port {_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
+            }
+
             StopFromBackgroundHandler();
         }
 
@@ -671,7 +684,7 @@ namespace DotCraft.Editor.AppBinding
         {
             lock (LifecycleGate)
             {
-                StopCore(waitForHandlers: false, logStop: true, clearSessionToken: false);
+                StopCore(waitForHandlers: false, clearSessionToken: false);
             }
         }
 
@@ -686,57 +699,55 @@ namespace DotCraft.Editor.AppBinding
 
             try
             {
-                var target =
-                    $"{AdminShutdownPath}?pid={Process.GetCurrentProcess().Id}&token={Uri.EscapeDataString(token)}";
-                Debug.Log($"[DotCraft] App Binding local server port {_port} is occupied; attempting token-protected stale shutdown.");
+                var target = $"{AdminShutdownPath}?pid={Process.GetCurrentProcess().Id}&token={Uri.EscapeDataString(token)}";
+                if (DotCraftSettings.Instance.VerboseLogging)
+                {
+                    Debug.Log($"[DotCraft] App Binding local server port {_port} is occupied; attempting token-protected stale shutdown.");
+                }
+                
                 var response = InvokeLoopbackGet(target, StaleShutdownWaitMilliseconds);
-                Debug.Log($"[DotCraft] App Binding stale shutdown response for port {_port}: {response}");
+                if (DotCraftSettings.Instance.VerboseLogging)
+                {
+                    Debug.Log($"[DotCraft] App Binding stale shutdown response for port {_port}: {response}");
+                }
+                
                 if (WaitUntilPortCanBind(TimeSpan.FromMilliseconds(StaleShutdownWaitMilliseconds)))
                     return true;
 
-                Debug.LogWarning(
-                    $"[DotCraft] App Binding stale shutdown request completed but port {_port} is still occupied. {DescribePortOwner()}");
+                Debug.LogWarning($"[DotCraft] App Binding stale shutdown request completed but port {_port} is still occupied. {DescribePortOwner()}");
                 return false;
             }
             catch (Exception ex)
             {
-                Debug.LogWarning(
-                    $"[DotCraft] App Binding stale shutdown attempt failed for port {_port} " +
-                    $"({ex.GetType().Name}): {ex.Message}. {DescribePortOwner()}");
+                Debug.LogWarning($"[DotCraft] App Binding stale shutdown attempt failed for port {_port} " + $"({ex.GetType().Name}): {ex.Message}. {DescribePortOwner()}");
                 return false;
             }
         }
 
         private string InvokeLoopbackGet(string target, int timeoutMilliseconds)
         {
-            using (var client = new TcpClient())
-            {
-                ConfigureAcceptedClient(client);
-                var connect = client.BeginConnect(IPAddress.Loopback, _port, null, null);
-                if (!connect.AsyncWaitHandle.WaitOne(timeoutMilliseconds))
-                    throw new TimeoutException("Timed out connecting to stale App Binding local server.");
-                client.EndConnect(connect);
+            using var client = new TcpClient();
+            ConfigureAcceptedClient(client);
+            var connect = client.BeginConnect(IPAddress.Loopback, _port, null, null);
+            if (!connect.AsyncWaitHandle.WaitOne(timeoutMilliseconds))
+                throw new TimeoutException("Timed out connecting to stale App Binding local server.");
+            client.EndConnect(connect);
 
-                using (var stream = client.GetStream())
-                {
-                    stream.ReadTimeout = timeoutMilliseconds;
-                    stream.WriteTimeout = timeoutMilliseconds;
-                    var request =
-                        $"GET {target} HTTP/1.1\r\n" +
-                        $"Host: 127.0.0.1:{_port}\r\n" +
-                        "Connection: close\r\n\r\n";
-                    var bytes = Encoding.ASCII.GetBytes(request);
-                    stream.Write(bytes, 0, bytes.Length);
+            using var stream = client.GetStream();
+            stream.ReadTimeout = timeoutMilliseconds;
+            stream.WriteTimeout = timeoutMilliseconds;
+            var request =
+                $"GET {target} HTTP/1.1\r\n" +
+                $"Host: 127.0.0.1:{_port}\r\n" +
+                "Connection: close\r\n\r\n";
+            var bytes = Encoding.ASCII.GetBytes(request);
+            stream.Write(bytes, 0, bytes.Length);
 
-                    using (var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, leaveOpen: true))
-                    {
-                        var statusLine = reader.ReadLine();
-                        if (statusLine == null || !statusLine.Contains(" 200 "))
-                            throw new InvalidOperationException("Stale App Binding local server rejected shutdown.");
-                        return statusLine;
-                    }
-                }
-            }
+            using var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, leaveOpen: true);
+            var statusLine = reader.ReadLine();
+            if (statusLine == null || !statusLine.Contains(" 200 "))
+                throw new InvalidOperationException("Stale App Binding local server rejected shutdown.");
+            return statusLine;
         }
 
         private bool WaitUntilPortCanBind(TimeSpan timeout)
@@ -783,6 +794,7 @@ namespace DotCraft.Editor.AppBinding
             }
             catch
             {
+                // ignored
             }
 
             CloseSocket(listenerSocket);
@@ -799,6 +811,7 @@ namespace DotCraft.Editor.AppBinding
             }
             catch
             {
+                // ignored
             }
 
             try
@@ -822,6 +835,7 @@ namespace DotCraft.Editor.AppBinding
             }
             catch
             {
+                // ignored
             }
         }
 
@@ -837,6 +851,7 @@ namespace DotCraft.Editor.AppBinding
             }
             catch
             {
+                // ignored
             }
 
             try
@@ -845,6 +860,7 @@ namespace DotCraft.Editor.AppBinding
             }
             catch
             {
+                // ignored
             }
 
             try
@@ -853,10 +869,11 @@ namespace DotCraft.Editor.AppBinding
             }
             catch
             {
+                // ignored
             }
         }
 
-        internal static UnityAppBindingHandoff ParseHandoff(string target)
+        private static UnityAppBindingHandoff ParseHandoff(string target)
         {
             var uri = new Uri("http://127.0.0.1" + target, UriKind.Absolute);
             var path = uri.AbsolutePath.Trim('/');
@@ -988,36 +1005,36 @@ namespace DotCraft.Editor.AppBinding
                     RedirectStandardOutput = true,
                     UseShellExecute = false
                 };
-                using (var process = Process.Start(startInfo))
-                {
-                    if (process == null)
-                        return "Port owner diagnostics unavailable: netstat did not start.";
+                using var process = Process.Start(startInfo);
+                if (process == null)
+                    return "Port owner diagnostics unavailable: netstat did not start.";
 
-                    var output = process.StandardOutput.ReadToEnd();
-                    if (!process.WaitForExit(1000))
+                var output = process.StandardOutput.ReadToEnd();
+                if (!process.WaitForExit(1000))
+                {
+                    try
                     {
-                        try
-                        {
-                            process.Kill();
-                        }
-                        catch
-                        {
-                        }
-                        return "Port owner diagnostics timed out.";
+                        process.Kill();
+                    }
+                    catch
+                    {
+                        // ignored
                     }
 
-                    var marker = ":" + _port;
-                    var lines = output
-                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                        .Select(line => line.Trim())
-                        .Where(line => line.Contains(marker))
-                        .Take(4)
-                        .ToArray();
-
-                    return lines.Length == 0
-                        ? "No netstat TCP owner entry was found for this port."
-                        : "netstat: " + string.Join(" | ", lines);
+                    return "Port owner diagnostics timed out.";
                 }
+
+                var marker = ":" + _port;
+                var lines = output
+                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(line => line.Trim())
+                    .Where(line => line.Contains(marker))
+                    .Take(4)
+                    .ToArray();
+
+                return lines.Length == 0
+                    ? "No netstat TCP owner entry was found for this port."
+                    : "netstat: " + string.Join(" | ", lines);
             }
             catch (Exception ex)
             {
@@ -1129,11 +1146,11 @@ namespace DotCraft.Editor.AppBinding
             if (existing == null)
                 return false;
 
-            existing.StopCore(waitForHandlers: true, logStop: true, clearSessionToken: true);
+            existing.StopCore(waitForHandlers: true, clearSessionToken: true);
             return true;
         }
 
-        private void StopCore(bool waitForHandlers, bool logStop, bool clearSessionToken)
+        private void StopCore(bool waitForHandlers, bool clearSessionToken)
         {
             CancellationTokenSource cts;
             TcpClient[] clients;
@@ -1223,7 +1240,7 @@ namespace DotCraft.Editor.AppBinding
             if (clearSessionToken)
                 ClearShutdownTokenForPort(_port);
 
-            if (wasRunning && logStop)
+            if (wasRunning && DotCraftSettings.Instance.VerboseLogging)
             {
                 var portReleased = CanBindOnce();
                 Debug.Log(
@@ -1237,7 +1254,7 @@ namespace DotCraft.Editor.AppBinding
         {
             lock (LifecycleGate)
             {
-                StopCore(waitForHandlers: false, logStop: false, clearSessionToken: false);
+                StopCore(waitForHandlers: false, clearSessionToken: false);
             }
         }
 

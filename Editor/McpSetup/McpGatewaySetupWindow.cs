@@ -212,16 +212,7 @@ namespace DotCraft.Editor.McpSetup
                 ? skillResult.Changed ? "skill installed" : "skill current"
                 : "skill failed: " + skillResult.Error;
 
-            var message = mcpStatus + "  ·  " + skillStatus;
-            var backups = new List<string>();
-            if (!string.IsNullOrWhiteSpace(mcpResult.BackupPath))
-                backups.Add(System.IO.Path.GetFileName(mcpResult.BackupPath));
-            if (!string.IsNullOrWhiteSpace(skillResult.BackupPath))
-                backups.Add(System.IO.Path.GetFileName(skillResult.BackupPath));
-            if (backups.Count > 0)
-                message += "  ·  backup: " + string.Join(", ", backups);
-
-            view.Result.text = message;
+            view.Result.text = mcpStatus + "  ·  " + skillStatus;
             view.Result.EnableInClassList("gw-client-result--error", !skillResult.Success);
             view.Result.style.display = DisplayStyle.Flex;
         }
@@ -235,8 +226,6 @@ namespace DotCraft.Editor.McpSetup
             var message = status;
             if (!string.IsNullOrWhiteSpace(result.Message) && result.Success && result.Changed)
                 message = result.Message;
-            if (!string.IsNullOrWhiteSpace(result.BackupPath))
-                message += $"  ·  backup: {System.IO.Path.GetFileName(result.BackupPath)}";
             if (!string.IsNullOrWhiteSpace(result.Error))
                 message = $"{status}: {result.Error}";
 

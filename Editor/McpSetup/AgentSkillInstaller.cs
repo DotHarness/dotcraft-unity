@@ -37,14 +37,12 @@ namespace DotCraft.Editor.McpSetup
             bool success,
             string path,
             bool changed,
-            string backupPath = null,
             string message = null,
             string error = null)
         {
             Success = success;
             Path = path ?? string.Empty;
             Changed = changed;
-            BackupPath = backupPath ?? string.Empty;
             Message = message ?? string.Empty;
             Error = error ?? string.Empty;
         }
@@ -54,8 +52,6 @@ namespace DotCraft.Editor.McpSetup
         public string Path { get; }
 
         public bool Changed { get; }
-
-        public string BackupPath { get; }
 
         public string Message { get; }
 
@@ -107,30 +103,17 @@ namespace DotCraft.Editor.McpSetup
 
                 WriteSkillFiles(tempPath, files);
 
-                var backupPath = string.Empty;
                 if (Directory.Exists(targetPath))
-                {
-                    backupPath = UniqueBackupPath(targetPath);
-                    Directory.Move(targetPath, backupPath);
-                }
+                    Directory.Delete(targetPath, recursive: true);
 
-                try
-                {
-                    Directory.Move(tempPath, targetPath);
-                    tempPath = null;
-                }
-                catch
-                {
-                    RestoreBackupIfNeeded(targetPath, backupPath);
-                    throw;
-                }
+                Directory.Move(tempPath, targetPath);
+                tempPath = null;
 
                 return new AgentSkillInstallResult(
                     true,
                     targetPath,
                     true,
-                    backupPath,
-                    string.IsNullOrEmpty(backupPath) ? "Skill installed." : "Skill installed with backup.");
+                    message: "Skill installed.");
             }
             catch (Exception ex)
             {
@@ -247,28 +230,6 @@ namespace DotCraft.Editor.McpSetup
 
             if (!target.StartsWith(root, comparison))
                 throw new InvalidOperationException(message);
-        }
-
-        private static string UniqueBackupPath(string targetPath)
-        {
-            var basePath = targetPath + ".bak-" + DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-            var path = basePath;
-            var index = 1;
-            while (Directory.Exists(path) || File.Exists(path))
-            {
-                path = basePath + "-" + index;
-                index++;
-            }
-
-            return path;
-        }
-
-        private static void RestoreBackupIfNeeded(string targetPath, string backupPath)
-        {
-            if (string.IsNullOrEmpty(backupPath) || !Directory.Exists(backupPath) || Directory.Exists(targetPath))
-                return;
-
-            Directory.Move(backupPath, targetPath);
         }
 
         private static string GetRelativePath(string rootPath, string path)

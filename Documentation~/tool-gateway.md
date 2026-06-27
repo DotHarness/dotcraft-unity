@@ -77,7 +77,6 @@ The setup window:
 - Writes project-level configuration only.
 - Writes only the loopback MCP endpoint.
 - Shows each client's current setup state and installs, updates, or removes them individually.
-- Creates a timestamped `.bak` backup before modifying an existing file.
 - Merges existing JSON config and preserves unrelated TOML content.
 - Supports uninstall by removing only the `dotcraft-unity` server block.
 - Tests the gateway with MCP `initialize` and `tools/list`.
