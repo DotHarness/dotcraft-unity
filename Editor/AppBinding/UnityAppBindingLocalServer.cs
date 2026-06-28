@@ -452,9 +452,13 @@ namespace DotCraft.Editor.AppBinding
                     if (ToolGatewayHttpHandler.CanHandle(request.Target))
                     {
                         var response = await ToolGatewayHttpHandler.HandleAsync(
-                            request.Method,
-                            request.Target,
-                            request.Body,
+                            new ToolGatewayHttpRequestContext
+                            {
+                                Method = request.Method,
+                                Target = request.Target,
+                                Headers = request.Headers,
+                                Body = request.Body
+                            },
                             ct).ConfigureAwait(false);
                         await WriteRawResponseAsync(stream, response, ct).ConfigureAwait(false);
                         return;
@@ -1077,10 +1081,17 @@ namespace DotCraft.Editor.AppBinding
             var bytes = Encoding.UTF8.GetBytes(body);
             var status = response?.Status ?? 500;
             var reason = response?.Reason ?? "Internal Server Error";
-            var contentType = response?.ContentType ?? "text/plain; charset=utf-8";
+            var contentType = response == null ? "text/plain; charset=utf-8" : response.ContentType;
             var headers =
-                $"HTTP/1.1 {status} {reason}\r\n" +
-                $"Content-Type: {contentType}\r\n" +
+                $"HTTP/1.1 {status} {reason}\r\n";
+            if (!string.IsNullOrWhiteSpace(contentType))
+                headers += $"Content-Type: {contentType}\r\n";
+            if (response?.Headers != null)
+            {
+                foreach (var header in response.Headers)
+                    headers += $"{header.Key}: {header.Value}\r\n";
+            }
+            headers +=
                 $"Content-Length: {bytes.Length}\r\n" +
                 "Connection: close\r\n\r\n";
             var headerBytes = Encoding.ASCII.GetBytes(headers);

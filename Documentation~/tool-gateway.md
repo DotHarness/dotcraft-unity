@@ -62,6 +62,7 @@ Endpoints:
 
 ```text
 POST /dotcraft/mcp
+DELETE /dotcraft/mcp
 GET  /dotcraft/gateway/tools?format=canonical|openai-responses|openai-chat|claude
 POST /dotcraft/gateway/call
 ```
@@ -79,7 +80,7 @@ The setup window:
 - Shows each client's current setup state and installs, updates, or removes them individually.
 - Merges existing JSON config and preserves unrelated TOML content.
 - Supports uninstall by removing only the `dotcraft-unity` server block.
-- Tests the gateway with MCP `initialize` and `tools/list`.
+- Tests the gateway with MCP `initialize`, `notifications/initialized`, and `tools/list`.
 
 Supported targets:
 
@@ -126,16 +127,25 @@ Cursor:
 
 ## MCP Flow
 
-The MCP endpoint is request-response JSON-RPC over HTTP:
+The MCP endpoint implements MCP Streamable HTTP for request-response JSON-RPC. It does not offer an SSE stream; `GET /dotcraft/mcp` returns `405 Method Not Allowed`.
 
 ```text
 POST http://127.0.0.1:39777/dotcraft/mcp
 ```
 
+Every MCP POST request must include:
+
+```text
+Accept: application/json, text/event-stream
+```
+
+Requests with a missing or incomplete `Accept` header return HTTP `406 Not Acceptable`. Request bodies must be a single JSON-RPC `2.0` object; batch arrays and malformed request IDs are rejected as protocol errors.
+
 Supported methods:
 
 - `initialize`
 - `notifications/initialized`
+- `notifications/cancelled`
 - `ping`
 - `tools/list`
 - `tools/call`
@@ -144,15 +154,16 @@ Discovery flow:
 
 ```text
 client -> initialize
-client -> notifications/initialized
-client -> tools/list
+server -> initialize result + MCP-Session-Id header
+client -> notifications/initialized + MCP-Session-Id header
+client -> tools/list + MCP-Session-Id header
 server -> enabled runtime tool specs
 ```
 
 Call flow:
 
 ```text
-client -> tools/call
+client -> tools/call + MCP-Session-Id header
 server -> resolve the enabled gateway registry by tool name
 server -> validate arguments
 server -> dispatch unity_execute_csharp through Execution Core
@@ -161,7 +172,42 @@ server -> execute Unity API work on the Unity main thread
 server -> return MCP content and structuredContent
 ```
 
-Protocol errors, such as invalid JSON-RPC methods or malformed MCP parameters, return JSON-RPC errors. Tool-level failures, such as compiler diagnostics, argument conversion failures, missing disabled tools, or Unity execution exceptions, return a successful JSON-RPC response whose MCP tool result has `isError: true`.
+Session rules:
+
+- `initialize` creates a session and returns `MCP-Session-Id`.
+- Subsequent MCP HTTP requests must include `MCP-Session-Id`.
+- `notifications/initialized` marks the session ready for tool operations.
+- `ping` is allowed before `notifications/initialized`; tool operations are not.
+- Missing session headers return HTTP `400 Bad Request`.
+- Unknown or terminated session IDs return HTTP `404 Not Found`; compliant clients should start a fresh `initialize`.
+- Idle sessions expire after two hours and then return HTTP `404 Not Found`.
+- Sessions are process-scoped: local server restarts and domain reloads in the same Unity Editor process keep them, while a full Editor restart invalidates them.
+- Clients may end a session with `DELETE /dotcraft/mcp` and the `MCP-Session-Id` header.
+- `GET /dotcraft/mcp` always returns HTTP `405 Method Not Allowed` when the protocol version header is valid, because this gateway does not expose an SSE stream.
+- `MCP-Protocol-Version`, when present, must be `2025-11-25`. Unsupported header values return JSON-RPC error code `-32022` with supported versions in `error.data`.
+- If an `initialize` request body asks for an unsupported protocol version, the gateway negotiates down to `2025-11-25`.
+
+Protocol errors, such as invalid JSON-RPC envelopes, invalid MCP parameters, and unknown or disabled tool names, return JSON-RPC errors. Tool-level failures, such as compiler diagnostics, argument conversion failures inside an enabled tool, or Unity execution exceptions, return a successful JSON-RPC response whose MCP tool result has `isError: true`.
+
+Error code meanings:
+
+| Code | Name | Meaning |
+|------|------|---------|
+| `-32700` | `ParseError` | JSON-RPC body is not valid JSON. |
+| `-32600` | `InvalidRequest` | JSON-RPC envelope is malformed or violates lifecycle request rules. |
+| `-32601` | `MethodNotFound` | MCP method is not implemented by this tools-only gateway. |
+| `-32602` | `InvalidParams` | MCP method params are malformed, or `tools/call` names an unknown/disabled tool. |
+| `-32001` | `MissingSession` | `MCP-Session-Id` is missing, unknown, expired, or terminated. HTTP `400` vs `404` distinguishes recoverability. |
+| `-32002` | `SessionNotInitialized` | Session exists but has not completed `notifications/initialized`. |
+| `-32022` | `UnsupportedProtocolVersion` | `MCP-Protocol-Version` header is unsupported. |
+
+Utility boundaries:
+
+- `ping` returns `{}` and is allowed before initialization completes.
+- `notifications/cancelled` is accepted for valid sessions. It cooperatively cancels an in-flight `tools/call` before or during a cancellable runtime tool; unknown, completed, or malformed cancellation notifications are ignored with HTTP `202 Accepted`.
+- Runtime tools may include a hidden `CancellationToken` parameter. The parameter is not exposed in the input schema and is injected by the gateway at execution time.
+- `_meta.progressToken` is accepted on `tools/call` when it is a string or integer. The gateway does not send progress notifications because it does not provide an SSE stream in this pass.
+- The gateway does not declare the MCP logging capability. `logging/setLevel` remains unavailable and returns `Method not found`.
 
 ## HTTP Adapter Flow
 
@@ -262,7 +308,7 @@ Failed structured result:
 - `unity_execute_csharp` returns the Execution Core result model directly in MCP `structuredContent`.
 - Other runtime tools return their method result in MCP `structuredContent`.
 - HTTP `/dotcraft/gateway/call` wraps every call in the gateway result envelope with `success`, `name`, `result`, `text`, `errorCode`, `errorMessage`, and `durationMs`.
-- Missing, disabled, or de-duplicated tools return `ToolNotFound`.
+- Missing, disabled, or de-duplicated tools return JSON-RPC `-32602` through MCP `tools/call`, and `ToolNotFound` through the plain HTTP `/dotcraft/gateway/call` adapter.
 - Argument conversion failures return `InvalidArguments`.
 - Tool invocation exceptions return `ToolExecutionException`.
 - Transport errors are reserved for protocol, parsing, routing, and server failures.

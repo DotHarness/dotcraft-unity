@@ -34,6 +34,16 @@ namespace DotCraft.Editor.ToolGateway
                 .ToList();
         }
 
+        public bool HasTool(string name)
+        {
+            var normalizedName = NormalizeToolName(name);
+            if (string.IsNullOrWhiteSpace(normalizedName))
+                return false;
+
+            return BuildRegistry()
+                .Any(registration => string.Equals(registration.Spec.Name, normalizedName, StringComparison.Ordinal));
+        }
+
         public async Task<ToolGatewayResult> CallAsync(string name, JToken arguments, CancellationToken ct)
         {
             var normalizedName = NormalizeToolName(name);
@@ -201,7 +211,7 @@ namespace DotCraft.Editor.ToolGateway
             try
             {
                 ct.ThrowIfCancellationRequested();
-                var result = await InvokeRuntimeToolOnMainThreadAsync(tool, arguments ?? new JObject())
+                var result = await InvokeRuntimeToolOnMainThreadAsync(tool, arguments ?? new JObject(), ct)
                     .ConfigureAwait(false);
 
                 if (result is ExecutionResult executionResult && !executionResult.Success)
@@ -244,13 +254,18 @@ namespace DotCraft.Editor.ToolGateway
 
         private static Task<object> InvokeRuntimeToolOnMainThreadAsync(
             RuntimeToolDefinition tool,
-            JToken arguments)
+            JToken arguments,
+            CancellationToken ct)
         {
             if (MainThreadDispatcher.IsMainThread)
-                return RuntimeToolInvoker.InvokeAsync(tool, arguments);
+                return RuntimeToolInvoker.InvokeAsync(tool, arguments, ct);
 
             return MainThreadDispatcher.RunOnMainThread(
-                () => RuntimeToolInvoker.InvokeAsync(tool, arguments),
+                () =>
+                {
+                    ct.ThrowIfCancellationRequested();
+                    return RuntimeToolInvoker.InvokeAsync(tool, arguments, ct);
+                },
                 timeoutMs: 60000);
         }
 

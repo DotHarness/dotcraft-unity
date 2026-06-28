@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Serialization;
@@ -37,6 +38,15 @@ namespace DotCraft.Editor.RuntimeTools
                 {
                     error = $"Parameter '{parameter.Name}' uses ref/out, which is not supported.";
                     return false;
+                }
+
+                if (parameter.ParameterType == typeof(CancellationToken))
+                {
+                    parameterList.Add(new RuntimeToolParameter(
+                        parameter,
+                        null,
+                        injectCancellationToken: true));
+                    continue;
                 }
 
                 var jsonName = GetJsonName(parameter);

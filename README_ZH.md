@@ -72,7 +72,9 @@ dotcraft-unity 会暴露一个本地 MCP Tool Gateway，供外部 coding agent �
 http://127.0.0.1:39777/dotcraft/mcp
 ```
 
-目前支持 Claude Code、Codex、Cursor.
+目前支持 DotCraft、Claude Code、Codex、Cursor.
+
+> MCP 端点使用 `2025-11-25` 版本的有状态 Streamable HTTP。`initialize` 会返回 `MCP-Session-Id`，之后的 POST 和 DELETE 请求都需要携带该 header。过期或失效 session 会返回 HTTP `404`，client 应重新 initialize。`GET /dotcraft/mcp` 返回 HTTP `405`，因为当前 gateway 不提供 SSE stream。
 
 ## 内置工具
 

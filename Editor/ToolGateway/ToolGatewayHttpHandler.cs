@@ -3,24 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DotCraft.Editor.Protocol;
 using Newtonsoft.Json.Linq;
 
 namespace DotCraft.Editor.ToolGateway
 {
     internal static class ToolGatewayHttpHandler
     {
-        private const string McpPath = "/dotcraft/mcp";
-        private const string GatewayToolsPath = "/dotcraft/gateway/tools";
-        private const string GatewayCallPath = "/dotcraft/gateway/call";
-        private const string ProtocolVersion = "2025-11-25";
-
         public static bool CanHandle(string target)
         {
             var path = GetPath(target);
-            return string.Equals(path, McpPath, StringComparison.Ordinal)
-                   || string.Equals(path, GatewayToolsPath, StringComparison.Ordinal)
-                   || string.Equals(path, GatewayCallPath, StringComparison.Ordinal);
+            return string.Equals(path, ToolGatewayMcpProtocol.Paths.Mcp, StringComparison.Ordinal)
+                   || string.Equals(path, ToolGatewayMcpProtocol.Paths.GatewayTools, StringComparison.Ordinal)
+                   || string.Equals(path, ToolGatewayMcpProtocol.Paths.GatewayCall, StringComparison.Ordinal);
         }
 
         public static async Task<ToolGatewayHttpResponse> HandleAsync(
@@ -29,79 +23,168 @@ namespace DotCraft.Editor.ToolGateway
             string body,
             CancellationToken ct)
         {
-            var path = GetPath(target);
-            if (string.Equals(path, McpPath, StringComparison.Ordinal))
-                return await HandleMcpAsync(method, body, ct).ConfigureAwait(false);
+            return await HandleAsync(new ToolGatewayHttpRequestContext
+            {
+                Method = method,
+                Target = target,
+                Body = body
+            }, ct).ConfigureAwait(false);
+        }
 
-            if (string.Equals(path, GatewayToolsPath, StringComparison.Ordinal))
-                return HandleToolsAsync(method, target);
+        public static async Task<ToolGatewayHttpResponse> HandleAsync(
+            ToolGatewayHttpRequestContext request,
+            CancellationToken ct)
+        {
+            var path = GetPath(request.Target);
+            if (string.Equals(path, ToolGatewayMcpProtocol.Paths.Mcp, StringComparison.Ordinal))
+                return await HandleMcpAsync(request, ct).ConfigureAwait(false);
 
-            if (string.Equals(path, GatewayCallPath, StringComparison.Ordinal))
-                return await HandleGatewayCallAsync(method, body, ct).ConfigureAwait(false);
+            if (string.Equals(path, ToolGatewayMcpProtocol.Paths.GatewayTools, StringComparison.Ordinal))
+                return HandleToolsAsync(request.Method, request.Target);
+
+            if (string.Equals(path, ToolGatewayMcpProtocol.Paths.GatewayCall, StringComparison.Ordinal))
+                return await HandleGatewayCallAsync(request.Method, request.Body, ct).ConfigureAwait(false);
 
             return ToolGatewayHttpResponse.Error(404, "Not Found", "Unknown DotCraft Unity Tool Gateway path.");
         }
 
         private static async Task<ToolGatewayHttpResponse> HandleMcpAsync(
-            string method,
-            string body,
+            ToolGatewayHttpRequestContext context,
             CancellationToken ct)
         {
-            if (string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase))
+            if (!ValidateProtocolVersionHeader(context, out var versionError))
+                return ToolGatewayMcpResponses.JsonRpcError(versionError);
+
+            if (string.Equals(context.Method, ToolGatewayMcpProtocol.HttpMethods.Get, StringComparison.OrdinalIgnoreCase))
+                return HandleMcpGet();
+
+            if (string.Equals(context.Method, ToolGatewayMcpProtocol.HttpMethods.Delete, StringComparison.OrdinalIgnoreCase))
+                return HandleMcpDelete(context);
+
+            if (!string.Equals(context.Method, ToolGatewayMcpProtocol.HttpMethods.Post, StringComparison.OrdinalIgnoreCase))
+                return ToolGatewayHttpResponse.Error(405, "Method Not Allowed", "MCP endpoint supports POST, GET, and DELETE.");
+
+            if (!AcceptsRequiredMcpPostTypes(context))
             {
-                return ToolGatewayHttpResponse.Text(
-                    ": dotcraft-unity MCP endpoint currently uses request-response HTTP\n\n",
-                    "text/event-stream; charset=utf-8");
+                return ToolGatewayMcpResponses.JsonRpcError(McpErrors.InvalidRequest(
+                    null,
+                    "Invalid Request: MCP POST requests must include Accept with application/json and text/event-stream.",
+                    406,
+                    "Not Acceptable"));
             }
 
-            if (!string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase))
-                return ToolGatewayHttpResponse.Error(405, "Method Not Allowed", "MCP endpoint supports GET and POST.");
+            if (!ToolGatewayJsonRpcEnvelope.TryParse(context.Body, out var message, out var parseError))
+                return ToolGatewayMcpResponses.JsonRpcError(parseError);
 
-            JObject request;
-            try
+            if (message.IsResponse)
             {
-                request = string.IsNullOrWhiteSpace(body) ? new JObject() : JObject.Parse(body);
-            }
-            catch (Exception ex)
-            {
-                return JsonRpcError(null, -32700, $"Parse error: {ex.Message}");
+                return TryGetSession(context, out _, out var responseSessionError)
+                    ? ToolGatewayMcpResponses.Accepted()
+                    : responseSessionError;
             }
 
-            var id = request["id"];
-            var methodName = request.Value<string>("method");
-            if (string.IsNullOrWhiteSpace(methodName))
-                return JsonRpcError(id, -32600, "Invalid Request: missing method.");
-
-            if (id == null || id.Type == JTokenType.Null)
+            if (string.Equals(message.Method, ToolGatewayMcpProtocol.Methods.Initialize, StringComparison.Ordinal))
             {
-                return string.Equals(methodName, "notifications/initialized", StringComparison.Ordinal)
-                    ? ToolGatewayHttpResponse.Accepted()
-                    : ToolGatewayHttpResponse.Accepted();
-            }
+                if (!message.IsRequest)
+                {
+                    return ToolGatewayMcpResponses.JsonRpcError(McpErrors.InvalidRequest(
+                        null,
+                        "Invalid Request: initialize must be a JSON-RPC request."));
+                }
 
-            switch (methodName)
-            {
-                case "initialize":
-                    return JsonRpcResult(id, BuildInitializeResult(request["params"] as JObject));
-                case "ping":
-                    return JsonRpcResult(id, new { });
-                case "tools/list":
-                    return JsonRpcResult(id, new
+                var existingSessionId = context.GetHeader(ToolGatewayMcpProtocol.Headers.McpSessionId);
+                if (!string.IsNullOrWhiteSpace(existingSessionId))
+                {
+                    if (ToolGatewayMcpSessionStore.Contains(existingSessionId))
                     {
-                        tools = UnityToolGateway.Instance.ListTools()
-                            .Select(ToolGatewayAdapters.ProjectMcpTool)
-                            .ToArray()
-                    });
-                case "tools/call":
-                    return await HandleMcpToolCallAsync(id, request["params"] as JObject, ct).ConfigureAwait(false);
-                default:
-                    return JsonRpcError(id, -32601, $"Method not found: {methodName}");
+                        return ToolGatewayMcpResponses.JsonRpcError(McpErrors.InvalidRequest(
+                            message.Id,
+                            "Invalid Request: initialize must not be sent with an existing MCP-Session-Id.",
+                            400,
+                            "Bad Request"));
+                    }
+
+                    return ToolGatewayMcpResponses.JsonRpcError(McpErrors.UnknownSession(message.Id));
+                }
+
+                var negotiatedVersion = NegotiateProtocolVersion(message.Params as JObject);
+                var session = ToolGatewayMcpSessionStore.Create(negotiatedVersion);
+                return ToolGatewayMcpResponses.JsonRpcResult(message.Id, BuildInitializeResult(negotiatedVersion))
+                    .WithHeader(ToolGatewayMcpProtocol.Headers.McpSessionId, session.Id);
             }
+
+            if (!TryGetSession(context, out var mcpSession, out var errorResponse))
+                return errorResponse;
+
+            if (message.Method.StartsWith(ToolGatewayMcpProtocol.Notifications.Prefix, StringComparison.Ordinal)
+                && message.HasId)
+            {
+                return ToolGatewayMcpResponses.JsonRpcError(McpErrors.InvalidRequest(
+                    message.Id,
+                    "Invalid Request: JSON-RPC notifications must not include id.",
+                    400,
+                    "Bad Request"));
+            }
+
+            if (message.IsNotification)
+            {
+                if (string.Equals(message.Method, ToolGatewayMcpProtocol.Notifications.Initialized, StringComparison.Ordinal))
+                {
+                    ToolGatewayMcpSessionStore.MarkInitialized(mcpSession.Id, out _);
+                    return ToolGatewayMcpResponses.Accepted();
+                }
+
+                if (string.Equals(message.Method, ToolGatewayMcpProtocol.Notifications.Cancelled, StringComparison.Ordinal))
+                    return HandleMcpCancellationNotification(mcpSession, message.Params);
+
+                return ToolGatewayMcpResponses.Accepted();
+            }
+
+            if (!mcpSession.Initialized && !string.Equals(message.Method, ToolGatewayMcpProtocol.Methods.Ping, StringComparison.Ordinal))
+            {
+                return ToolGatewayMcpResponses.JsonRpcError(McpErrors.SessionNotInitialized(message.Id));
+            }
+
+            switch (message.Method)
+            {
+                case ToolGatewayMcpProtocol.Methods.Ping:
+                    return ToolGatewayMcpResponses.JsonRpcResult(message.Id, new { });
+                case ToolGatewayMcpProtocol.Methods.ToolsList:
+                    return HandleMcpToolsList(message.Id, message.Params);
+                case ToolGatewayMcpProtocol.Methods.ToolsCall:
+                    return await HandleMcpToolCallAsync(
+                        mcpSession,
+                        message.Id,
+                        message.Params,
+                        ct).ConfigureAwait(false);
+                default:
+                    return ToolGatewayMcpResponses.JsonRpcError(McpErrors.MethodNotFound(message.Id, message.Method));
+            }
+        }
+
+        private static ToolGatewayHttpResponse HandleMcpGet()
+        {
+            return ToolGatewayHttpResponse.Error(
+                405,
+                "Method Not Allowed",
+                "MCP endpoint does not offer a server-sent event stream.")
+                .WithHeader(
+                    ToolGatewayMcpProtocol.Headers.Allow,
+                    ToolGatewayMcpProtocol.AllowValues.PostDelete);
+        }
+
+        private static ToolGatewayHttpResponse HandleMcpDelete(ToolGatewayHttpRequestContext context)
+        {
+            if (!TryGetSession(context, out var session, out var errorResponse))
+                return errorResponse;
+
+            ToolGatewayMcpSessionStore.Remove(session.Id);
+            return ToolGatewayMcpResponses.NoContent();
         }
 
         private static ToolGatewayHttpResponse HandleToolsAsync(string method, string target)
         {
-            if (!string.Equals(method, "GET", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(method, ToolGatewayMcpProtocol.HttpMethods.Get, StringComparison.OrdinalIgnoreCase))
                 return ToolGatewayHttpResponse.Error(405, "Method Not Allowed", "Tool projection endpoint supports GET.");
 
             try
@@ -121,7 +204,7 @@ namespace DotCraft.Editor.ToolGateway
             string body,
             CancellationToken ct)
         {
-            if (!string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(method, ToolGatewayMcpProtocol.HttpMethods.Post, StringComparison.OrdinalIgnoreCase))
                 return ToolGatewayHttpResponse.Error(405, "Method Not Allowed", "Gateway call endpoint supports POST.");
 
             JObject request;
@@ -153,34 +236,90 @@ namespace DotCraft.Editor.ToolGateway
             return ToolGatewayHttpResponse.Json(ToolGatewayAdapters.ProjectGatewayResult(result));
         }
 
-        private static async Task<ToolGatewayHttpResponse> HandleMcpToolCallAsync(
-            JToken id,
-            JObject @params,
-            CancellationToken ct)
+        private static ToolGatewayHttpResponse HandleMcpToolsList(JToken id, JToken paramsToken)
         {
-            if (@params == null)
-                return JsonRpcError(id, -32602, "Invalid params: expected object.");
+            if (!ToolGatewayMcpToolRequests.TryParseToolsList(
+                    id,
+                    paramsToken,
+                    out _,
+                    out var error))
+                return ToolGatewayMcpResponses.JsonRpcError(error);
 
-            var name = @params.Value<string>("name");
-            if (string.IsNullOrWhiteSpace(name))
-                return JsonRpcError(id, -32602, "Invalid params: missing tool name.");
-
-            var result = await UnityToolGateway.Instance
-                .CallAsync(name, @params["arguments"] ?? new JObject(), ct)
-                .ConfigureAwait(false);
-            return JsonRpcResult(id, ToolGatewayAdapters.ProjectMcpToolResult(result));
+            return ToolGatewayMcpResponses.JsonRpcResult(id, new
+            {
+                tools = UnityToolGateway.Instance.ListTools()
+                    .Select(ToolGatewayAdapters.ProjectMcpTool)
+                    .ToArray()
+            });
         }
 
-        private static object BuildInitializeResult(JObject @params)
+        private static ToolGatewayHttpResponse HandleMcpCancellationNotification(
+            ToolGatewayMcpSession session,
+            JToken paramsToken)
         {
-            var requestedVersion = @params?.Value<string>("protocolVersion");
-            var version = string.IsNullOrWhiteSpace(requestedVersion)
-                ? ProtocolVersion
-                : requestedVersion;
+            var @params = paramsToken as JObject;
+            var requestId = @params?["requestId"];
+            if (!ToolGatewayJsonRpcEnvelope.IsValidId(requestId))
+                return ToolGatewayMcpResponses.Accepted();
 
+            ToolGatewayMcpSessionStore.CancelRequest(
+                session.Id,
+                ToolGatewayJsonRpcEnvelope.ToRequestKey(requestId));
+            return ToolGatewayMcpResponses.Accepted();
+        }
+
+        private static async Task<ToolGatewayHttpResponse> HandleMcpToolCallAsync(
+            ToolGatewayMcpSession session,
+            JToken id,
+            JToken paramsToken,
+            CancellationToken ct)
+        {
+            if (!ToolGatewayMcpToolRequests.TryParseToolsCall(
+                    id,
+                    paramsToken,
+                    out var request,
+                    out var error))
+                return ToolGatewayMcpResponses.JsonRpcError(error);
+
+            if (!UnityToolGateway.Instance.HasTool(request.Name))
+            {
+                return ToolGatewayMcpResponses.JsonRpcError(McpErrors.InvalidParams(
+                    id,
+                    $"Invalid params: unknown or disabled tool '{request.Name}'."));
+            }
+
+            var requestKey = ToolGatewayJsonRpcEnvelope.ToRequestKey(id);
+            if (!ToolGatewayMcpSessionStore.TryTrackRequest(
+                    session.Id,
+                    requestKey,
+                    ct,
+                    out var tracker))
+            {
+                return ToolGatewayMcpResponses.JsonRpcError(McpErrors.UnknownSession(id));
+            }
+
+            try
+            {
+                var result = await UnityToolGateway.Instance
+                    .CallAsync(request.Name, request.Arguments, tracker.Token)
+                    .ConfigureAwait(false);
+                return ToolGatewayMcpResponses.JsonRpcResult(id, ToolGatewayAdapters.ProjectMcpToolResult(result));
+            }
+            catch (OperationCanceledException) when (tracker.CancelledByClient)
+            {
+                return ToolGatewayMcpResponses.Accepted();
+            }
+            finally
+            {
+                ToolGatewayMcpSessionStore.CompleteRequest(session.Id, requestKey, tracker);
+            }
+        }
+
+        private static object BuildInitializeResult(string negotiatedVersion)
+        {
             return new
             {
-                protocolVersion = version,
+                protocolVersion = negotiatedVersion,
                 capabilities = new
                 {
                     tools = new
@@ -190,34 +329,78 @@ namespace DotCraft.Editor.ToolGateway
                 },
                 serverInfo = new
                 {
-                    name = "dotcraft-unity",
-                    title = "dotcraft-unity Tool Gateway",
-                    version = "0.1.6"
+                    name = ToolGatewayMcpProtocol.ServerName,
+                    title = ToolGatewayMcpProtocol.ServerTitle,
+                    version = ToolGatewayMcpProtocol.ServerVersion
                 },
-                instructions = "Use unity_execute_csharp to inspect or modify the running Unity Editor. The gateway also exposes enabled custom project tools registered with dotcraft-unity."
+                instructions = ToolGatewayMcpProtocol.Instructions
             };
         }
 
-        private static ToolGatewayHttpResponse JsonRpcResult(JToken id, object result)
+        private static string NegotiateProtocolVersion(JObject @params)
         {
-            return ToolGatewayHttpResponse.Json(new JsonRpcResponse
-            {
-                Id = id,
-                Result = result
-            });
+            var requestedVersion = @params?.Value<string>("protocolVersion");
+            return string.Equals(requestedVersion, ToolGatewayMcpProtocol.ProtocolVersion, StringComparison.Ordinal)
+                ? requestedVersion
+                : ToolGatewayMcpProtocol.ProtocolVersion;
         }
 
-        private static ToolGatewayHttpResponse JsonRpcError(JToken id, int code, string message)
+        private static bool TryGetSession(
+            ToolGatewayHttpRequestContext context,
+            out ToolGatewayMcpSession session,
+            out ToolGatewayHttpResponse errorResponse)
         {
-            return ToolGatewayHttpResponse.Json(new JsonRpcResponse
+            session = null;
+            errorResponse = null;
+
+            var sessionId = context.GetHeader(ToolGatewayMcpProtocol.Headers.McpSessionId);
+            if (string.IsNullOrWhiteSpace(sessionId))
             {
-                Id = id,
-                Error = new JsonRpcError
-                {
-                    Code = code,
-                    Message = message
-                }
-            });
+                errorResponse = ToolGatewayMcpResponses.JsonRpcError(McpErrors.MissingSessionHeader());
+                return false;
+            }
+
+            if (!ToolGatewayMcpSessionStore.TryGet(sessionId, out session))
+            {
+                errorResponse = ToolGatewayMcpResponses.JsonRpcError(McpErrors.UnknownSession());
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool ValidateProtocolVersionHeader(
+            ToolGatewayHttpRequestContext context,
+            out ToolGatewayMcpError error)
+        {
+            error = null;
+            var requestedVersion = context.GetHeader(ToolGatewayMcpProtocol.Headers.McpProtocolVersion);
+            if (string.IsNullOrWhiteSpace(requestedVersion)
+                || ToolGatewayMcpProtocol.IsSupportedProtocolVersion(requestedVersion))
+            {
+                return true;
+            }
+
+            error = McpErrors.UnsupportedProtocolVersion(requestedVersion);
+            return false;
+        }
+
+        private static bool AcceptsRequiredMcpPostTypes(ToolGatewayHttpRequestContext context)
+        {
+            var accept = context.GetHeader(ToolGatewayMcpProtocol.Headers.Accept);
+            return AcceptHeaderContains(accept, ToolGatewayMcpProtocol.MediaTypes.Json)
+                   && AcceptHeaderContains(accept, ToolGatewayMcpProtocol.MediaTypes.EventStream);
+        }
+
+        private static bool AcceptHeaderContains(string accept, string mediaType)
+        {
+            if (string.IsNullOrWhiteSpace(accept))
+                return false;
+
+            return accept
+                .Split(',')
+                .Select(value => value.Split(';')[0].Trim())
+                .Any(value => string.Equals(value, mediaType, StringComparison.OrdinalIgnoreCase));
         }
 
         private static string GetPath(string target)

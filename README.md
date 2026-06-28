@@ -72,7 +72,9 @@ dotcraft-unity exposes a local MCP Tool Gateway for external coding agents. Whil
 http://127.0.0.1:39777/dotcraft/mcp
 ```
 
-Currently supports Claude Code, Codex, and Cursor.
+Currently supports DotCraft, Claude Code, Codex, and Cursor.
+
+> The MCP endpoint uses sessionful Streamable HTTP for protocol version `2025-11-25`. `initialize` returns `MCP-Session-Id`; later POST and DELETE requests must send that header. Stale or expired sessions return HTTP `404`, which tells compliant clients to reinitialize. `GET /dotcraft/mcp` returns HTTP `405` because the gateway does not expose an SSE stream.
 
 ## Built-in tools
 

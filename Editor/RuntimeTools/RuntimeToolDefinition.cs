@@ -57,15 +57,21 @@ namespace DotCraft.Editor.RuntimeTools
 
     internal sealed class RuntimeToolParameter
     {
-        public RuntimeToolParameter(ParameterInfo parameter, string jsonName)
+        public RuntimeToolParameter(
+            ParameterInfo parameter,
+            string jsonName,
+            bool injectCancellationToken = false)
         {
             Parameter = parameter;
             JsonName = jsonName;
+            InjectCancellationToken = injectCancellationToken;
         }
 
         public ParameterInfo Parameter { get; }
 
         public string JsonName { get; }
+
+        public bool InjectCancellationToken { get; }
     }
 
     internal sealed class RuntimeToolCatalogSnapshot

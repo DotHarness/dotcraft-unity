@@ -331,7 +331,7 @@ namespace DotCraft.Editor.AppBinding
             {
                 var args = call.Arguments ?? new JObject();
                 var result = await MainThreadDispatcher.RunOnMainThread(
-                    () => RuntimeToolInvoker.InvokeAsync(tool, args),
+                    () => RuntimeToolInvoker.InvokeAsync(tool, args, ct),
                     timeoutMs: Math.Max(5000, DotCraftSettings.Instance.RequestTimeoutSeconds * 1000));
                 return AppServerDynamicToolResult.Ok(result);
             }
