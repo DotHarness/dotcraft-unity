@@ -530,7 +530,7 @@ namespace DotCraft.Editor.Tests
             using var client = new TcpClient();
             await Task.Factory.FromAsync(
                 client.BeginConnect(IPAddress.Loopback, port, null, null),
-                client.EndConnect);
+                client.EndConnect).ConfigureAwait(false);
 
             using var stream = client.GetStream();
             var request =
@@ -538,10 +538,26 @@ namespace DotCraft.Editor.Tests
                 $"Host: 127.0.0.1:{port}\r\n" +
                 "Connection: close\r\n\r\n";
             var bytes = Encoding.ASCII.GetBytes(request);
-            await stream.WriteAsync(bytes, 0, bytes.Length);
+            await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
 
-            using var reader = new StreamReader(stream, Encoding.ASCII, false, 4096, leaveOpen: true);
-            return await reader.ReadToEndAsync();
+            var responseBytes = new MemoryStream();
+            var buffer = new byte[4096];
+            try
+            {
+                while (true)
+                {
+                    var read = await stream.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false);
+                    if (read == 0)
+                        break;
+                    responseBytes.Write(buffer, 0, read);
+                }
+            }
+            catch (IOException) when (responseBytes.Length > 0)
+            {
+                // Some platforms surface a close-after-response as a reset instead of EOF.
+            }
+
+            return Encoding.ASCII.GetString(responseBytes.ToArray());
         }
 
         private static T WaitForResult<T>(Task<T> task, int timeoutMilliseconds = 3000)

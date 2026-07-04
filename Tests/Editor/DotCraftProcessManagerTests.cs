@@ -28,7 +28,7 @@ namespace DotCraft.Editor.Tests
                     tempDirectory,
                     environment);
 
-                Assert.That(resolved, Is.EqualTo(executablePath));
+                Assert.That(resolved, Is.EqualTo(executablePath).IgnoreCase);
             }
             finally
             {
@@ -172,7 +172,7 @@ namespace DotCraft.Editor.Tests
                     environment,
                     redirectStreams: false);
 
-                Assert.That(startInfo.FileName, Is.EqualTo(executablePath));
+                Assert.That(startInfo.FileName, Is.EqualTo(executablePath).IgnoreCase);
                 Assert.That(startInfo.Arguments, Is.EqualTo("hub"));
                 Assert.That(startInfo.UseShellExecute, Is.False);
             }

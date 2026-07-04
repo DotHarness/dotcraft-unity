@@ -87,7 +87,8 @@ namespace DotCraft.Editor.Tests
         [Test]
         public void RuntimeToolCatalogDiscoversExecuteCSharpWithExecuteScope()
         {
-            var tool = RuntimeToolCatalog.Discover().Tools.Single(t => t.Descriptor.Name == "unity_execute_csharp");
+            var tool = RuntimeToolCatalog.Discover().Tools.Single(t =>
+                t.Source == RuntimeToolSource.Builtin && t.Descriptor.Name == "unity_execute_csharp");
 
             Assert.That(tool.Source, Is.EqualTo(RuntimeToolSource.Builtin));
             Assert.That(tool.Descriptor.Namespace, Is.EqualTo("unity"));

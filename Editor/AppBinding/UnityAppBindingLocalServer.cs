@@ -877,7 +877,7 @@ namespace DotCraft.Editor.AppBinding
             }
         }
 
-        private static UnityAppBindingHandoff ParseHandoff(string target)
+        internal static UnityAppBindingHandoff ParseHandoff(string target)
         {
             var uri = new Uri("http://127.0.0.1" + target, UriKind.Absolute);
             var path = uri.AbsolutePath.Trim('/');

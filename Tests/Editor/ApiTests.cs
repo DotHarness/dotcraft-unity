@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using DotCraft.Editor;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -30,7 +29,7 @@ namespace DotCraft.Editor.Tests
                 var activeOnly = Dcu.Components(typeof(BoxCollider), includeInactive: false);
                 var includingInactive = Dcu.Components(typeof(BoxCollider).FullName, includeInactive: true);
 
-                Assert.That(activeOnly, Does.Not.Contain(collider));
+                Assert.That(activeOnly, !Does.Contain(collider));
                 Assert.That(includingInactive, Does.Contain(collider));
             }
             finally
