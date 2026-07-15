@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using DotCraft.Editor.AppBinding;
+using DotCraft.Editor.ToolGateway;
 using UnityEngine;
 
 namespace DotCraft.Editor.McpSetup
@@ -11,7 +11,7 @@ namespace DotCraft.Editor.McpSetup
             Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
 
         public static string Endpoint =>
-            $"http://127.0.0.1:{UnityAppBindingConstants.LocalServerPort}/dotcraft/mcp";
+            $"http://127.0.0.1:{ToolGatewayMcpProtocol.DefaultPort}/dotcraft/mcp";
 
         public static McpInstallOptions CreateOptions() =>
             new(Endpoint);

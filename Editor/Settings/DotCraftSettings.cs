@@ -170,10 +170,10 @@ namespace DotCraft.Editor.Settings
         public bool EnableCSharpAutomation { get; set; } = true;
 
         /// <summary>
-        /// Starts the local localhost server used by DotCraft App Binding and the Tool Gateway.
+        /// Starts the localhost standard MCP Tool Gateway.
         /// </summary>
-        [JsonProperty("enableAppBindingLocalServer")]
-        public bool EnableAppBindingLocalServer { get; set; } = true;
+        [JsonProperty("enableMcpGateway")]
+        public bool EnableMcpGateway { get; set; } = true;
 
         /// <summary>
         /// Per-tool enablement for attribute-discovered DotCraft runtime tools.
@@ -405,7 +405,7 @@ namespace DotCraft.Editor.Settings
             RequestTimeoutSeconds = 30;
             MaxHistoryMessages = 1000;
             EnableCSharpAutomation = true;
-            EnableAppBindingLocalServer = true;
+            EnableMcpGateway = true;
             DynamicToolEnabledById = new Dictionary<string, bool>();
             McpServers = new List<McpServerEntry>();
         }

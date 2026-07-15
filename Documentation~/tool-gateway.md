@@ -11,7 +11,7 @@
 
 The MCP Tool Gateway is the dotcraft-unity-owned local entry point that lets external agents discover and invoke Unity Editor tools while the editor is running.
 
-The gateway belongs to the Unity package. It is not part of DotCraft Core, DotCraft AppServer, or the DotCraft App Binding protocol. App Binding remains a separate path for attaching Unity tools to DotCraft threads; the MCP Tool Gateway is the direct local surface for MCP-compatible agents, OpenAI function-call hosts, and Claude tool-use hosts.
+The gateway belongs to the Unity package. MCP-compatible clients connect to Unity tools through this local surface.
 
 ```text
 LLM / Agent Host
@@ -25,8 +25,6 @@ LLM / Agent Host
 
 - dotcraft-unity owns tool discovery, schema projection, request validation, Unity main-thread dispatch, and result normalization.
 - External agent hosts own model prompting, approval UX, tool-call scheduling, retries, and model-result replay.
-- DotCraft AppServer is not required for MCP Tool Gateway discovery or invocation.
-- App Binding descriptors do not define the Tool Gateway contract.
 
 ## Runtime Tool Registry
 
@@ -34,7 +32,7 @@ LLM / Agent Host
 
 Settings rules:
 
-- **Enable Local Tool Gateway** starts or stops the localhost server used by App Binding and the MCP Tool Gateway.
+- **Enable Local Tool Gateway** starts or stops the standard MCP localhost server.
 - **Enable C# Automation** controls the built-in `unity_execute_csharp` tool exposed through the gateway.
 - Custom Project Tools are exposed only when their `AgentToolAttribute` entry is enabled in **Project Settings > DotCraft > Unity Tools > Custom Project Tools**.
 - The gateway does not add a second per-tool enablement list.

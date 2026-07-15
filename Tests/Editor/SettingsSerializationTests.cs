@@ -13,7 +13,7 @@ namespace DotCraft.Editor.Tests
 
             Assert.That(settings.AgentConnection, Is.EqualTo(DotCraftSettings.AgentConnectionDotCraft));
             Assert.That(settings.DotCraftAppServer, Is.EqualTo(DotCraftSettings.DotCraftAppServerLocalHub));
-            Assert.That(settings.EnableAppBindingLocalServer, Is.True);
+            Assert.That(settings.EnableMcpGateway, Is.True);
         }
 
         [Test]

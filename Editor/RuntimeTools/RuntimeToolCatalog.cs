@@ -153,14 +153,7 @@ namespace DotCraft.Editor.RuntimeTools
                 Approval = approval
             };
 
-            var appBinding = new RuntimeToolAppBindingMetadata
-            {
-                Scope = NormalizeOptional(attribute.AppBindingScope),
-                Risk = NormalizeOptional(attribute.AppBindingRisk),
-                Exposure = NormalizeOptional(attribute.AppBindingExposure)
-            };
-
-            definition = new RuntimeToolDefinition(id, source, method, parameters, descriptor, appBinding);
+            definition = new RuntimeToolDefinition(id, source, method, parameters, descriptor);
             return true;
         }
 

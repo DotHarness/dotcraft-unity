@@ -40,36 +40,6 @@ public static class ExampleDotCraftTools
 
 `Name` is optional and defaults to the method name. `Description` can be set on the attribute or supplied by `DescriptionAttribute`. `Namespace`, `Kind`, and `DeferLoading` are optional. `DeferLoading` defaults to `true`.
 
-## App Binding Exposure
-
-The same enabled runtime tools can also be attached to DotCraft threads through App Binding while Unity Editor is running. App Binding always exposes tools under the `unity` namespace because the DotCraft app descriptor owns one namespace per bound app.
-
-The built-in `unity_execute_csharp` tool uses `unity.execute` and runs C# snippets inside the Unity Editor process. Plugin authors can reserve the same scope for higher-level execution tools.
-
-Optional App Binding metadata can be added to `AgentToolAttribute`:
-
-```csharp
-[AgentTool(
-    Name = "example_create_marker",
-    Description = "Create a scene marker.",
-    Kind = AcpToolKind.Edit,
-    AppBindingScope = "unity.edit",
-    AppBindingRisk = "mutate",
-    AppBindingExposure = "deferred")]
-public static object CreateMarker(string name)
-{
-    return new { success = true };
-}
-```
-
-When the metadata is omitted, dotcraft-unity infers it from `Kind`:
-
-- `read`, `search`, `fetch`, `think`, and `unity` use `unity.read` with `read` risk.
-- `edit`, `move`, and `delete` use `unity.edit` with `mutate` risk.
-- `execute` and `other` use `unity.execute` with `mutate` risk.
-
-Only tools enabled in Project Settings are attached. Custom tools still default to disabled, and App Binding does not add a second enablement list.
-
 ## Schema Inference
 
 dotcraft-unity infers the JSON Schema sent to DotCraft from the method signature:
