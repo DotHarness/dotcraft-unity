@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using ComponentDescriptionAttribute = System.ComponentModel.DescriptionAttribute;
-using DotCraft.Editor.AppBinding;
 using DotCraft.Editor.RuntimeTools;
 using DotCraft.Editor.Settings;
 using DotCraft.Editor.ToolGateway;
@@ -758,7 +757,7 @@ namespace DotCraft.Editor.Tests
         public void LocalServerReadsAndWritesMcpSessionHeaders()
         {
             var port = GetFreeLoopbackPort();
-            UnityAppBindingLocalServer.ResetShutdownTokenForTests(port);
+            ToolGatewayLocalServer.ResetShutdownTokenForTests(port);
             using var server = CreateNoopLocalServer(port);
 
             server.Start();
@@ -1078,15 +1077,9 @@ namespace DotCraft.Editor.Tests
                 && string.Equals(tool.Descriptor.Name, name, StringComparison.Ordinal));
         }
 
-        private static UnityAppBindingLocalServer CreateNoopLocalServer(int port)
+        private static ToolGatewayLocalServer CreateNoopLocalServer(int port)
         {
-            return new UnityAppBindingLocalServer(
-                (_, ct) =>
-                {
-                    ct.ThrowIfCancellationRequested();
-                    return Task.FromResult("ok");
-                },
-                port);
+            return new ToolGatewayLocalServer(port);
         }
 
         private static int GetFreeLoopbackPort()

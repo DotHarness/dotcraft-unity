@@ -36,24 +36,6 @@ namespace DotCraft.Editor.RuntimeTools
         public bool DeferLoading { get; set; } = true;
 
         /// <summary>
-        /// Optional App Binding scope, such as "unity.read", "unity.edit", or "unity.execute".
-        /// When omitted, dotcraft-unity infers a scope from Kind.
-        /// </summary>
-        public string AppBindingScope { get; set; }
-
-        /// <summary>
-        /// Optional App Binding risk: "read", "mutate", or "externalWrite".
-        /// When omitted, dotcraft-unity infers a risk from the App Binding scope.
-        /// </summary>
-        public string AppBindingRisk { get; set; }
-
-        /// <summary>
-        /// Optional App Binding exposure: "direct" or "deferred".
-        /// When omitted, read tools default to direct and other tools default to deferred.
-        /// </summary>
-        public string AppBindingExposure { get; set; }
-
-        /// <summary>
         /// Optional DotCraft approval category, such as "file", "shell", or "remoteResource".
         /// </summary>
         public string ApprovalKind { get; set; }

@@ -112,10 +112,6 @@ public static class ExampleDotCraftTools
 
 dotcraft-unity 支持 dotcraft 的更多特性以提高开发效率的同时降低 agent 使用成本。
 
-### App Binding
-
-安装 dotcraft 的 `dotcraft-unity` 插件后，DotCraft Desktop 可以通过 App Binding 连接正在运行的 Unity Editor 来使用内置工具和自定义工具，不影响其他的非 Unity 会话。
-
 ### ACP Extension
 
 使用 dotcraft 作为 ACP Server 时，无需使用 MCP 服务，内置工具和自定义工具会走 ACP 拓展传递给会话，以减少非 Unity 会话的上下文开销。

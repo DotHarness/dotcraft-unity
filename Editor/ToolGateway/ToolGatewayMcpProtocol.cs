@@ -11,6 +11,7 @@ namespace DotCraft.Editor.ToolGateway
         public const string ServerVersion = "0.2.1";
         public const string ServerName = "dotcraft-unity";
         public const string ServerTitle = "dotcraft-unity Tool Gateway";
+        public const int DefaultPort = 39777;
         public const string Instructions =
             "Use unity_execute_csharp to inspect or modify the running Unity Editor. The gateway also exposes enabled custom project tools registered with dotcraft-unity.";
 

@@ -112,10 +112,6 @@ Method parameters are converted to a JSON Schema with Newtonsoft.Json naming rul
 
 dotcraft-unity supports additional DotCraft features to improve development efficiency while reducing agent context overhead.
 
-### App Binding
-
-After installing DotCraft's `dotcraft-unity` plugin, DotCraft Desktop can connect to a running Unity Editor through App Binding and use built-in and custom tools without affecting other non-Unity sessions.
-
 ### ACP Extension
 
 When using DotCraft as the ACP server, you do not need an MCP service. Built-in tools and custom tools are passed to the session through ACP extensions, reducing context overhead for non-Unity sessions.

@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using DotCraft.Editor.AppBinding;
+using DotCraft.Editor.ToolGateway;
 using DotCraft.Editor.Settings;
 using DotCraft.Editor.ToolGateway;
 using UnityEditor;
@@ -254,8 +254,8 @@ namespace DotCraft.Editor.McpSetup
             if (_statusDot == null)
                 return;
 
-            var service = UnityAppBindingService.Instance;
-            var running = service.IsLocalServerRunning;
+            var service = McpGatewayRuntime.Instance;
+            var running = service.IsRunning;
 
             _statusDot.EnableInClassList("gw-dot--on", running);
             _statusDot.EnableInClassList("gw-dot--off", !running);
@@ -276,9 +276,9 @@ namespace DotCraft.Editor.McpSetup
         private void EnableAndRestartGateway()
         {
             var settings = DotCraftSettings.Instance;
-            settings.EnableAppBindingLocalServer = true;
+            settings.EnableMcpGateway = true;
             settings.Save();
-            UnityAppBindingService.Instance.RestartLocalServer();
+            McpGatewayRuntime.Instance.Restart();
             RefreshGatewayStatus();
         }
 

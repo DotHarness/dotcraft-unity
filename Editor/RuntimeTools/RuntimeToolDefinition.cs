@@ -11,15 +11,13 @@ namespace DotCraft.Editor.RuntimeTools
             RuntimeToolSource source,
             MethodInfo method,
             IReadOnlyList<RuntimeToolParameter> parameters,
-            AcpRuntimeToolDescriptor descriptor,
-            RuntimeToolAppBindingMetadata appBinding)
+            AcpRuntimeToolDescriptor descriptor)
         {
             Id = id;
             Source = source;
             Method = method;
             Parameters = parameters;
             Descriptor = descriptor;
-            AppBinding = appBinding ?? new RuntimeToolAppBindingMetadata();
         }
 
         public string Id { get; }
@@ -32,21 +30,10 @@ namespace DotCraft.Editor.RuntimeTools
 
         public AcpRuntimeToolDescriptor Descriptor { get; }
 
-        public RuntimeToolAppBindingMetadata AppBinding { get; }
-
         public string DisplayName =>
             string.IsNullOrWhiteSpace(Descriptor.Namespace)
                 ? Descriptor.Name
                 : $"{Descriptor.Namespace}.{Descriptor.Name}";
-    }
-
-    internal sealed class RuntimeToolAppBindingMetadata
-    {
-        public string Scope { get; set; }
-
-        public string Risk { get; set; }
-
-        public string Exposure { get; set; }
     }
 
     internal enum RuntimeToolSource

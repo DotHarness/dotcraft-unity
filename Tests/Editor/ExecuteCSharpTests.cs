@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DotCraft.Editor.AppBinding;
+using DotCraft.Editor.ToolGateway;
 using DotCraft.Editor.Execution;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.RuntimeTools;
@@ -94,28 +94,6 @@ namespace DotCraft.Editor.Tests
             Assert.That(tool.Descriptor.Namespace, Is.EqualTo("unity"));
             Assert.That(tool.Descriptor.AcpMethod, Is.EqualTo("_unity/execute_csharp"));
             Assert.That(tool.Descriptor.Kind, Is.EqualTo(AcpToolKind.Execute));
-            Assert.That(tool.AppBinding.Scope, Is.EqualTo("unity.execute"));
-            Assert.That(tool.AppBinding.Risk, Is.EqualTo("mutate"));
-            Assert.That(tool.AppBinding.Exposure, Is.EqualTo("deferred"));
-        }
-
-        [Test]
-        public void ToolCatalogAdapterMapsExecuteCSharpToUnityExecute()
-        {
-            var attachment = UnityAppBindingToolCatalogAdapter.Build(
-                RuntimeToolCatalog.Discover(),
-                enableBuiltinTools: true,
-                enabledPluginToolIds: Array.Empty<string>(),
-                grantedScopes: new[] { "unity.execute" });
-
-            var catalog = attachment.ToolCatalog.Single(t => t.Name == "unity_execute_csharp");
-            var spec = attachment.Tools.Single(t => t.Name == "unity_execute_csharp");
-
-            Assert.That(catalog.Scope, Is.EqualTo("unity.execute"));
-            Assert.That(catalog.Risk, Is.EqualTo("mutate"));
-            Assert.That(spec.Namespace, Is.EqualTo("unity"));
-            Assert.That(spec.DeferLoading, Is.True);
-            Assert.That(attachment.DeferredToolNames, Does.Contain("unity_execute_csharp"));
         }
 
         private static ExecutionResult Execute(string code)

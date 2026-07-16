@@ -12,10 +12,7 @@ namespace DotCraft.Editor.Execution
             Name = "unity_execute_csharp",
             Description = "Compile and execute a C# snippet in the Unity Editor process.",
             Kind = AcpToolKind.Execute,
-            DeferLoading = false,
-            AppBindingScope = "unity.execute",
-            AppBindingRisk = "mutate",
-            AppBindingExposure = "deferred")]
+            DeferLoading = false)]
         public static async Task<object> ExecuteCSharp(
             [Description("C# method body to compile and execute. Use return to provide a result.")]
             string code,

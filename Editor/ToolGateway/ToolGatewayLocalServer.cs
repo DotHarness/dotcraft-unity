@@ -13,19 +13,9 @@ using Process = System.Diagnostics.Process;
 using UnityEditor;
 using UnityEngine;
 
-namespace DotCraft.Editor.AppBinding
+namespace DotCraft.Editor.ToolGateway
 {
-    internal sealed class UnityAppBindingHandoff
-    {
-        public string Operation { get; set; }
-        public string AppId { get; set; }
-        public string RequestId { get; set; }
-        public string RequestToken { get; set; }
-        public string Endpoint { get; set; }
-        public string RawUrl { get; set; }
-    }
-
-    internal sealed class UnityAppBindingHttpRequest
+    internal sealed class ToolGatewayHttpRequest
     {
         public string Method { get; set; }
         public string Target { get; set; }
@@ -33,7 +23,7 @@ namespace DotCraft.Editor.AppBinding
         public string Body { get; set; } = string.Empty;
     }
 
-    internal sealed class UnityAppBindingLocalServer : IDisposable
+    internal sealed class ToolGatewayLocalServer : IDisposable
     {
         private const int MaxHeaderBytes = 64 * 1024;
         private const int MaxBodyBytes = 4 * 1024 * 1024;
@@ -44,14 +34,13 @@ namespace DotCraft.Editor.AppBinding
         private const int StaleShutdownWaitMilliseconds = 1200;
         private const string AdminShutdownPath = "/dotcraft/admin/shutdown";
         private const string AdminStatusPath = "/dotcraft/admin/status";
-        private const string SessionTokenPrefix = "DotCraft_AppBindingLocalServer_ShutdownToken_";
+        private const string SessionTokenPrefix = "DotCraft_ToolGateway_ShutdownToken_";
 
         private static readonly object LifecycleGate = new();
         private static readonly object RegistryGate = new();
-        private static readonly Dictionary<int, UnityAppBindingLocalServer> ServersByPort = new();
+        private static readonly Dictionary<int, ToolGatewayLocalServer> ServersByPort = new();
         private static int _nextInstanceId;
 
-        private readonly Func<UnityAppBindingHandoff, CancellationToken, Task<string>> _handler;
         private readonly object _gate = new();
         private readonly HashSet<TcpClient> _clients = new();
         private readonly List<Task> _clientTasks = new();
@@ -68,16 +57,13 @@ namespace DotCraft.Editor.AppBinding
         private Thread _pumpThread;
         private string _shutdownToken;
 
-        public UnityAppBindingLocalServer(Func<UnityAppBindingHandoff, CancellationToken, Task<string>> handler)
-            : this(handler, UnityAppBindingConstants.LocalServerPort)
+        public ToolGatewayLocalServer()
+            : this(ToolGatewayMcpProtocol.DefaultPort)
         {
         }
 
-        internal UnityAppBindingLocalServer(
-            Func<UnityAppBindingHandoff, CancellationToken, Task<string>> handler,
-            int port)
+        internal ToolGatewayLocalServer(int port)
         {
-            _handler = handler ?? throw new ArgumentNullException(nameof(handler));
             if (port <= 0 || port > 65535)
                 throw new ArgumentOutOfRangeException(nameof(port), "Port must be between 1 and 65535.");
 
@@ -132,7 +118,7 @@ namespace DotCraft.Editor.AppBinding
                 if (stoppedOwnedServer && !WaitUntilPortCanBind(TimeSpan.FromMilliseconds(RestartReleaseWaitMilliseconds)))
                 {
                     Debug.LogWarning(
-                        $"[DotCraft] App Binding local server port {_port} was not released immediately after stopping an owned server " +
+                        $"[DotCraft] MCP Tool Gateway port {_port} was not released immediately after stopping an owned server " +
                         $"(pid {Process.GetCurrentProcess().Id}, instance {_instanceId}). {DescribePortOwner()}");
                 }
 
@@ -150,7 +136,7 @@ namespace DotCraft.Editor.AppBinding
                 if (!WaitUntilPortCanBind(TimeSpan.FromMilliseconds(RestartReleaseWaitMilliseconds)))
                 {
                     Debug.LogWarning(
-                        $"[DotCraft] App Binding local server port {_port} is still occupied after restart stop phase " +
+                        $"[DotCraft] MCP Tool Gateway port {_port} is still occupied after restart stop phase " +
                         $"(pid {Process.GetCurrentProcess().Id}, instance {_instanceId}). {DescribePortOwner()}");
                 }
 
@@ -202,7 +188,7 @@ namespace DotCraft.Editor.AppBinding
             }
 
             LogStartFailureDiagnostics(operation, attempts, lastError);
-            Debug.LogError($"[DotCraft] App Binding local server failed to start: {message}");
+            Debug.LogError($"[DotCraft] MCP Tool Gateway failed to start: {message}");
         }
 
         private bool TryStartListener(out Exception error)
@@ -224,7 +210,7 @@ namespace DotCraft.Editor.AppBinding
                 var thread = new Thread(() => AcceptPumpLoop(listener, cts.Token))
                 {
                     IsBackground = true,
-                    Name = $"DotCraft App Binding Local Server {_port}"
+                    Name = $"DotCraft MCP Tool Gateway {_port}"
                 };
 
                 lock (_gate)
@@ -243,7 +229,7 @@ namespace DotCraft.Editor.AppBinding
                 
                 if (DotCraftSettings.Instance.VerboseLogging)
                 {
-                    Debug.Log($"[DotCraft] App Binding local server started on 127.0.0.1:{_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
+                    Debug.Log($"[DotCraft] MCP Tool Gateway started on 127.0.0.1:{_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
                 }
 
                 return true;
@@ -417,7 +403,7 @@ namespace DotCraft.Editor.AppBinding
             {
                 if (!ct.IsCancellationRequested)
                 {
-                    Debug.LogWarning($"[DotCraft] App Binding local server client error: {ex.Message}");
+                    Debug.LogWarning($"[DotCraft] MCP Tool Gateway client error: {ex.Message}");
                 }
             }
             finally
@@ -466,7 +452,7 @@ namespace DotCraft.Editor.AppBinding
 
                     if (!string.Equals(request.Method, "GET", StringComparison.OrdinalIgnoreCase))
                     {
-                        await WriteResponseAsync(stream, 405, "Method Not Allowed", "Only GET is supported for App Binding handoff routes.", ct).ConfigureAwait(false);
+                        await WriteResponseAsync(stream, 405, "Method Not Allowed", "Only standard MCP Gateway methods are supported.", ct).ConfigureAwait(false);
                         return;
                     }
 
@@ -476,9 +462,8 @@ namespace DotCraft.Editor.AppBinding
                         return;
                     }
 
-                    var handoff = ParseHandoff(request.Target);
-                    var message = await _handler(handoff, ct).ConfigureAwait(false);
-                    await WriteResponseAsync(stream, 200, "OK", message, ct).ConfigureAwait(false);
+                    await WriteResponseAsync(stream, 404, "Not Found", "Only the standard MCP Gateway is available.", ct)
+                        .ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -498,7 +483,7 @@ namespace DotCraft.Editor.AppBinding
             }
         }
 
-        private static async Task<UnityAppBindingHttpRequest> ReadHttpRequestAsync(
+        private static async Task<ToolGatewayHttpRequest> ReadHttpRequestAsync(
             NetworkStream stream,
             CancellationToken ct)
         {
@@ -533,7 +518,7 @@ namespace DotCraft.Editor.AppBinding
             if (requestLine.Length < 2)
                 return null;
 
-            var request = new UnityAppBindingHttpRequest
+            var request = new ToolGatewayHttpRequest
             {
                 Method = requestLine[0],
                 Target = requestLine[1]
@@ -652,12 +637,12 @@ namespace DotCraft.Editor.AppBinding
 
         private async Task ShutdownAfterResponseAsync(NetworkStream stream, CancellationToken ct)
         {
-            await WriteResponseAsync(stream, 200, "OK", "DotCraft App Binding local server stopped.", ct)
+            await WriteResponseAsync(stream, 200, "OK", "DotCraft MCP Tool Gateway stopped.", ct)
                 .ConfigureAwait(false);
             
             if (DotCraftSettings.Instance.VerboseLogging)
             {
-                Debug.Log($"[DotCraft] App Binding local server admin shutdown accepted on port {_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
+                Debug.Log($"[DotCraft] MCP Tool Gateway admin shutdown accepted on port {_port} (pid {Process.GetCurrentProcess().Id}, instance {_instanceId}).");
             }
 
             StopFromBackgroundHandler();
@@ -678,7 +663,7 @@ namespace DotCraft.Editor.AppBinding
             }
 
             var message =
-                $"DotCraft App Binding local server status: running={running}, port={_port}, " +
+                $"DotCraft MCP Tool Gateway status: running={running}, port={_port}, " +
                 $"pid={Process.GetCurrentProcess().Id}, instance={_instanceId}, clients={clientCount}, " +
                 $"handlers={taskCount}, pumpAlive={pumpAlive}.";
             return WriteResponseAsync(stream, 200, "OK", message, ct);
@@ -706,24 +691,24 @@ namespace DotCraft.Editor.AppBinding
                 var target = $"{AdminShutdownPath}?pid={Process.GetCurrentProcess().Id}&token={Uri.EscapeDataString(token)}";
                 if (DotCraftSettings.Instance.VerboseLogging)
                 {
-                    Debug.Log($"[DotCraft] App Binding local server port {_port} is occupied; attempting token-protected stale shutdown.");
+                    Debug.Log($"[DotCraft] MCP Tool Gateway port {_port} is occupied; attempting token-protected stale shutdown.");
                 }
                 
                 var response = InvokeLoopbackGet(target, StaleShutdownWaitMilliseconds);
                 if (DotCraftSettings.Instance.VerboseLogging)
                 {
-                    Debug.Log($"[DotCraft] App Binding stale shutdown response for port {_port}: {response}");
+                    Debug.Log($"[DotCraft] MCP Gateway stale shutdown response for port {_port}: {response}");
                 }
                 
                 if (WaitUntilPortCanBind(TimeSpan.FromMilliseconds(StaleShutdownWaitMilliseconds)))
                     return true;
 
-                Debug.LogWarning($"[DotCraft] App Binding stale shutdown request completed but port {_port} is still occupied. {DescribePortOwner()}");
+                Debug.LogWarning($"[DotCraft] MCP Gateway stale shutdown request completed but port {_port} is still occupied. {DescribePortOwner()}");
                 return false;
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"[DotCraft] App Binding stale shutdown attempt failed for port {_port} " + $"({ex.GetType().Name}): {ex.Message}. {DescribePortOwner()}");
+                Debug.LogWarning($"[DotCraft] MCP Gateway stale shutdown attempt failed for port {_port} " + $"({ex.GetType().Name}): {ex.Message}. {DescribePortOwner()}");
                 return false;
             }
         }
@@ -734,7 +719,7 @@ namespace DotCraft.Editor.AppBinding
             ConfigureAcceptedClient(client);
             var connect = client.BeginConnect(IPAddress.Loopback, _port, null, null);
             if (!connect.AsyncWaitHandle.WaitOne(timeoutMilliseconds))
-                throw new TimeoutException("Timed out connecting to stale App Binding local server.");
+                throw new TimeoutException("Timed out connecting to stale MCP Tool Gateway.");
             client.EndConnect(connect);
 
             using var stream = client.GetStream();
@@ -750,7 +735,7 @@ namespace DotCraft.Editor.AppBinding
             using var reader = new StreamReader(stream, Encoding.ASCII, false, 1024, leaveOpen: true);
             var statusLine = reader.ReadLine();
             if (statusLine == null || !statusLine.Contains(" 200 "))
-                throw new InvalidOperationException("Stale App Binding local server rejected shutdown.");
+                throw new InvalidOperationException("Stale MCP Tool Gateway rejected shutdown.");
             return statusLine;
         }
 
@@ -877,30 +862,6 @@ namespace DotCraft.Editor.AppBinding
             }
         }
 
-        internal static UnityAppBindingHandoff ParseHandoff(string target)
-        {
-            var uri = new Uri("http://127.0.0.1" + target, UriKind.Absolute);
-            var path = uri.AbsolutePath.Trim('/');
-            var segments = path.Split('/');
-            if (segments.Length != 2
-                || !string.Equals(segments[0], "dotcraft", StringComparison.Ordinal)
-                || (segments[1] != "connect" && segments[1] != "bind"))
-            {
-                throw new InvalidOperationException("Unsupported App Binding handoff path.");
-            }
-
-            var query = ParseQuery(uri.Query);
-            return new UnityAppBindingHandoff
-            {
-                Operation = segments[1],
-                AppId = GetRequired(query, "app"),
-                RequestId = GetRequired(query, "request"),
-                RequestToken = GetRequired(query, "token"),
-                Endpoint = GetRequired(query, "endpoint"),
-                RawUrl = uri.ToString()
-            };
-        }
-
         private static Dictionary<string, string> ParseQuery(string query)
         {
             var result = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -978,8 +939,8 @@ namespace DotCraft.Editor.AppBinding
 
             var token = SessionState.GetString(_sessionTokenKey, "");
             return string.IsNullOrWhiteSpace(token)
-                ? $"Port {_port} is already in use. Another Unity Editor or local process may already own the DotCraft App Binding server."
-                : $"Port {_port} is already in use. DotCraft tried to stop a previously recorded App Binding server, but the port is still occupied; restart Unity or close another Unity Editor using this port.";
+                ? $"Port {_port} is already in use. Another Unity Editor or local process may already own the DotCraft MCP Gateway."
+                : $"Port {_port} is already in use. DotCraft tried to stop a previously recorded MCP Gateway, but the port is still occupied; restart Unity or close another Unity Editor using this port.";
         }
 
         private void LogStartFailureDiagnostics(string operation, int attempts, Exception ex)
@@ -989,7 +950,7 @@ namespace DotCraft.Editor.AppBinding
                 ? socketException.SocketErrorCode.ToString()
                 : "none";
             Debug.LogWarning(
-                $"[DotCraft] App Binding local server start diagnostics: operation={operation}, port={_port}, " +
+                $"[DotCraft] MCP Tool Gateway start diagnostics: operation={operation}, port={_port}, " +
                 $"pid={Process.GetCurrentProcess().Id}, instance={_instanceId}, attempts={attempts}, " +
                 $"exception={exceptionType}, socketError={socketError}. {DescribePortOwner()}");
         }
@@ -1046,13 +1007,6 @@ namespace DotCraft.Editor.AppBinding
             }
         }
 
-        private static string GetRequired(Dictionary<string, string> query, string key)
-        {
-            if (!query.TryGetValue(key, out var value) || string.IsNullOrWhiteSpace(value))
-                throw new InvalidOperationException($"Missing App Binding handoff parameter '{key}'.");
-            return value;
-        }
-
         private static async Task WriteResponseAsync(
             NetworkStream stream,
             int status,
@@ -1105,7 +1059,7 @@ namespace DotCraft.Editor.AppBinding
             var escaped = WebUtility.HtmlEncode(message ?? "");
             return "<!doctype html><html><head><meta charset=\"utf-8\"><title>dotcraft-unity</title></head>" +
                    "<body style=\"font-family:system-ui,sans-serif;margin:40px;line-height:1.5\">" +
-                   "<h1>dotcraft-unity App Binding</h1>" +
+                   "<h1>dotcraft-unity MCP Gateway</h1>" +
                    $"<p>{escaped}</p>" +
                    "<p>You can return to DotCraft.</p>" +
                    "</body></html>";
@@ -1117,7 +1071,7 @@ namespace DotCraft.Editor.AppBinding
             {
                 _lastError = message;
             }
-            Debug.LogWarning($"[DotCraft] App Binding local server error: {message}");
+            Debug.LogWarning($"[DotCraft] MCP Tool Gateway error: {message}");
         }
 
         private string GetShutdownToken()
@@ -1147,7 +1101,7 @@ namespace DotCraft.Editor.AppBinding
 
         private bool StopRegisteredServerForPort()
         {
-            UnityAppBindingLocalServer existing = null;
+            ToolGatewayLocalServer existing = null;
             lock (RegistryGate)
             {
                 if (ServersByPort.TryGetValue(_port, out var registered) && !ReferenceEquals(registered, this))
@@ -1255,7 +1209,7 @@ namespace DotCraft.Editor.AppBinding
             {
                 var portReleased = CanBindOnce();
                 Debug.Log(
-                    $"[DotCraft] App Binding local server stopped on port {_port} " +
+                    $"[DotCraft] MCP Tool Gateway stopped on port {_port} " +
                     $"(pid {Process.GetCurrentProcess().Id}, instance {_instanceId}, " +
                     $"handlersCompleted={allHandlersCompleted}, portReleased={portReleased}).");
             }

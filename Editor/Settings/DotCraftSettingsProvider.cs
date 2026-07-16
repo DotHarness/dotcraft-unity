@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using DotCraft.Editor.AppBinding;
+using DotCraft.Editor.ToolGateway;
 using DotCraft.Editor.McpSetup;
 using DotCraft.Editor.RuntimeTools;
 using UnityEditor;
@@ -154,11 +154,11 @@ namespace DotCraft.Editor.Settings
                     EditorStyles.wordWrappedMiniLabel);
                 EditorGUILayout.Space(6);
 
-                var service = UnityAppBindingService.Instance;
+                var service = McpGatewayRuntime.Instance;
                 DrawReadonlyRow("In-Editor Agent Chat", _settings.AgentConnection == DotCraftSettings.AgentConnectionDotCraft
                     ? "DotCraft profile"
                     : "Custom ACP Agent");
-                DrawReadonlyRow("Local Tool Gateway", service.IsLocalServerRunning ? "Running" : "Stopped");
+                DrawReadonlyRow("Local Tool Gateway", service.IsRunning ? "Running" : "Stopped");
                 DrawReadonlyRow("MCP Endpoint", McpGatewaySetupDefaults.Endpoint);
                 DrawReadonlyRow("C# Automation", _settings.EnableCSharpAutomation ? "Enabled" : "Disabled");
                 DrawReadonlyRow("Custom Project Tools", $"{GetEnabledCustomToolCount()} enabled");
@@ -174,9 +174,9 @@ namespace DotCraft.Editor.Settings
 
                     if (GUILayout.Button("Restart Gateway", GUILayout.Width(130)))
                     {
-                        _settings.EnableAppBindingLocalServer = true;
+                        _settings.EnableMcpGateway = true;
                         _settings.Save();
-                        UnityAppBindingService.Instance.RestartLocalServer();
+                        McpGatewayRuntime.Instance.Restart();
                     }
 
                     if (GUILayout.Button("Copy Endpoint", GUILayout.Width(120)))
@@ -283,17 +283,17 @@ namespace DotCraft.Editor.Settings
                 EditorGUI.indentLevel++;
 
                 var enabled = EditorGUILayout.Toggle(
-                    new GUIContent("Enable", "Listen on localhost for MCP clients and DotCraft App Binding handoffs."),
-                    _settings.EnableAppBindingLocalServer);
-                if (enabled != _settings.EnableAppBindingLocalServer)
+                    new GUIContent("Enable", "Listen on localhost for standard MCP clients."),
+                    _settings.EnableMcpGateway);
+                if (enabled != _settings.EnableMcpGateway)
                 {
-                    _settings.EnableAppBindingLocalServer = enabled;
-                    UnityAppBindingBootstrap.ApplySettings();
+                    _settings.EnableMcpGateway = enabled;
+                    McpGatewayBootstrap.ApplySettings();
                 }
 
-                var service = UnityAppBindingService.Instance;
+                var service = McpGatewayRuntime.Instance;
                 DrawReadonlyRow("Endpoint", McpGatewaySetupDefaults.Endpoint);
-                DrawReadonlyRow("Status", service.IsLocalServerRunning ? "Running" : "Stopped");
+                DrawReadonlyRow("Status", service.IsRunning ? "Running" : "Stopped");
                 DrawReadonlyRow("Tools", FormatEnabledToolSummary());
                 if (!string.IsNullOrWhiteSpace(service.LastError))
                     EditorGUILayout.HelpBox(service.LastError, MessageType.Error);
@@ -305,9 +305,9 @@ namespace DotCraft.Editor.Settings
                         McpGatewaySetupWindow.ShowWindow();
                     if (GUILayout.Button("Restart Gateway", GUILayout.Width(130)))
                     {
-                        _settings.EnableAppBindingLocalServer = true;
+                        _settings.EnableMcpGateway = true;
                         _settings.Save();
-                        service.RestartLocalServer();
+                        service.Restart();
                     }
                     if (GUILayout.Button("Copy Endpoint", GUILayout.Width(120)))
                         EditorGUIUtility.systemCopyBuffer = McpGatewaySetupDefaults.Endpoint;
@@ -342,7 +342,6 @@ namespace DotCraft.Editor.Settings
                 if (enableCSharpAutomation != _settings.EnableCSharpAutomation)
                 {
                     _settings.EnableCSharpAutomation = enableCSharpAutomation;
-                    UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                 }
 
                 EditorGUILayout.Space(6);
@@ -356,7 +355,6 @@ namespace DotCraft.Editor.Settings
                     if (GUILayout.Button("Refresh Custom Tools", GUILayout.Width(160)))
                     {
                         RefreshRuntimeToolCatalog();
-                        UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                     }
                 }
 
@@ -389,7 +387,6 @@ namespace DotCraft.Editor.Settings
                                     _settings.DynamicToolEnabledById[tool.Id] = true;
                                 else
                                     _settings.DynamicToolEnabledById.Remove(tool.Id);
-                                UnityAppBindingService.Instance.RefreshHandoffSnapshot();
                             }
 
                             if (!string.IsNullOrWhiteSpace(tool.Descriptor.Description))
@@ -420,11 +417,8 @@ namespace DotCraft.Editor.Settings
             {
                 EditorGUILayout.LabelField("Advanced DotCraft", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField(
-                    "DotCraft-specific settings for App Binding, ACP sessions, environment variables, and MCP servers injected into DotCraft sessions.",
+                    "DotCraft-specific settings for ACP sessions, environment variables, and MCP servers injected into DotCraft sessions.",
                     EditorStyles.wordWrappedMiniLabel);
-
-                EditorGUILayout.Space(8);
-                DrawAppBindingStatusRows();
 
                 EditorGUILayout.Space(8);
                 DrawGeneralSettingsSection();
@@ -435,41 +429,6 @@ namespace DotCraft.Editor.Settings
                 EditorGUILayout.Space(8);
                 DrawMcpServersSection();
             }
-        }
-
-        private void DrawAppBindingStatusRows()
-        {
-            EditorGUILayout.LabelField("DotCraft App Binding", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField(
-                "Advanced handoffs for DotCraft Desktop, TUI, automations, and AppServer workflows. The Local Tool Gateway setting above controls the shared localhost server.",
-                EditorStyles.wordWrappedMiniLabel);
-
-            EditorGUI.indentLevel++;
-            var service = UnityAppBindingService.Instance;
-            DrawReadonlyRow("Handoff URL", service.LocalServerUrl);
-
-            var bindings = service.ActiveBindings.ToList();
-            if (bindings.Count == 0)
-            {
-                EditorGUILayout.LabelField("Active Bindings", "None", EditorStyles.miniLabel);
-            }
-            else
-            {
-                foreach (var binding in bindings)
-                {
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        EditorGUILayout.LabelField(
-                            "Active Binding",
-                            $"{binding.ThreadId} ({binding.ToolCount} tools)",
-                            EditorStyles.miniLabel);
-                        if (GUILayout.Button("Remove", GUILayout.Width(80)))
-                            service.RemoveActiveBinding(binding.BindingId);
-                    }
-                }
-            }
-
-            EditorGUI.indentLevel--;
         }
 
         private void DrawGeneralSettingsSection()
