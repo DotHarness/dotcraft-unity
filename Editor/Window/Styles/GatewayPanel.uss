@@ -1,0 +1,348 @@
+/* DotCraft Gateway Panels — shared styles for the MCP Setup window and the status-bar dropdown. */
+
+.gw-root {
+    flex-direction: column;
+    padding: 14px 14px 10px 14px;
+    background-color: var(--unity-colors-window_background);
+}
+
+.gw-scroll {
+    flex-grow: 1;
+}
+
+/* ── Header ── */
+.gw-header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.gw-header-logo {
+    width: 26px;
+    height: 26px;
+    margin-right: 10px;
+    flex-shrink: 0;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.gw-header-text {
+    flex-direction: column;
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.gw-title {
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--unity-colors-default_text);
+}
+
+.gw-subtitle {
+    font-size: 11px;
+    color: rgba(180, 180, 180, 0.62);
+    white-space: normal;
+    margin-top: 1px;
+}
+
+/* ── Cards ── */
+.gw-card {
+    flex-direction: column;
+    background-color: rgba(0, 0, 0, 0.16);
+    border-width: 1px;
+    border-color: rgba(140, 140, 140, 0.22);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.gw-section-label {
+    font-size: 10px;
+    -unity-font-style: bold;
+    color: rgba(160, 160, 160, 0.7);
+    margin-bottom: 7px;
+}
+
+/* ── Status row ── */
+.gw-status-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.gw-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 5px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    background-color: rgba(150, 150, 150, 0.6);
+}
+
+.gw-dot--on {
+    background-color: #4CAF50;
+}
+
+.gw-dot--off {
+    background-color: rgba(150, 150, 150, 0.55);
+}
+
+.gw-status-text {
+    font-size: 13px;
+    -unity-font-style: bold;
+    color: var(--unity-colors-default_text);
+}
+
+.gw-status-sub {
+    font-size: 11px;
+    color: rgba(180, 180, 180, 0.6);
+    margin-left: 8px;
+    flex-grow: 1;
+}
+
+/* ── Key / value rows ── */
+.gw-row {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.gw-row-label {
+    width: 96px;
+    flex-shrink: 0;
+    font-size: 11px;
+    color: rgba(170, 170, 170, 0.7);
+}
+
+.gw-row-value {
+    flex-grow: 1;
+    font-size: 11px;
+    color: rgba(220, 220, 220, 0.9);
+}
+
+/* ── Endpoint chip ── */
+.gw-endpoint {
+    flex-direction: row;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.28);
+    border-width: 1px;
+    border-color: rgba(140, 140, 140, 0.2);
+    border-radius: 6px;
+    padding: 5px 0 5px 9px;
+    margin-top: 6px;
+    margin-bottom: 2px;
+}
+
+.gw-endpoint-url {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 11px;
+    color: #8FC9F0;
+}
+
+/* ── Buttons ── */
+.gw-btn-row {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.gw-btn {
+    height: 24px;
+    padding: 0 12px;
+    margin: 0 6px 0 0;
+    border-radius: 5px;
+    border-width: 1px;
+    border-color: rgba(140, 140, 140, 0.32);
+    background-color: rgba(255, 255, 255, 0.06);
+    color: rgba(228, 228, 228, 0.92);
+    font-size: 11px;
+    -unity-text-align: middle-center;
+}
+
+.gw-btn:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(170, 170, 170, 0.45);
+}
+
+.gw-btn:disabled {
+    opacity: 0.45;
+}
+
+.gw-btn--primary {
+    background-color: rgba(33, 150, 243, 0.2);
+    border-color: rgba(33, 150, 243, 0.55);
+    color: #8FC9F0;
+    -unity-font-style: bold;
+}
+
+.gw-btn--primary:hover {
+    background-color: rgba(33, 150, 243, 0.32);
+    border-color: #2196F3;
+}
+
+.gw-btn--danger {
+    background-color: rgba(244, 67, 54, 0.1);
+    border-color: rgba(244, 67, 54, 0.35);
+    color: #EF8A82;
+}
+
+.gw-btn--danger:hover {
+    background-color: rgba(244, 67, 54, 0.2);
+    border-color: rgba(244, 67, 54, 0.55);
+}
+
+.gw-btn--mini {
+    height: 22px;
+    padding: 0 10px;
+    font-size: 10px;
+}
+
+.gw-btn--icon {
+    width: 26px;
+    height: 24px;
+    padding: 0;
+    margin: 0 8px 0 6px;
+    font-size: 12px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Chips ── */
+.gw-chip {
+    padding: 1px 9px;
+    border-radius: 10px;
+    font-size: 10px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    border-width: 1px;
+    flex-shrink: 0;
+}
+
+.gw-chip--ok {
+    background-color: rgba(76, 175, 80, 0.16);
+    border-color: rgba(76, 175, 80, 0.4);
+    color: #8BD18F;
+}
+
+.gw-chip--muted {
+    background-color: rgba(150, 150, 150, 0.1);
+    border-color: rgba(150, 150, 150, 0.28);
+    color: rgba(190, 190, 190, 0.78);
+}
+
+.gw-chip--warn {
+    background-color: rgba(255, 152, 0, 0.14);
+    border-color: rgba(255, 152, 0, 0.4);
+    color: #FFC078;
+}
+
+/* ── Client cards ── */
+.gw-client {
+    flex-direction: column;
+    background-color: rgba(255, 255, 255, 0.035);
+    border-width: 1px;
+    border-color: rgba(140, 140, 140, 0.18);
+    border-radius: 7px;
+    padding: 10px 11px;
+    margin-bottom: 8px;
+}
+
+.gw-client:hover {
+    border-color: rgba(140, 140, 140, 0.3);
+}
+
+.gw-client-head {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.gw-client-name {
+    font-size: 12px;
+    -unity-font-style: bold;
+    color: var(--unity-colors-default_text);
+    margin-right: 8px;
+}
+
+.gw-client-path {
+    flex-grow: 1;
+    font-size: 10px;
+    color: rgba(165, 165, 165, 0.6);
+    -unity-text-align: middle-left;
+}
+
+.gw-client-hint {
+    font-size: 11px;
+    color: rgba(180, 180, 180, 0.66);
+    white-space: normal;
+    margin-top: 3px;
+    margin-bottom: 2px;
+}
+
+.gw-client-result {
+    font-size: 11px;
+    color: rgba(150, 200, 150, 0.85);
+    white-space: normal;
+    margin-top: 4px;
+}
+
+.gw-client-result--error {
+    color: #EF8A82;
+}
+
+/* ── Banners ── */
+.gw-banner {
+    flex-direction: column;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border-left-width: 3px;
+    margin-top: 8px;
+}
+
+.gw-banner--info {
+    background-color: rgba(33, 150, 243, 0.1);
+    border-left-color: #2196F3;
+}
+
+.gw-banner--warn {
+    background-color: rgba(255, 152, 0, 0.1);
+    border-left-color: #FF9800;
+}
+
+.gw-banner--error {
+    background-color: rgba(244, 67, 54, 0.1);
+    border-left-color: #EF5350;
+}
+
+.gw-banner-text {
+    font-size: 11px;
+    color: rgba(225, 225, 225, 0.88);
+    white-space: normal;
+}
+
+/* ── Dropdown (status-bar popup) ── */
+.gw-dropdown {
+    flex-direction: column;
+    padding: 12px;
+    background-color: var(--unity-colors-window_background);
+    border-width: 1px;
+    border-color: rgba(140, 140, 140, 0.28);
+    border-radius: 8px;
+    flex-grow: 1;
+}
+
+.gw-divider {
+    height: 1px;
+    background-color: rgba(140, 140, 140, 0.18);
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.gw-footer {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 10px;
+}

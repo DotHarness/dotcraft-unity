@@ -1,0 +1,20 @@
+{
+  "name": "dotcraft-unity",
+  "interface": {
+    "displayName": "DotCraft Unity"
+  },
+  "plugins": [
+    {
+      "name": "dotcraft-unity",
+      "source": {
+        "source": "local",
+        "path": "./Plugin~"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Engineering"
+    }
+  ]
+}

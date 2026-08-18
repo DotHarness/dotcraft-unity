@@ -1,0 +1,19 @@
+name: Validate marketplace
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: node .github/scripts/validate-marketplace.mjs
+      - run: npm pack --dry-run --json > npm-pack.json
+      - name: Verify plugin bundle is published
+        run: node -e "const p=require('./npm-pack.json')[0];if(!p.files.some(f=>f.path==='Plugin~/skills/dotcraft-unity/SKILL.md'))process.exit(1)"

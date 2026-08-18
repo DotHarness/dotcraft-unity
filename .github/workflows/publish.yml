@@ -1,0 +1,51 @@
+name: Publish Release
+
+on:
+  push:
+    branches: [ master, main ]
+    tags:
+      - 'v*.*.*'
+  pull_request:
+    branches: [ master, main ]
+    types: [labeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Prepare Release Notes
+      run: |
+        VERSION=${GITHUB_REF#refs/tags/}
+        REPO=${{ github.repository }}
+
+        if [ -f ".github/release_template.md" ]; then
+          sed \
+            -e "s|{{ VERSION }}|$VERSION|g" \
+            -e "s|{{ REPO }}|$REPO|g" \
+            -e "s|{{ CHANGELOG }}|- See auto-generated notes below.|g" \
+            ".github/release_template.md" > "release_notes.md"
+        else
+          echo "dotcraft-unity $VERSION" > "release_notes.md"
+        fi
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        body_path: release_notes.md
+        append_body: true
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

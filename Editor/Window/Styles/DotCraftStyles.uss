@@ -1,0 +1,1016 @@
+/* DotCraft Global Styles */
+
+.unity-editor-window {
+    background-color: var(--unity-colors-window_background);
+}
+
+/* ── Toolbar (replaces connection-status) ── */
+.toolbar {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 8px;
+    background-color: rgba(0, 0, 0, 0.12);
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(128, 128, 128, 0.25);
+    min-height: 28px;
+}
+
+.toolbar-left {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.toolbar-right {
+    flex-direction: row;
+    align-items: center;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.session-button {
+    margin-right: 4px;
+    padding: 2px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+.session-button.selected {
+    background-color: rgba(33, 150, 243, 0.18);
+    border-color: rgba(33, 150, 243, 0.45);
+}
+
+.new-session-button {
+    font-size: 16px;
+    -unity-font-style: bold;
+}
+
+.session-popup-layer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 28px;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.01);
+}
+
+.session-popup-panel {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 320px;
+    max-height: 320px;
+    padding: 8px;
+    background-color: var(--unity-colors-window_background);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.3);
+    border-radius: 6px;
+}
+
+.session-popup-header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.session-popup-title {
+    font-size: 12px;
+    -unity-font-style: bold;
+    color: var(--unity-colors-default_text);
+}
+
+.session-list-container {
+    max-height: 260px;
+    background-color: rgba(0, 0, 0, 0.08);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.25);
+    border-radius: 4px;
+    padding: 4px;
+}
+
+.session-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.session-row.selected {
+    background-color: rgba(33, 150, 243, 0.08);
+    border-radius: 4px;
+}
+
+.session-select-button {
+    flex-grow: 1;
+    margin-right: 4px;
+    -unity-text-align: middle-left;
+    font-size: 11px;
+}
+
+.session-select-button.selected {
+    border-color: rgba(33, 150, 243, 0.45);
+}
+
+.session-delete-button {
+    flex-shrink: 0;
+    font-size: 10px;
+    padding: 1px 6px;
+}
+
+.session-info-label {
+    font-size: 11px;
+    color: rgba(180, 180, 180, 0.8);
+    padding: 4px 2px;
+}
+
+/* Backward compatibility: old class name maps to toolbar */
+.connection-status {
+    flex-direction: row;
+    align-items: center;
+    padding: 4px 8px;
+    background-color: rgba(0, 0, 0, 0.12);
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(128, 128, 128, 0.25);
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.status-indicator.connected {
+    background-color: #4CAF50;
+}
+
+.status-indicator.connecting {
+    background-color: #FFC107;
+}
+
+.status-indicator.disconnected {
+    background-color: #F44336;
+}
+
+.status-label {
+    font-size: 11px;
+    color: var(--unity-colors-default_text);
+}
+
+.toolbar-icon-button {
+    background-color: transparent;
+    border-width: 0;
+    width: 24px;
+    height: 24px;
+    margin-right: 4px;
+    border-radius: 3px;
+    -unity-text-align: middle-center;
+    font-size: 14px;
+    color: var(--unity-colors-default_text);
+}
+
+.toolbar-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.settings-button {
+    background-repeat: no-repeat;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.connect-button {
+    padding: 2px 10px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+
+/* ── Chat Container ── */
+.chat-container {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.message-list {
+    flex-grow: 1;
+    overflow: scroll;
+}
+
+/* ── Welcome Panel ── */
+.welcome-panel {
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    background-color: rgba(0, 0, 0, 0.08);
+}
+
+.welcome-title {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: var(--unity-colors-default_text);
+    margin-bottom: 8px;
+}
+
+.welcome-subtitle {
+    font-size: 12px;
+    color: rgba(180, 180, 180, 0.62);
+    margin-bottom: 20px;
+}
+
+.welcome-composer-host {
+    width: 100%;
+    max-width: 720px;
+    margin-bottom: 18px;
+}
+
+.welcome-composer-host .input-area {
+    border-width: 1px;
+    border-color: rgba(140, 140, 140, 0.28);
+    border-radius: 16px;
+    background-color: rgba(0, 0, 0, 0.16);
+    border-top-width: 1px;
+    padding: 16px 14px 12px 14px;
+}
+
+.welcome-composer-host .attachments-container {
+    margin-bottom: 8px;
+}
+
+.welcome-composer-host .input-scroll {
+    min-height: 74px;
+    max-height: 180px;
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+    padding: 0;
+}
+
+.welcome-composer-host .input-scroll:hover,
+.welcome-composer-host .input-scroll:focus,
+.welcome-composer-host .input-scroll:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-scroll .unity-scroll-view__content-container,
+.welcome-composer-host .input-scroll .unity-scroll-view__content-viewport {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field {
+    min-height: 74px;
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.welcome-composer-host .input-field:hover,
+.welcome-composer-host .input-field:focus,
+.welcome-composer-host .input-field:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host #input-field,
+.welcome-composer-host #input-field:hover,
+.welcome-composer-host #input-field:focus,
+.welcome-composer-host #input-field:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.welcome-composer-host .input-field .unity-base-field {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host #input-field .unity-base-field,
+.welcome-composer-host #input-field .unity-base-field__input,
+.welcome-composer-host #input-field .unity-base-text-field__input,
+.welcome-composer-host #input-field .unity-text-input {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host #input-field .unity-base-field:hover,
+.welcome-composer-host #input-field .unity-base-field:focus,
+.welcome-composer-host #input-field .unity-base-field:active,
+.welcome-composer-host #input-field .unity-base-field__input:hover,
+.welcome-composer-host #input-field .unity-base-field__input:focus,
+.welcome-composer-host #input-field .unity-base-field__input:active,
+.welcome-composer-host #input-field .unity-base-text-field__input:hover,
+.welcome-composer-host #input-field .unity-base-text-field__input:focus,
+.welcome-composer-host #input-field .unity-base-text-field__input:active,
+.welcome-composer-host #input-field .unity-text-input:hover,
+.welcome-composer-host #input-field .unity-text-input:focus,
+.welcome-composer-host #input-field .unity-text-input:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field .unity-base-field__input {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field .unity-base-field__input:hover,
+.welcome-composer-host .input-field .unity-base-field__input:focus,
+.welcome-composer-host .input-field .unity-base-field__input:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field .unity-base-text-field__input {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field .unity-text-input {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field .unity-base-text-field__input:hover,
+.welcome-composer-host .input-field .unity-base-text-field__input:focus,
+.welcome-composer-host .input-field .unity-base-text-field__input:active,
+.welcome-composer-host .input-field .unity-text-input:hover,
+.welcome-composer-host .input-field .unity-text-input:focus,
+.welcome-composer-host .input-field .unity-text-input:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-wrapper {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.welcome-composer-host .button-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.welcome-composer-host .config-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.welcome-composer-host .composer-icon-button {
+    background-color: transparent;
+    border-width: 0;
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+    color: rgba(220, 220, 220, 0.76);
+}
+
+.welcome-composer-host .composer-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.welcome-composer-host .config-popup {
+    margin-right: 8px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.welcome-composer-host .config-popup .unity-base-popup-field__label {
+    color: rgba(190, 190, 190, 0.68);
+}
+
+.welcome-composer-host .config-popup .unity-base-popup-field__popup {
+    background-color: transparent;
+    border-width: 0;
+    min-width: 72px;
+}
+
+.welcome-composer-host .config-popup .unity-base-field__input,
+.welcome-composer-host .config-popup .unity-base-popup-field__input,
+.welcome-composer-host .config-popup .unity-popup-field__input {
+    background-color: transparent;
+    border-width: 0;
+}
+
+.welcome-composer-host .send-button {
+    background-color: rgba(245, 245, 245, 0.92);
+    color: #222222;
+    border-radius: 14px;
+    width: 28px;
+    height: 28px;
+    margin-left: 10px;
+    font-size: 17px;
+}
+
+.welcome-composer-host .send-button:hover {
+    background-color: #FFFFFF;
+}
+
+.welcome-composer-host .stop-button {
+    border-radius: 14px;
+    width: 28px;
+    height: 28px;
+    margin-left: 10px;
+}
+
+.welcome-suggestions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 420px;
+}
+
+.suggestion-button {
+    background-color: rgba(255, 255, 255, 0.06);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.25);
+    border-radius: 6px;
+    padding: 5px 12px;
+    margin: 4px;
+    font-size: 12px;
+    color: var(--unity-colors-default_text);
+}
+
+.suggestion-button:hover {
+    background-color: rgba(33, 150, 243, 0.15);
+    border-color: rgba(33, 150, 243, 0.4);
+}
+
+/* ── Typing Indicator ── */
+.typing-indicator {
+    flex-direction: row;
+    align-items: center;
+    padding: 8px 12px;
+    flex-shrink: 0;
+}
+
+.reasoning-spinner {
+    display: none;
+}
+
+.reasoning-label {
+    font-size: 11px;
+    color: rgba(210, 210, 210, 0.78);
+}
+
+.typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background-color: rgba(180, 180, 180, 0.5);
+    margin-right: 4px;
+}
+
+.typing-dot-1 {
+    opacity: 0.4;
+}
+
+.typing-dot-2 {
+    opacity: 0.6;
+}
+
+.typing-dot-3 {
+    opacity: 0.8;
+}
+
+/* ── Input Area ── */
+.bottom-composer-host {
+    flex-shrink: 0;
+    padding: 8px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-top-width: 0;
+    border-top-color: transparent;
+}
+
+.input-area {
+    flex-shrink: 0;
+    padding: 8px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-top-width: 1px;
+    border-top-color: rgba(128, 128, 128, 0.3);
+}
+
+.input-wrapper {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 6px;
+}
+
+.input-scroll {
+    flex-grow: 1;
+    min-height: 60px;
+    max-height: 150px;
+    padding: 4px;
+    background-color: var(--unity-colors-input_background);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.5);
+    border-radius: 6px;
+}
+
+/* Legacy selector kept for compatibility */
+.input-field {
+    min-height: 60px;
+    max-height: 150px;
+    margin-bottom: 8px;
+    padding: 4px;
+    background-color: var(--unity-colors-input_background);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.5);
+    border-radius: 6px;
+}
+
+/* ── Mode Selector (pill toggle in input area) ── */
+.mode-selector {
+    flex-direction: column;
+    align-items: center;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.mode-toggle-button {
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 10px;
+    -unity-font-style: bold;
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.3);
+    background-color: rgba(0, 0, 0, 0.1);
+    color: rgba(180, 180, 180, 0.7);
+    margin-bottom: 2px;
+    min-width: 52px;
+}
+
+.mode-toggle-button:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.mode-toggle-button.selected {
+    background-color: rgba(33, 150, 243, 0.2);
+    border-color: #2196F3;
+    color: #64B5F6;
+}
+
+/* ── Button Styles ── */
+.button-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.send-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: rgba(230, 230, 230, 0.92);
+    border-radius: 4px;
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    margin-left: 6px;
+    -unity-font-style: bold;
+    font-size: 18px;
+    -unity-text-align: middle-center;
+}
+
+.send-button:hover {
+    background-color: rgba(255, 255, 255, 0.16);
+}
+
+.send-button:disabled {
+    background-color: rgba(128, 128, 128, 0.3);
+    color: rgba(128, 128, 128, 0.7);
+}
+
+.stop-button {
+    background-color: rgba(245, 245, 245, 0.92);
+    color: #222222;
+    border-radius: 4px;
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    margin-left: 6px;
+    -unity-font-style: bold;
+    font-size: 10px;
+    -unity-text-align: middle-center;
+}
+
+.stop-button:hover {
+    background-color: #FFFFFF;
+}
+
+/* ── Config Row ── */
+.config-row {
+    flex-direction: row;
+    align-items: center;
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.composer-icon-button {
+    background-color: rgba(255, 255, 255, 0.07);
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.28);
+    width: 28px;
+    height: 26px;
+    margin-right: 5px;
+    border-radius: 4px;
+    padding: 0;
+    -unity-text-align: middle-center;
+    color: rgba(230, 230, 230, 0.9);
+    -unity-font-style: bold;
+}
+
+.composer-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.12);
+    border-color: rgba(160, 160, 160, 0.42);
+}
+
+.config-popup {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 1;
+    margin-right: 8px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+
+/* Fix: remove large gap between PopupField label and dropdown button */
+.config-popup .unity-base-popup-field__label {
+    flex-shrink: 0;
+    flex-grow: 0;
+    min-width: 0;
+    margin-right: 4px;
+    font-size: 11px;
+    color: rgba(180, 180, 180, 0.7);
+}
+
+.config-popup .unity-base-popup-field__popup {
+    flex-shrink: 0;
+    min-width: 80px;
+}
+
+/* ── Unified Composer Surface ── */
+.welcome-composer-host .input-area,
+.bottom-composer-host .input-area {
+    border-width: 1px;
+    border-color: rgba(140, 140, 140, 0.28);
+    border-radius: 16px;
+    background-color: rgba(0, 0, 0, 0.16);
+    padding: 16px 14px 12px 14px;
+}
+
+.welcome-composer-host .attachments-container,
+.bottom-composer-host .attachments-container {
+    margin-bottom: 8px;
+}
+
+.welcome-composer-host .input-wrapper,
+.bottom-composer-host .input-wrapper {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.welcome-composer-host .input-scroll,
+.bottom-composer-host .input-scroll {
+    flex-grow: 1;
+    min-height: 74px;
+    max-height: 180px;
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+    padding: 0;
+}
+
+.welcome-composer-host .input-scroll:hover,
+.welcome-composer-host .input-scroll:focus,
+.welcome-composer-host .input-scroll:active,
+.bottom-composer-host .input-scroll:hover,
+.bottom-composer-host .input-scroll:focus,
+.bottom-composer-host .input-scroll:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-scroll .unity-scroll-view__content-container,
+.welcome-composer-host .input-scroll .unity-scroll-view__content-viewport,
+.bottom-composer-host .input-scroll .unity-scroll-view__content-container,
+.bottom-composer-host .input-scroll .unity-scroll-view__content-viewport {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field,
+.bottom-composer-host .input-field {
+    min-height: 74px;
+    max-height: 180px;
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.bottom-composer-host .input-scroll {
+    min-height: 44px;
+    max-height: 150px;
+}
+
+.bottom-composer-host .input-field {
+    min-height: 44px;
+    max-height: 150px;
+}
+
+.welcome-composer-host .input-field:hover,
+.welcome-composer-host .input-field:focus,
+.welcome-composer-host .input-field:active,
+.bottom-composer-host .input-field:hover,
+.bottom-composer-host .input-field:focus,
+.bottom-composer-host .input-field:active,
+.welcome-composer-host #input-field,
+.welcome-composer-host #input-field:hover,
+.welcome-composer-host #input-field:focus,
+.welcome-composer-host #input-field:active,
+.bottom-composer-host #input-field,
+.bottom-composer-host #input-field:hover,
+.bottom-composer-host #input-field:focus,
+.bottom-composer-host #input-field:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+    padding: 0;
+    margin-bottom: 0;
+}
+
+.welcome-composer-host .input-field .unity-base-field,
+.welcome-composer-host .input-field .unity-base-field__input,
+.welcome-composer-host .input-field .unity-base-text-field__input,
+.welcome-composer-host .input-field .unity-text-input,
+.welcome-composer-host #input-field .unity-base-field,
+.welcome-composer-host #input-field .unity-base-field__input,
+.welcome-composer-host #input-field .unity-base-text-field__input,
+.welcome-composer-host #input-field .unity-text-input,
+.bottom-composer-host .input-field .unity-base-field,
+.bottom-composer-host .input-field .unity-base-field__input,
+.bottom-composer-host .input-field .unity-base-text-field__input,
+.bottom-composer-host .input-field .unity-text-input,
+.bottom-composer-host #input-field .unity-base-field,
+.bottom-composer-host #input-field .unity-base-field__input,
+.bottom-composer-host #input-field .unity-base-text-field__input,
+.bottom-composer-host #input-field .unity-text-input {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .input-field .unity-base-field:hover,
+.welcome-composer-host .input-field .unity-base-field:focus,
+.welcome-composer-host .input-field .unity-base-field:active,
+.welcome-composer-host .input-field .unity-base-field__input:hover,
+.welcome-composer-host .input-field .unity-base-field__input:focus,
+.welcome-composer-host .input-field .unity-base-field__input:active,
+.welcome-composer-host .input-field .unity-base-text-field__input:hover,
+.welcome-composer-host .input-field .unity-base-text-field__input:focus,
+.welcome-composer-host .input-field .unity-base-text-field__input:active,
+.welcome-composer-host .input-field .unity-text-input:hover,
+.welcome-composer-host .input-field .unity-text-input:focus,
+.welcome-composer-host .input-field .unity-text-input:active,
+.welcome-composer-host #input-field .unity-base-field:hover,
+.welcome-composer-host #input-field .unity-base-field:focus,
+.welcome-composer-host #input-field .unity-base-field:active,
+.welcome-composer-host #input-field .unity-base-field__input:hover,
+.welcome-composer-host #input-field .unity-base-field__input:focus,
+.welcome-composer-host #input-field .unity-base-field__input:active,
+.welcome-composer-host #input-field .unity-base-text-field__input:hover,
+.welcome-composer-host #input-field .unity-base-text-field__input:focus,
+.welcome-composer-host #input-field .unity-base-text-field__input:active,
+.welcome-composer-host #input-field .unity-text-input:hover,
+.welcome-composer-host #input-field .unity-text-input:focus,
+.welcome-composer-host #input-field .unity-text-input:active,
+.bottom-composer-host .input-field .unity-base-field:hover,
+.bottom-composer-host .input-field .unity-base-field:focus,
+.bottom-composer-host .input-field .unity-base-field:active,
+.bottom-composer-host .input-field .unity-base-field__input:hover,
+.bottom-composer-host .input-field .unity-base-field__input:focus,
+.bottom-composer-host .input-field .unity-base-field__input:active,
+.bottom-composer-host .input-field .unity-base-text-field__input:hover,
+.bottom-composer-host .input-field .unity-base-text-field__input:focus,
+.bottom-composer-host .input-field .unity-base-text-field__input:active,
+.bottom-composer-host .input-field .unity-text-input:hover,
+.bottom-composer-host .input-field .unity-text-input:focus,
+.bottom-composer-host .input-field .unity-text-input:active,
+.bottom-composer-host #input-field .unity-base-field:hover,
+.bottom-composer-host #input-field .unity-base-field:focus,
+.bottom-composer-host #input-field .unity-base-field:active,
+.bottom-composer-host #input-field .unity-base-field__input:hover,
+.bottom-composer-host #input-field .unity-base-field__input:focus,
+.bottom-composer-host #input-field .unity-base-field__input:active,
+.bottom-composer-host #input-field .unity-base-text-field__input:hover,
+.bottom-composer-host #input-field .unity-base-text-field__input:focus,
+.bottom-composer-host #input-field .unity-base-text-field__input:active,
+.bottom-composer-host #input-field .unity-text-input:hover,
+.bottom-composer-host #input-field .unity-text-input:focus,
+.bottom-composer-host #input-field .unity-text-input:active {
+    background-color: transparent;
+    border-width: 0;
+    border-color: transparent;
+}
+
+.welcome-composer-host .button-row,
+.bottom-composer-host .button-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.welcome-composer-host .config-row,
+.bottom-composer-host .config-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.welcome-composer-host .composer-icon-button,
+.bottom-composer-host .composer-icon-button {
+    background-color: transparent;
+    border-width: 0;
+    width: 28px;
+    height: 28px;
+    margin-right: 8px;
+    color: rgba(220, 220, 220, 0.76);
+}
+
+.welcome-composer-host .composer-icon-button:hover,
+.bottom-composer-host .composer-icon-button:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: transparent;
+}
+
+.welcome-composer-host .config-popup,
+.bottom-composer-host .config-popup {
+    margin-right: 8px;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.welcome-composer-host .config-popup .unity-base-popup-field__label,
+.bottom-composer-host .config-popup .unity-base-popup-field__label {
+    color: rgba(190, 190, 190, 0.68);
+}
+
+.welcome-composer-host .config-popup .unity-base-popup-field__popup,
+.welcome-composer-host .config-popup .unity-base-field__input,
+.welcome-composer-host .config-popup .unity-base-popup-field__input,
+.welcome-composer-host .config-popup .unity-popup-field__input,
+.bottom-composer-host .config-popup .unity-base-popup-field__popup,
+.bottom-composer-host .config-popup .unity-base-field__input,
+.bottom-composer-host .config-popup .unity-base-popup-field__input,
+.bottom-composer-host .config-popup .unity-popup-field__input {
+    background-color: transparent;
+    border-width: 0;
+}
+
+.welcome-composer-host .config-popup .unity-base-popup-field__popup,
+.bottom-composer-host .config-popup .unity-base-popup-field__popup {
+    min-width: 72px;
+}
+
+.welcome-composer-host .send-button,
+.bottom-composer-host .send-button {
+    background-color: rgba(245, 245, 245, 0.92);
+    color: #222222;
+    border-radius: 14px;
+    width: 28px;
+    height: 28px;
+    margin-left: 10px;
+    font-size: 17px;
+}
+
+.welcome-composer-host .send-button:hover,
+.bottom-composer-host .send-button:hover {
+    background-color: #FFFFFF;
+}
+
+.welcome-composer-host .stop-button,
+.bottom-composer-host .stop-button {
+    background-color: rgba(245, 245, 245, 0.92);
+    color: #222222;
+    border-radius: 14px;
+    width: 28px;
+    height: 28px;
+    margin-left: 10px;
+    font-size: 11px;
+}
+
+.welcome-composer-host .stop-button:hover,
+.bottom-composer-host .stop-button:hover {
+    background-color: #FFFFFF;
+}
+
+/* ── Attachments ── */
+.attachments-container {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.attachment-item {
+    flex-direction: row;
+    align-items: center;
+    min-height: 22px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-width: 1px;
+    border-color: rgba(255, 255, 255, 0.10);
+    border-radius: 4px;
+    padding: 2px 5px;
+    margin-right: 5px;
+    margin-bottom: 4px;
+}
+
+.sent-attachment {
+    align-self: flex-end;
+    margin: 2px 14px 6px 14px;
+    max-width: 86%;
+}
+
+.attachment-icon {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
+    margin-right: 5px;
+    flex-shrink: 0;
+}
+
+.attachment-name {
+    font-size: 11px;
+    color: rgba(220, 220, 220, 0.88);
+    margin-right: 3px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.remove-attachment {
+    background-color: transparent;
+    border-width: 0;
+    color: rgba(210, 210, 210, 0.62);
+    font-size: 12px;
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    margin-left: 2px;
+    -unity-text-align: middle-center;
+}
+
+.remove-attachment:hover {
+    color: rgba(255, 255, 255, 0.92);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Workspace validation banner ── */
+.workspace-banner {
+    flex-direction: column;
+    padding: 8px 10px;
+    background-color: rgba(211, 47, 47, 0.18);
+    border-bottom-width: 1px;
+    border-bottom-color: rgba(211, 47, 47, 0.45);
+}
+
+.workspace-banner-label {
+    font-size: 11px;
+    color: #EF9A9A;
+    white-space: normal;
+}
+
+.workspace-banner-buttons {
+    flex-direction: row;
+    margin-top: 6px;
+}
+
+.workspace-banner-action {
+    font-size: 11px;
+    padding: 2px 8px;
+    margin-right: 6px;
+    border-radius: 3px;
+}
