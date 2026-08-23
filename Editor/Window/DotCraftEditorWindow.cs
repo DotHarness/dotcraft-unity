@@ -30,12 +30,12 @@ namespace DotCraft.Editor.Window
         private const string FixConsoleErrorsPrompt =
             "Inspect the current Unity Console logs and project context, then help me fix the errors.\n\n" +
             "Please identify the likely root cause, point to the relevant scripts/assets when possible, " +
-            "and make the smallest safe code or configuration change needed to resolve the issue. " +
+            "and make the smallest necessary code or configuration change needed to resolve the issue. " +
             "Use DotCraft's Unity console and project tools when they are helpful.";
         private const string OptimizePerformancePrompt =
             "Analyze this Unity project for practical performance improvements.\n\n" +
             "Focus first on scene object structure, scripts that may run every frame, allocations/GC, asset usage, " +
-            "rendering cost, physics, and any obvious Editor console warnings. Prioritize concrete changes I can apply safely.";
+            "rendering cost, physics, and any obvious Editor console warnings. Prioritize concrete changes I can apply directly.";
         private const string ScriptHelpPrompt =
             "I need help writing or improving a Unity C# script.\n\n" +
             "Goal:\n- Describe the behavior I want here.\n\n" +

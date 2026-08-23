@@ -1,6 +1,6 @@
 ---
 name: dotcraft-unity
-description: Use when dotcraft-unity MCP or unity_execute_csharp is available, or when the user asks to inspect, automate, capture, or debug Unity Editor state, scenes, assets, Console logs, or GameView output. Provides safe background-first Unity Editor automation rules.
+description: Use when dotcraft-unity MCP or unity_execute_csharp is available, or when the user asks to inspect, automate, capture, or debug Unity Editor state, scenes, assets, Console logs, or GameView output. Provides background-first Unity Editor automation rules.
 ---
 
 # DotCraft Unity
@@ -36,7 +36,7 @@ Return concise summaries from snippets. Include paths, object names, counts, and
 
 ## Avoid By Default
 
-Do not call these APIs unless the user explicitly asked for the visible effect or there is no background-safe alternative and you explain it first:
+Do not call these APIs unless the user explicitly asked for the visible effect or there is no background alternative and you explain it first:
 
 - `EditorWindow.Show()`, `ShowUtility()`, `Focus()`, `GetWindow(..., focus: true)`, or any equivalent foreground activation.
 - `EditorUtility.DisplayDialog`, modal prompts, object pickers, menu execution, or other UI that requires user interaction.
