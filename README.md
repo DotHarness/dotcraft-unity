@@ -15,14 +15,14 @@ Chat with an agent inside Unity, or expose Unity tools to DotCraft, Claude Code,
 | Workflow | Use this when | Entry point |
 |----------|---------------|-------------|
 | In-Unity Agent Chat | You want to chat with DotCraft or another ACP agent inside Unity | **Tools → DotCraft → AI Assistant** |
-| MCP Tool Gateway | You want external MCP clients such as Claude Code, Codex, or Cursor to call Unity tools | **Tools → DotCraft → MCP Gateway Setup** |
+| MCP Gateway | You want external MCP clients such as Claude Code, Codex, or Cursor to call Unity tools | **Tools → DotCraft → MCP Gateway Setup** |
 | C# Automation | You want an agent to perform batch operations in Unity | `unity_execute_csharp` |
 | Custom Tools | You want to expose project-specific Unity tools | `[AgentTool]` |
 
-In-editor ACP chat and MCP Tool Gateway are separate paths.
+In-editor ACP chat and the MCP Gateway are separate paths.
 
 - In-editor chat starts an ACP agent process and talks to it inside Unity.
-- MCP Tool Gateway starts a local Unity tool endpoint for external agents.
+- The MCP Gateway gives external agents a stable stdio MCP server and forwards calls to the current Unity Editor process.
 
 ## Quick Start
 
@@ -50,9 +50,9 @@ Minimum Unity version: **2021.3**, recommended version: **Unity 6**.
 ![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
 
 1. Open the Unity project.
-2. Enable **Local Tool Gateway** in **Project Settings → DotCraft**.
+2. Enable **Unity Tool Gateway** in **Project Settings → DotCraft**.
 3. Run **Tools → DotCraft → MCP Gateway Setup**.
-4. Choose your client: DotCraft, Claude Code, Codex, or Cursor.
+4. Choose your client: Claude Code, Codex, or Cursor.
 5. Start your coding agent from the project root.
 
 ### Option C: Add project-specific tools
@@ -60,21 +60,17 @@ Minimum Unity version: **2021.3**, recommended version: **Unity 6**.
 1. Create a static Editor method marked with `[AgentTool]`.
 2. Let Unity compile.
 3. Enable the tool in **Project Settings → DotCraft → Unity Tools**.
-4. Use it from DotCraft or any MCP client connected to the gateway.
+4. Use it from DotCraft or any MCP client connected through the MCP Gateway.
 
-## MCP Tool Gateway
+## MCP Gateway
 
 ![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
 
-dotcraft-unity exposes a local MCP Tool Gateway for external coding agents. While Unity Editor is running, MCP clients can connect to:
+dotcraft-unity installs a versioned stdio MCP Gateway for external coding agents. The MCP host owns the Gateway process, while Unity runs a private authenticated loopback Unity Tool Gateway. Because those lifetimes are separate, restarting Unity does not end the MCP session: calls fail with `UnityUnavailable` while Unity is offline and automatically reach the new Unity Tool Gateway after Unity starts again.
 
-```text
-http://127.0.0.1:39777/dotcraft/mcp
-```
+The setup window downloads the package's exact Gateway version from its GitHub Release, verifies it, and writes command/args configuration for Claude Code, Codex, or Cursor. Unity Tool Gateway endpoints and tokens remain private project state and are not copied into client configuration.
 
-Currently supports DotCraft, Claude Code, Codex, and Cursor.
-
-> The MCP endpoint uses sessionful Streamable HTTP for protocol version `2025-11-25`. `initialize` returns `MCP-Session-Id`; later POST and DELETE requests must send that header. Stale or expired sessions return HTTP `404`, which tells compliant clients to reinitialize. `GET /dotcraft/mcp` returns HTTP `405` because the gateway does not expose an SSE stream.
+See [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md) for the lifecycle, security, discovery, and error contracts.
 
 ## Built-in tools
 
@@ -88,7 +84,7 @@ Use `unity_execute_csharp` to read or modify scene state, selected objects, Cons
 
 ## Custom tools
 
-Unity Editor code can expose custom project tools by marking static methods with `AgentToolAttribute`. New custom tools are discovered in **Edit → Project Settings → DotCraft → Unity Tools**, default to disabled, and can be used from DotCraft or MCP clients after they are enabled.
+Unity Editor code can expose custom project tools by marking static methods with `AgentToolAttribute`. New custom tools are discovered in **Edit → Project Settings → DotCraft → Unity Tools**, default to disabled, and can be used from DotCraft or MCP clients after they are enabled. The Gateway publishes tool-list changes without requiring a new MCP host session.
 
 ```csharp
 using System.ComponentModel;
@@ -114,7 +110,7 @@ dotcraft-unity supports additional DotCraft features to improve development effi
 
 ### Plugin Marketplace
 
-The Unity package and the DotCraft plugin work together. The plugin installs the Unity automation skill into the current DotCraft workspace. Configure the MCP Tool Gateway separately in Unity so DotCraft can call the tools covered by the skill.
+The Unity package and the DotCraft plugin work together. The plugin installs the Unity automation skill into the current DotCraft workspace. Configure the MCP Gateway separately in Unity so DotCraft can call the tools covered by the skill.
 
 1. Open **Plugins** in DotCraft.
 2. Open the menu beside **Create**, then select **Add marketplace**.

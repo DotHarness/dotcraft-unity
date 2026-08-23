@@ -13,37 +13,27 @@ using Newtonsoft.Json.Linq;
 
 namespace DotCraft.Editor.ToolGateway
 {
-    internal sealed class UnityToolGateway
+    internal sealed class UnityToolRegistry
     {
         private const string ExecuteCSharpToolName = "unity_execute_csharp";
 
-        private static readonly Lazy<UnityToolGateway> LazyInstance =
-            new(() => new UnityToolGateway());
+        private static readonly Lazy<UnityToolRegistry> LazyInstance =
+            new(() => new UnityToolRegistry());
 
-        private UnityToolGateway()
+        private UnityToolRegistry()
         {
         }
 
-        public static UnityToolGateway Instance => LazyInstance.Value;
+        public static UnityToolRegistry Instance => LazyInstance.Value;
 
-        public IReadOnlyList<ToolGatewayToolSpec> ListTools()
+        public IReadOnlyList<UnityToolSpec> ListTools()
         {
             return BuildRegistry()
                 .Select(registration => registration.Spec)
                 .ToList();
         }
 
-        public bool HasTool(string name)
-        {
-            var normalizedName = NormalizeToolName(name);
-            if (string.IsNullOrWhiteSpace(normalizedName))
-                return false;
-
-            return BuildRegistry()
-                .Any(registration => string.Equals(registration.Spec.Name, normalizedName, StringComparison.Ordinal));
-        }
-
-        public async Task<ToolGatewayResult> CallAsync(string name, JToken arguments, CancellationToken ct)
+        public async Task<UnityToolResult> CallAsync(string name, JToken arguments, CancellationToken ct)
         {
             var normalizedName = NormalizeToolName(name);
             var stopwatch = Stopwatch.StartNew();
@@ -53,10 +43,10 @@ namespace DotCraft.Editor.ToolGateway
             if (string.IsNullOrWhiteSpace(normalizedName)
                 || !registry.TryGetValue(normalizedName, out var registration))
             {
-                return ToolGatewayResult.Failed(
+                return UnityToolResult.Failed(
                     normalizedName ?? string.Empty,
                     "ToolNotFound",
-                    $"Unity Tool Gateway does not expose enabled tool '{name}'.",
+                    $"Unity Tool Registry does not expose enabled tool '{name}'.",
                     stopwatch.ElapsedMilliseconds);
             }
 
@@ -72,7 +62,7 @@ namespace DotCraft.Editor.ToolGateway
             }
             catch (Exception ex)
             {
-                return ToolGatewayResult.Failed(
+                return UnityToolResult.Failed(
                     registration.Spec.Name,
                     "GatewayException",
                     $"{ex.GetType().Name}: {ex.Message}",
@@ -80,10 +70,10 @@ namespace DotCraft.Editor.ToolGateway
             }
         }
 
-        private static IReadOnlyList<GatewayToolRegistration> BuildRegistry()
+        private static IReadOnlyList<ToolRegistration> BuildRegistry()
         {
             var settings = DotCraftSettings.Instance;
-            var registrations = new List<GatewayToolRegistration>();
+            var registrations = new List<ToolRegistration>();
             var reservedNames = new HashSet<string>(StringComparer.Ordinal);
 
             if (settings.EnableCSharpAutomation)
@@ -112,14 +102,14 @@ namespace DotCraft.Editor.ToolGateway
         }
 
         private static void AddExecuteCSharpRegistration(
-            ICollection<GatewayToolRegistration> registrations,
+            ICollection<ToolRegistration> registrations,
             ISet<string> reservedNames)
         {
             if (!reservedNames.Add(ExecuteCSharpToolName))
                 return;
 
-            registrations.Add(new GatewayToolRegistration(
-                new ToolGatewayToolSpec
+            registrations.Add(new ToolRegistration(
+                new UnityToolSpec
                 {
                     Name = ExecuteCSharpToolName,
                     Description = "Compile and execute C# in the running Unity Editor.",
@@ -145,15 +135,15 @@ namespace DotCraft.Editor.ToolGateway
         }
 
         private static void AddRuntimeToolRegistration(
-            ICollection<GatewayToolRegistration> registrations,
+            ICollection<ToolRegistration> registrations,
             ISet<string> reservedNames,
             RuntimeToolDefinition tool)
         {
             if (!reservedNames.Add(tool.Descriptor.Name))
                 return;
 
-            registrations.Add(new GatewayToolRegistration(
-                new ToolGatewayToolSpec
+            registrations.Add(new ToolRegistration(
+                new UnityToolSpec
                 {
                     Name = tool.Descriptor.Name,
                     Description = tool.Descriptor.Description,
@@ -164,7 +154,7 @@ namespace DotCraft.Editor.ToolGateway
                 (args, ct, stopwatch) => InvokeRuntimeToolAsync(tool, args, ct, stopwatch)));
         }
 
-        private static async Task<ToolGatewayResult> InvokeExecuteCSharpAsync(
+        private static async Task<UnityToolResult> InvokeExecuteCSharpAsync(
             JToken arguments,
             CancellationToken ct,
             Stopwatch stopwatch)
@@ -174,7 +164,7 @@ namespace DotCraft.Editor.ToolGateway
             var mode = args.Value<string>("mode") ?? UnityExecutionModes.Editor;
             if (string.IsNullOrWhiteSpace(code))
             {
-                return ToolGatewayResult.Failed(
+                return UnityToolResult.Failed(
                     ExecuteCSharpToolName,
                     "InvalidArguments",
                     "unity_execute_csharp requires a non-empty 'code' argument.",
@@ -189,7 +179,7 @@ namespace DotCraft.Editor.ToolGateway
                 stopwatch.ElapsedMilliseconds));
         }
 
-        private static async Task<ToolGatewayResult> InvokeRuntimeToolAsync(
+        private static async Task<UnityToolResult> InvokeRuntimeToolAsync(
             RuntimeToolDefinition tool,
             JToken arguments,
             CancellationToken ct,
@@ -208,7 +198,7 @@ namespace DotCraft.Editor.ToolGateway
             }
             catch (Exception ex) when (RuntimeToolOutcome.IsArgumentException(ex))
             {
-                return ToolGatewayResult.Failed(
+                return UnityToolResult.Failed(
                     tool.Descriptor.Name,
                     "InvalidArguments",
                     $"{ex.GetType().Name}: {ex.Message}",
@@ -216,7 +206,7 @@ namespace DotCraft.Editor.ToolGateway
             }
             catch (Exception ex)
             {
-                return ToolGatewayResult.Failed(
+                return UnityToolResult.Failed(
                     tool.Descriptor.Name,
                     "ToolExecutionException",
                     $"{ex.GetType().Name}: {ex.Message}",
@@ -264,15 +254,15 @@ namespace DotCraft.Editor.ToolGateway
                 : trimmed;
         }
 
-        private static ToolGatewayResult ProjectOutcome(RuntimeToolOutcome outcome)
+        private static UnityToolResult ProjectOutcome(RuntimeToolOutcome outcome)
         {
             return outcome.Success
-                ? ToolGatewayResult.Ok(
+                ? UnityToolResult.Ok(
                     outcome.Name,
                     outcome.StructuredResult,
                     outcome.Text,
                     outcome.DurationMs)
-                : ToolGatewayResult.Failed(
+                : UnityToolResult.Failed(
                     outcome.Name,
                     outcome.ErrorCode,
                     outcome.ErrorMessage,
@@ -280,21 +270,21 @@ namespace DotCraft.Editor.ToolGateway
                     outcome.StructuredResult);
         }
 
-        private sealed class GatewayToolRegistration
+        private sealed class ToolRegistration
         {
-            private readonly Func<JToken, CancellationToken, Stopwatch, Task<ToolGatewayResult>> _invoke;
+            private readonly Func<JToken, CancellationToken, Stopwatch, Task<UnityToolResult>> _invoke;
 
-            public GatewayToolRegistration(
-                ToolGatewayToolSpec spec,
-                Func<JToken, CancellationToken, Stopwatch, Task<ToolGatewayResult>> invoke)
+            public ToolRegistration(
+                UnityToolSpec spec,
+                Func<JToken, CancellationToken, Stopwatch, Task<UnityToolResult>> invoke)
             {
                 Spec = spec;
                 _invoke = invoke;
             }
 
-            public ToolGatewayToolSpec Spec { get; }
+            public UnityToolSpec Spec { get; }
 
-            public Task<ToolGatewayResult> InvokeAsync(
+            public Task<UnityToolResult> InvokeAsync(
                 JToken arguments,
                 CancellationToken ct,
                 Stopwatch stopwatch)

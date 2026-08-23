@@ -7,12 +7,12 @@ using UnityEngine.UIElements;
 namespace DotCraft.Editor.ToolGateway
 {
     /// <summary>
-    /// Injects a compact MCP Gateway indicator into Unity's bottom-right status bar area.
+    /// Injects a compact Unity Tool Gateway indicator into Unity's bottom-right status bar area.
     /// </summary>
     [InitializeOnLoad]
-    internal static class McpGatewayStatusBarIndicator
+    internal static class ToolGatewayStatusBarIndicator
     {
-        internal const string IndicatorName = "dotcraft-mcp-gateway-status-indicator";
+        internal const string IndicatorName = "dotcraft-tool-gateway-status-indicator";
 
         private const float StatusBarRightOffset = 76f;
         private const float IndicatorWidth = 30f;
@@ -36,14 +36,14 @@ namespace DotCraft.Editor.ToolGateway
         private static IVisualElementScheduledItem s_layoutRefreshSchedule;
         private static Texture2D s_logo;
         private static GUIStyle s_fallbackLabelStyle;
-        private static McpGatewayStatusSummary s_summary = McpGatewayStatusSummary.Empty;
+        private static ToolGatewayStatusSummary s_summary = ToolGatewayStatusSummary.Empty;
         private static bool s_serviceEventsRegistered;
         private static bool s_loggedReflectionFailure;
         private static bool s_immediateInjectScheduled;
         private static bool s_retryRegistered;
         private static double s_nextRetryTime;
 
-        static McpGatewayStatusBarIndicator()
+        static ToolGatewayStatusBarIndicator()
         {
             ScheduleInject(immediate: true);
         }
@@ -121,7 +121,7 @@ namespace DotCraft.Editor.ToolGateway
             if (s_serviceEventsRegistered)
                 return;
 
-            McpGatewayRuntime.Instance.StatusChanged += OnStatusChanged;
+            UnityToolGatewayRuntime.Instance.StatusChanged += OnStatusChanged;
             s_serviceEventsRegistered = true;
         }
 
@@ -241,10 +241,12 @@ namespace DotCraft.Editor.ToolGateway
             }
 
             RefreshLayout();
-            var service = McpGatewayRuntime.Instance;
-            s_summary = McpGatewayStatusSummary.FromState(
+            var service = UnityToolGatewayRuntime.Instance;
+            s_summary = ToolGatewayStatusSummary.FromState(
                 service.IsRunning,
-                service.Endpoint,
+                DotCraftPackageInfo.Version,
+                service.ManifestRevision,
+                service.ToolCount,
                 service.LastError);
             s_indicator.style.display = s_summary.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
             s_indicator.tooltip = s_summary.Tooltip;
@@ -406,7 +408,7 @@ namespace DotCraft.Editor.ToolGateway
             var evt = Event.current;
             if (evt.type == EventType.MouseDown && totalRect.Contains(evt.mousePosition))
             {
-                McpGatewayStatusBarActions.OpenStatusPopup(totalRect, s_summary);
+                ToolGatewayStatusBarActions.OpenStatusPopup(totalRect, s_summary);
                 evt.Use();
             }
 
@@ -456,7 +458,7 @@ namespace DotCraft.Editor.ToolGateway
                 return;
 
             s_loggedReflectionFailure = true;
-            Debug.Log("[DotCraft] MCP Gateway status bar indicator could not find UnityEditor.AppStatusBar; continuing without the status bar logo.");
+            Debug.Log("[DotCraft] Unity Tool Gateway status bar indicator could not find UnityEditor.AppStatusBar; continuing without the status bar logo.");
         }
     }
 }

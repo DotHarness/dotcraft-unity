@@ -1,0 +1,36 @@
+name: Validate MCP Gateway
+
+on:
+  pull_request:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  gateway:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Restore Gateway
+        run: dotnet restore "Tools~/McpGateway/tests/DotCraft.Unity.McpGateway.Tests.csproj"
+      - name: Test Gateway and MCP protocol
+        run: dotnet test "Tools~/McpGateway/tests/DotCraft.Unity.McpGateway.Tests.csproj" -c Release --no-restore
+      - name: Publish source Gateway
+        run: >-
+          dotnet publish "Tools~/McpGateway/src/DotCraft.Unity.McpGateway.csproj"
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true -p:PublishTrimmed=false
+          -o artifacts/gateway-source
+      - name: Verify published Gateway
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $publishedExe = 'artifacts/gateway-source/dotcraft-unity-mcp.exe'
+
+          $version = (& $publishedExe version --json | ConvertFrom-Json)
+          if ($version.version -ne $package.version) { throw 'Gateway version does not match package.json.' }
+          if ($version.rid -ne 'win-x64') { throw 'Gateway reports an unexpected RID.' }
+          if ($version.mcpSdkVersion -ne '2.2.0') { throw 'Gateway reports an unexpected MCP SDK version.' }

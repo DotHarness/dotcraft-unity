@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace DotCraft.Editor.ToolGateway
 {
-    internal static class McpGatewayStatusBarActions
+    internal static class ToolGatewayStatusBarActions
     {
         internal static Action OpenAssistantOverride { get; set; }
 
@@ -13,11 +13,9 @@ namespace DotCraft.Editor.ToolGateway
 
         internal static Action OpenSetupOverride { get; set; }
 
-        internal static Action<string> CopyMcpUrlOverride { get; set; }
+        internal static Action<Rect, ToolGatewayStatusSummary> OpenStatusPopupOverride { get; set; }
 
-        internal static Action<Rect, McpGatewayStatusSummary> OpenStatusPopupOverride { get; set; }
-
-        internal static void OpenStatusPopup(Rect activatorRect, McpGatewayStatusSummary summary)
+        internal static void OpenStatusPopup(Rect activatorRect, ToolGatewayStatusSummary summary)
         {
             if (OpenStatusPopupOverride != null)
             {
@@ -26,7 +24,7 @@ namespace DotCraft.Editor.ToolGateway
             }
 
             var screenRect = GUIUtility.GUIToScreenRect(activatorRect);
-            McpGatewayStatusDropdown.Show(screenRect, summary ?? McpGatewayStatusSummary.Empty);
+            ToolGatewayStatusDropdown.Show(screenRect, summary ?? ToolGatewayStatusSummary.Empty);
         }
 
         internal static void OpenAssistant()
@@ -60,17 +58,6 @@ namespace DotCraft.Editor.ToolGateway
             }
 
             McpGatewaySetupWindow.ShowWindow();
-        }
-
-        internal static void CopyMcpUrl(string url)
-        {
-            if (CopyMcpUrlOverride != null)
-            {
-                CopyMcpUrlOverride(url);
-                return;
-            }
-
-            EditorGUIUtility.systemCopyBuffer = url ?? string.Empty;
         }
     }
 }

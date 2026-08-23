@@ -1,5 +1,5 @@
 {
-    "name": "com.dotcraft.unityclient",
+    "name": "com.dotcraft.unity",
     "version": "0.2.2",
     "displayName": "DotCraft Unity",
     "description": "Agent-native Unity Editor integration with in-editor chat and MCP gateway.",

@@ -35,7 +35,8 @@ namespace DotCraft.Editor.McpSetup
             var builder = new StringBuilder();
             builder.AppendLine(BeginMarker);
             builder.AppendLine(TableHeader);
-            builder.AppendLine($"url = {Quote(options.Endpoint)}");
+            builder.AppendLine($"command = {Quote(options.Command)}");
+            builder.AppendLine($"args = [{Quote("--project-root")}, {Quote(options.ProjectRoot)}]");
             builder.AppendLine("enabled = true");
             builder.AppendLine("tool_timeout_sec = 60");
             builder.AppendLine("default_tools_approval_mode = \"prompt\"");
@@ -46,8 +47,7 @@ namespace DotCraft.Editor.McpSetup
         private static string ReplaceManagedBlock(string before, string block, out bool replaced)
         {
             replaced = false;
-            if (TryFindMarkedBlock(before, out var start, out var end)
-                || TryFindPlainTableBlock(before, out start, out end))
+            if (TryFindMarkedBlock(before, out var start, out var end))
             {
                 replaced = true;
                 return before.Substring(0, start)
@@ -67,8 +67,7 @@ namespace DotCraft.Editor.McpSetup
         private static string RemoveManagedBlock(string before, out bool removed)
         {
             removed = false;
-            if (TryFindMarkedBlock(before, out var start, out var end)
-                || TryFindPlainTableBlock(before, out start, out end))
+            if (TryFindMarkedBlock(before, out var start, out var end))
             {
                 removed = true;
                 return before.Substring(0, start) + before.Substring(end);
@@ -96,66 +95,6 @@ namespace DotCraft.Editor.McpSetup
             end = markerEnd + EndMarker.Length;
             end = ConsumeLineEnding(text, end);
             return true;
-        }
-
-        private static bool TryFindPlainTableBlock(string text, out int start, out int end)
-        {
-            start = FindLineStartingWith(text, TableHeader);
-            if (start < 0)
-            {
-                end = -1;
-                return false;
-            }
-
-            end = text.Length;
-            var index = ConsumeLineEnding(text, start + TableHeader.Length);
-            while (index < text.Length)
-            {
-                var lineStart = index;
-                var lineEnd = text.IndexOf('\n', lineStart);
-                if (lineEnd < 0)
-                    lineEnd = text.Length;
-
-                var line = text.Substring(lineStart, lineEnd - lineStart).Trim();
-                if (IsUnrelatedTableHeader(line))
-                {
-                    end = lineStart;
-                    break;
-                }
-
-                index = lineEnd < text.Length ? lineEnd + 1 : text.Length;
-            }
-
-            return true;
-        }
-
-        private static bool IsUnrelatedTableHeader(string line)
-        {
-            if (!line.StartsWith("[", StringComparison.Ordinal))
-                return false;
-
-            return !string.Equals(line, TableHeader, StringComparison.Ordinal)
-                   && !line.StartsWith("[mcp_servers.dotcraft_unity.", StringComparison.Ordinal);
-        }
-
-        private static int FindLineStartingWith(string text, string value)
-        {
-            var index = 0;
-            while (index < text.Length)
-            {
-                var lineStart = index;
-                var lineEnd = text.IndexOf('\n', lineStart);
-                if (lineEnd < 0)
-                    lineEnd = text.Length;
-
-                var line = text.Substring(lineStart, lineEnd - lineStart).Trim();
-                if (string.Equals(line, value, StringComparison.Ordinal))
-                    return lineStart;
-
-                index = lineEnd < text.Length ? lineEnd + 1 : text.Length;
-            }
-
-            return -1;
         }
 
         private static int ConsumeLineEnding(string text, int index)

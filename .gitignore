@@ -78,3 +78,9 @@ crashlytics-build.properties
 !/.craft/plugins/
 /.craft/plugins/*
 !/.craft/plugins/marketplace.json
+Tools~/McpGateway/src/bin/
+Tools~/McpGateway/src/obj/
+Tools~/McpGateway/tests/bin/
+Tools~/McpGateway/tests/obj/
+!Tools~/McpGateway/src/DotCraft.Unity.McpGateway.csproj
+!Tools~/McpGateway/tests/DotCraft.Unity.McpGateway.Tests.csproj

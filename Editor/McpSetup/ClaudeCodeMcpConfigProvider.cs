@@ -21,8 +21,9 @@ namespace DotCraft.Editor.McpSetup
             var before = ReadExisting(path);
             var serverConfig = new JObject
             {
-                ["type"] = "http",
-                ["url"] = options.Endpoint
+                ["type"] = "stdio",
+                ["command"] = options.Command,
+                ["args"] = new JArray("--project-root", options.ProjectRoot)
             };
             return JsonConfigPatcher.PreviewInstall(path, before, McpInstallOptions.ServerName, serverConfig);
         }

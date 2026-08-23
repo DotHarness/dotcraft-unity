@@ -1,0 +1,11 @@
+DotCraft Unity MCP Gateway includes the following third-party software:
+
+ModelContextProtocol 2.2.0
+Copyright Model Context Protocol, a Series of LF Projects, LLC
+Licensed under the Apache License, Version 2.0.
+https://github.com/modelcontextprotocol/csharp-sdk
+
+Microsoft.Extensions libraries
+Copyright .NET Foundation and Contributors
+Licensed under the MIT License.
+https://github.com/dotnet/runtime

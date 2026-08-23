@@ -17,9 +17,12 @@ namespace DotCraft.Editor.McpSetup
         private VisualElement _statusDot;
         private Label _statusText;
         private Label _statusSub;
+        private Label _gatewayValue;
+        private Label _manifestValue;
         private Label _toolsValue;
         private VisualElement _gatewayBanner;
         private Label _gatewayBannerText;
+        private string _gatewayOperationError;
 
         public static void ShowWindow()
         {
@@ -49,8 +52,8 @@ namespace DotCraft.Editor.McpSetup
             root.Add(scroll);
 
             content.Add(GatewayPanelView.BrandHeader(
-                "MCP Tool Gateway",
-                "Connect external MCP clients to Unity C# automation and enabled custom tools while this Editor is running."));
+                "MCP Gateway",
+                "Connect MCP clients through a persistent stdio MCP Gateway that automatically reconnects to this Unity project."));
 
             content.Add(BuildGatewayCard());
             content.Add(BuildClientsSection());
@@ -71,7 +74,7 @@ namespace DotCraft.Editor.McpSetup
             _statusDot.AddToClassList("gw-dot");
             statusRow.Add(_statusDot);
 
-            _statusText = new Label("Gateway status");
+            _statusText = new Label("Unity Tool Gateway status");
             _statusText.AddToClassList("gw-status-text");
             statusRow.Add(_statusText);
 
@@ -80,17 +83,6 @@ namespace DotCraft.Editor.McpSetup
             statusRow.Add(_statusSub);
 
             card.Add(statusRow);
-
-            var endpoint = new VisualElement();
-            endpoint.AddToClassList("gw-endpoint");
-            var endpointUrl = new Label(McpGatewaySetupDefaults.Endpoint);
-            endpointUrl.AddToClassList("gw-endpoint-url");
-            endpoint.Add(endpointUrl);
-            var copyButton = GatewayPanelView.CopyIconButton(
-                "Copy MCP endpoint",
-                () => GatewayPanelView.CopyToClipboard(McpGatewaySetupDefaults.Endpoint));
-            endpoint.Add(copyButton);
-            card.Add(endpoint);
 
             var rootRow = GatewayPanelView.KeyValueRow("Project Root", McpGatewaySetupDefaults.ProjectRoot, out var rootValue);
             rootValue.tooltip = McpGatewaySetupDefaults.ProjectRoot;
@@ -105,6 +97,11 @@ namespace DotCraft.Editor.McpSetup
             rootRow.Add(revealButton);
             card.Add(rootRow);
 
+            card.Add(GatewayPanelView.KeyValueRow(
+                "Package / MCP Gateway",
+                string.Empty,
+                out _gatewayValue));
+            card.Add(GatewayPanelView.KeyValueRow("Tool Manifest", string.Empty, out _manifestValue));
             card.Add(GatewayPanelView.KeyValueRow("Enabled Tools", string.Empty, out _toolsValue));
 
             _gatewayBanner = GatewayPanelView.Banner("gw-banner--warn", out _gatewayBannerText);
@@ -112,7 +109,8 @@ namespace DotCraft.Editor.McpSetup
 
             var buttons = new VisualElement();
             buttons.AddToClassList("gw-btn-row");
-            buttons.Add(GatewayPanelView.Button("Enable / Restart Gateway", EnableAndRestartGateway, "gw-btn--primary"));
+            buttons.Add(GatewayPanelView.Button("Install MCP Gateway", InstallGateway));
+            buttons.Add(GatewayPanelView.Button("Enable / Restart Unity Tool Gateway", EnableAndRestartToolGateway, "gw-btn--primary"));
             card.Add(buttons);
 
             return card;
@@ -175,8 +173,17 @@ namespace DotCraft.Editor.McpSetup
             return card;
         }
 
-        private void InstallClient(ClientCardView view)
+        private async void InstallClient(ClientCardView view)
         {
+            var gatewayResult = await McpGatewayInstaller.InstallAsync();
+            _gatewayOperationError = gatewayResult.Success ? null : gatewayResult.Error;
+            if (!gatewayResult.Success)
+            {
+                ShowClientResult(view, gatewayResult);
+                RefreshGatewayStatus();
+                return;
+            }
+
             var result = view.Provider.Install(McpGatewaySetupDefaults.ProjectRoot, BuildOptions());
             AgentSkillInstallResult skillResult = null;
             if (result.Success)
@@ -253,18 +260,27 @@ namespace DotCraft.Editor.McpSetup
             if (_statusDot == null)
                 return;
 
-            var service = McpGatewayRuntime.Instance;
+            var service = UnityToolGatewayRuntime.Instance;
             var running = service.IsRunning;
+            var gateway = McpGatewayInstaller.GetStatus();
 
             _statusDot.EnableInClassList("gw-dot--on", running);
             _statusDot.EnableInClassList("gw-dot--off", !running);
-            _statusText.text = running ? "Gateway running" : "Gateway stopped";
-            _statusSub.text = running ? "Listening on localhost" : "Enable it to accept MCP clients";
+            _statusText.text = running ? "Unity Tool Gateway running" : "Unity Tool Gateway stopped";
+            _statusSub.text = running
+                ? "MCP Gateway calls can reach this Editor"
+                : "MCP clients stay connected while Unity is unavailable";
 
-            var toolCount = UnityToolGateway.Instance.ListTools().Count;
-            _toolsValue.text = $"{toolCount} tool(s) exposed";
+            _gatewayValue.text = gateway.IsInstalled
+                ? $"{DotCraftPackageInfo.Version} / {gateway.Version} installed"
+                : $"{DotCraftPackageInfo.Version} / not installed";
+            _gatewayValue.tooltip = gateway.ExecutablePath;
+            _manifestValue.text = ShortRevision(service.ManifestRevision);
+            _toolsValue.text = $"{service.ToolCount} tool(s) exposed";
 
-            var error = service.LastError;
+            var error = !string.IsNullOrWhiteSpace(_gatewayOperationError)
+                ? _gatewayOperationError
+                : string.IsNullOrWhiteSpace(gateway.Error) ? service.LastError : gateway.Error;
             GatewayPanelView.SetBanner(
                 _gatewayBanner,
                 _gatewayBannerText,
@@ -272,13 +288,27 @@ namespace DotCraft.Editor.McpSetup
                 "gw-banner--warn");
         }
 
-        private void EnableAndRestartGateway()
+        private async void InstallGateway()
+        {
+            var result = await McpGatewayInstaller.InstallAsync();
+            _gatewayOperationError = result.Success ? null : result.Error;
+            RefreshGatewayStatus();
+        }
+
+        private void EnableAndRestartToolGateway()
         {
             var settings = DotCraftSettings.Instance;
-            settings.EnableMcpGateway = true;
+            settings.EnableToolGateway = true;
             settings.Save();
-            McpGatewayRuntime.Instance.Restart();
+            UnityToolGatewayRuntime.Instance.Restart();
             RefreshGatewayStatus();
+        }
+
+        private static string ShortRevision(string revision)
+        {
+            if (string.IsNullOrWhiteSpace(revision))
+                return "Unavailable";
+            return revision.Length <= 24 ? revision : revision.Substring(0, 24) + "…";
         }
 
         private static McpInstallOptions BuildOptions() =>

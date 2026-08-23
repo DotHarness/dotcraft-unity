@@ -54,7 +54,7 @@ namespace DotCraft.Editor.Settings
     }
 
     /// <summary>
-    /// Configuration settings for DotCraft Unity Client.
+    /// Configuration settings for DotCraft Unity.
     /// Stored in UserSettings/DotCraftSettings.json (per-user, not in version control).
     /// </summary>
     [Serializable]
@@ -170,10 +170,10 @@ namespace DotCraft.Editor.Settings
         public bool EnableCSharpAutomation { get; set; } = true;
 
         /// <summary>
-        /// Starts the localhost standard MCP Tool Gateway.
+        /// Starts the authenticated localhost Unity Tool Gateway.
         /// </summary>
-        [JsonProperty("enableMcpGateway")]
-        public bool EnableMcpGateway { get; set; } = true;
+        [JsonProperty("enableToolGateway")]
+        public bool EnableToolGateway { get; set; } = true;
 
         /// <summary>
         /// Per-tool enablement for attribute-discovered DotCraft runtime tools.
@@ -287,6 +287,7 @@ namespace DotCraft.Editor.Settings
                 }
 
                 File.WriteAllText(SettingsPath, ToJson());
+                Saved?.Invoke();
             }
             catch (Exception ex)
             {
@@ -405,9 +406,11 @@ namespace DotCraft.Editor.Settings
             RequestTimeoutSeconds = 30;
             MaxHistoryMessages = 1000;
             EnableCSharpAutomation = true;
-            EnableMcpGateway = true;
+            EnableToolGateway = true;
             DynamicToolEnabledById = new Dictionary<string, bool>();
             McpServers = new List<McpServerEntry>();
         }
+
+        internal static event Action Saved;
     }
 }
