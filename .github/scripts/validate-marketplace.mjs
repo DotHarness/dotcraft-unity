@@ -86,7 +86,7 @@ let pluginRoot = null
 if (isObject(entry)) {
   requireEqual(entry.name, 'dotcraft-unity', 'plugin entry name')
   requireEqual(entry.source?.source, 'local', 'plugin source.source')
-  requireEqual(entry.source?.path, './Plugin~', 'plugin source.path')
+  requireEqual(entry.source?.path, './Plugins~/dotcraft-unity', 'plugin source.path')
   requireEqual(entry.policy?.installation, 'AVAILABLE', 'plugin policy.installation')
   requireEqual(entry.policy?.authentication, 'ON_INSTALL', 'plugin policy.authentication')
   requireEqual(entry.category, 'Engineering', 'plugin category')
@@ -128,6 +128,47 @@ if (pluginRoot) {
 
 if (pluginRoot && existsSync(resolve(pluginRoot, 'apps.json'))) {
   fail('skill-only plugin bundle must not contain apps.json')
+}
+
+const codexMarketplace = readJson(resolve(repoRoot, '.agents', 'plugins', 'marketplace.json'))
+if (!isObject(codexMarketplace)) {
+  fail('Codex marketplace document must be an object')
+} else {
+  requireEqual(codexMarketplace.name, 'dotcraft-unity', 'Codex marketplace.name')
+  requireEqual(codexMarketplace.interface?.displayName, 'DotCraft Unity', 'Codex marketplace.interface.displayName')
+  if (!Array.isArray(codexMarketplace.plugins) || codexMarketplace.plugins.length !== 1) {
+    fail('Codex marketplace.plugins must contain exactly one entry')
+  }
+}
+
+const codexEntry = codexMarketplace?.plugins?.[0]
+if (isObject(codexEntry)) {
+  requireEqual(codexEntry.name, 'dotcraft-unity', 'Codex plugin entry name')
+  requireEqual(codexEntry.source?.source, 'local', 'Codex plugin source.source')
+  requireEqual(codexEntry.source?.path, './Plugins~/dotcraft-unity', 'Codex plugin source.path')
+  requireEqual(codexEntry.policy?.installation, 'AVAILABLE', 'Codex plugin policy.installation')
+  requireEqual(codexEntry.policy?.authentication, 'ON_INSTALL', 'Codex plugin policy.authentication')
+  requireEqual(codexEntry.category, 'Engineering', 'Codex plugin category')
+
+  const codexPluginRoot = requirePath(repoRoot, codexEntry.source?.path, 'Codex plugin source.path', 'directory')
+  if (codexPluginRoot) {
+    const codexManifest = readJson(resolve(codexPluginRoot, '.codex-plugin', 'plugin.json'))
+    if (!isObject(codexManifest)) {
+      fail('Codex plugin manifest must be an object')
+    } else {
+      requireEqual(codexManifest.name, codexEntry.name, 'Codex plugin name')
+      requireEqual(codexManifest.version, packageManifest?.version, 'Codex plugin version')
+      requireEqual(codexManifest.skills, './skills/', 'Codex plugin skills')
+      requireEqual(codexManifest.interface?.displayName, 'DotCraft Unity', 'Codex plugin displayName')
+      requirePath(codexPluginRoot, codexManifest.skills, 'Codex plugin skills', 'directory')
+      requirePath(codexPluginRoot, codexManifest.interface?.composerIcon, 'Codex interface.composerIcon', 'file')
+      requirePath(codexPluginRoot, codexManifest.interface?.logo, 'Codex interface.logo', 'file')
+      if (Object.hasOwn(codexManifest, 'apps')) fail('Codex skill-only plugin must not declare apps')
+      if (Object.hasOwn(codexManifest, 'mcpServers')) fail('Codex skill-only plugin must not declare MCP servers')
+    }
+  }
+} else {
+  fail('Codex marketplace plugin entry must be an object')
 }
 
 if (failures.length > 0) {

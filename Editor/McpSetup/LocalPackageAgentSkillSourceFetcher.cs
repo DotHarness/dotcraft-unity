@@ -7,7 +7,7 @@ namespace DotCraft.Editor.McpSetup
 {
     internal sealed class LocalPackageAgentSkillSourceFetcher : IAgentSkillSourceFetcher
     {
-        private const string SkillRelativePath = "Plugin~/skills/dotcraft-unity";
+        private const string SkillRelativePath = "Plugins~/dotcraft-unity/skills/dotcraft-unity";
 
         private readonly string _sourcePath;
 

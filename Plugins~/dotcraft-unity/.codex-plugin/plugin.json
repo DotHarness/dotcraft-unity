@@ -1,0 +1,27 @@
+{
+  "name": "dotcraft-unity",
+  "version": "0.2.2",
+  "description": "Guide agents to inspect and automate Unity Editor through DotCraft Unity tools.",
+  "author": {
+    "name": "DotHarness",
+    "url": "https://github.com/DotHarness"
+  },
+  "homepage": "https://github.com/DotHarness/dotcraft-unity",
+  "repository": "https://github.com/DotHarness/dotcraft-unity",
+  "license": "Apache-2.0",
+  "keywords": ["unity", "editor", "automation", "mcp"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "DotCraft Unity",
+    "shortDescription": "Automate Unity Editor safely",
+    "longDescription": "Inspect and automate a running Unity Editor through DotCraft Unity tools.",
+    "developerName": "DotHarness",
+    "category": "Engineering",
+    "capabilities": ["Skill", "Unity", "Read", "Write"],
+    "defaultPrompt": ["Inspect or automate the connected Unity Editor safely."],
+    "brandColor": "#1E88E5",
+    "composerIcon": "./assets/dotcraft-unity.svg",
+    "logo": "./assets/dotcraft-unity.svg",
+    "websiteURL": "https://github.com/DotHarness/dotcraft-unity"
+  }
+}

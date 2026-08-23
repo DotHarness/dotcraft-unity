@@ -104,18 +104,22 @@ public static class ExampleDotCraftTools
 
 方法参数会使用 Newtonsoft.Json 命名规则转换成 JSON Schema。完整注册契约见 [Documentation~/dynamic-tools.md](./Documentation~/dynamic-tools.md)。
 
-## DotCraft 专用功能
+## Agent 集成
 
-dotcraft-unity 支持 dotcraft 的更多特性以提高开发效率的同时降低 agent 使用成本。
+dotcraft-unity 为外部 agent 提供共享的自动化 skill，并为 DotCraft 提供直接的 ACP 集成。
 
-### Plugin Marketplace
+### Agent 插件
 
-Unity Package 和 DotCraft 插件需要配套使用。插件会把 Unity 自动化 skill 安装到当前 DotCraft workspace。请另外在 Unity 中配置 MCP Gateway，让 DotCraft 能够调用该 skill 所描述的工具。
+仓库将同一份 Unity 自动化 skill 同时发布为 DotCraft 插件和 Codex 插件。请另外在 Unity 中配置 MCP Gateway，让安装插件后的 agent 能够调用该 skill 所描述的工具。
+
+在 DotCraft 中：
 
 1. 在 DotCraft 中打开 **Plugins**。
 2. 打开 **Create** 旁的菜单，然后选择 **Add marketplace**。
 3. 输入 `DotHarness/dotcraft-unity` 作为 marketplace source。
 4. 添加 marketplace，然后安装 **DotCraft Unity**。
+
+在 Codex 中，将 `DotHarness/dotcraft-unity` 添加为 plugin marketplace，然后从该 marketplace 安装 **DotCraft Unity**。
 
 ### ACP Extension
 

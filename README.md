@@ -104,18 +104,22 @@ public static class ExampleDotCraftTools
 
 Method parameters are converted to a JSON Schema with Newtonsoft.Json naming rules. See [Documentation~/dynamic-tools.md](./Documentation~/dynamic-tools.md) for the full registration contract.
 
-## DotCraft-specific features
+## Agent integrations
 
-dotcraft-unity supports additional DotCraft features to improve development efficiency while reducing agent context overhead.
+dotcraft-unity provides a shared automation skill for external agents and a direct ACP integration for DotCraft.
 
-### Plugin Marketplace
+### Agent plugins
 
-The Unity package and the DotCraft plugin work together. The plugin installs the Unity automation skill into the current DotCraft workspace. Configure the MCP Gateway separately in Unity so DotCraft can call the tools covered by the skill.
+The repository publishes the same Unity automation skill as both a DotCraft plugin and a Codex plugin. Configure the MCP Gateway separately in Unity so an installed plugin can call the tools covered by the skill.
+
+For DotCraft:
 
 1. Open **Plugins** in DotCraft.
 2. Open the menu beside **Create**, then select **Add marketplace**.
 3. Enter `DotHarness/dotcraft-unity` as the marketplace source.
 4. Add the marketplace, then install **DotCraft Unity**.
+
+For Codex, add `DotHarness/dotcraft-unity` as a plugin marketplace, then install **DotCraft Unity** from that marketplace.
 
 ### ACP Extension
 
