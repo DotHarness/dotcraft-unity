@@ -4,11 +4,14 @@ namespace DotCraft.Editor.McpSetup
     {
         public const string ServerName = "dotcraft-unity";
 
-        public McpInstallOptions(string endpoint)
+        public McpInstallOptions(string command, string projectRoot)
         {
-            Endpoint = endpoint ?? string.Empty;
+            Command = command;
+            ProjectRoot = projectRoot;
         }
 
-        public string Endpoint { get; }
+        public string Command { get; }
+
+        public string ProjectRoot { get; }
     }
 }

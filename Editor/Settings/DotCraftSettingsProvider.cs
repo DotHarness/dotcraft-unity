@@ -82,15 +82,11 @@ namespace DotCraft.Editor.Settings
 
             EditorGUILayout.Space(10);
 
-            DrawOverviewSection();
-
-            EditorGUILayout.Space(10);
-
             DrawInEditorAgentChatSection();
 
             EditorGUILayout.Space(10);
 
-            DrawMcpToolGatewaySection();
+            DrawMcpGatewaySection();
 
             EditorGUILayout.Space(10);
 
@@ -144,47 +140,6 @@ namespace DotCraft.Editor.Settings
             }
         }
 
-        private void DrawOverviewSection()
-        {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("DotCraft Unity", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField(
-                    "Use coding agents with Unity Editor: chat inside Unity, or expose C# automation and custom project tools to external MCP clients.",
-                    EditorStyles.wordWrappedMiniLabel);
-                EditorGUILayout.Space(6);
-
-                var service = McpGatewayRuntime.Instance;
-                DrawReadonlyRow("In-Editor Agent Chat", _settings.AgentConnection == DotCraftSettings.AgentConnectionDotCraft
-                    ? "DotCraft profile"
-                    : "Custom ACP Agent");
-                DrawReadonlyRow("Local Tool Gateway", service.IsRunning ? "Running" : "Stopped");
-                DrawReadonlyRow("MCP Endpoint", McpGatewaySetupDefaults.Endpoint);
-                DrawReadonlyRow("C# Automation", _settings.EnableCSharpAutomation ? "Enabled" : "Disabled");
-                DrawReadonlyRow("Custom Project Tools", $"{GetEnabledCustomToolCount()} enabled");
-
-                EditorGUILayout.Space(6);
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button("Open Assistant", GUILayout.Width(130)))
-                        global::DotCraft.Editor.Window.DotCraftEditorWindow.ShowWindow();
-
-                    if (GUILayout.Button("Setup MCP Clients", GUILayout.Width(150)))
-                        McpGatewaySetupWindow.ShowWindow();
-
-                    if (GUILayout.Button("Restart Gateway", GUILayout.Width(130)))
-                    {
-                        _settings.EnableMcpGateway = true;
-                        _settings.Save();
-                        McpGatewayRuntime.Instance.Restart();
-                    }
-
-                    if (GUILayout.Button("Copy Endpoint", GUILayout.Width(120)))
-                        EditorGUIUtility.systemCopyBuffer = McpGatewaySetupDefaults.Endpoint;
-                }
-            }
-        }
-
         private void DrawInEditorAgentChatSection()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
@@ -199,7 +154,6 @@ namespace DotCraft.Editor.Settings
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    GUILayout.Space(EditorGUI.indentLevel * 15);
                     if (GUILayout.Button("Open AI Assistant", GUILayout.Width(180)))
                         global::DotCraft.Editor.Window.DotCraftEditorWindow.ShowWindow();
                 }
@@ -208,8 +162,6 @@ namespace DotCraft.Editor.Settings
 
         private void DrawConnectionSettings()
         {
-            EditorGUI.indentLevel++;
-
             var connectionIndex = IndexOfOrDefault(
                 AgentConnectionOptions,
                 _settings.AgentConnection,
@@ -270,50 +222,43 @@ namespace DotCraft.Editor.Settings
                     new GUIContent("Workspace Path", "Working directory for the ACP process (empty = Unity project root)"),
                     _settings.WorkspacePath);
             }
-
-            EditorGUI.indentLevel--;
         }
 
-        private void DrawMcpToolGatewaySection()
+        private void DrawMcpGatewaySection()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("MCP Tool Gateway", EditorStyles.boldLabel);
-
-                EditorGUI.indentLevel++;
+                EditorGUILayout.LabelField("Unity Tool Gateway", EditorStyles.boldLabel);
 
                 var enabled = EditorGUILayout.Toggle(
-                    new GUIContent("Enable", "Listen on localhost for standard MCP clients."),
-                    _settings.EnableMcpGateway);
-                if (enabled != _settings.EnableMcpGateway)
+                    new GUIContent("Enable", "Run the authenticated local Unity Tool Gateway used by the MCP Gateway."),
+                    _settings.EnableToolGateway);
+                if (enabled != _settings.EnableToolGateway)
                 {
-                    _settings.EnableMcpGateway = enabled;
-                    McpGatewayBootstrap.ApplySettings();
+                    _settings.EnableToolGateway = enabled;
+                    UnityToolGatewayBootstrap.ApplySettings();
                 }
 
-                var service = McpGatewayRuntime.Instance;
-                DrawReadonlyRow("Endpoint", McpGatewaySetupDefaults.Endpoint);
+                var service = UnityToolGatewayRuntime.Instance;
                 DrawReadonlyRow("Status", service.IsRunning ? "Running" : "Stopped");
+                DrawReadonlyRow("Manifest", string.IsNullOrWhiteSpace(service.ManifestRevision)
+                    ? "Unavailable"
+                    : service.ManifestRevision);
                 DrawReadonlyRow("Tools", FormatEnabledToolSummary());
                 if (!string.IsNullOrWhiteSpace(service.LastError))
                     EditorGUILayout.HelpBox(service.LastError, MessageType.Error);
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    GUILayout.Space(EditorGUI.indentLevel * 15);
                     if (GUILayout.Button("Setup MCP Clients", GUILayout.Width(150)))
                         McpGatewaySetupWindow.ShowWindow();
-                    if (GUILayout.Button("Restart Gateway", GUILayout.Width(130)))
+                    if (GUILayout.Button("Restart Gateway", GUILayout.Width(120)))
                     {
-                        _settings.EnableMcpGateway = true;
+                        _settings.EnableToolGateway = true;
                         _settings.Save();
                         service.Restart();
                     }
-                    if (GUILayout.Button("Copy Endpoint", GUILayout.Width(120)))
-                        EditorGUIUtility.systemCopyBuffer = McpGatewaySetupDefaults.Endpoint;
                 }
-
-                EditorGUI.indentLevel--;
             }
         }
 
@@ -332,12 +277,10 @@ namespace DotCraft.Editor.Settings
             {
                 EditorGUILayout.LabelField("Unity Tools", EditorStyles.boldLabel);
 
-                EditorGUI.indentLevel++;
-
                 EditorGUILayout.LabelField("C# Automation", EditorStyles.boldLabel);
                 var enableCSharpAutomation = EditorGUILayout.Toggle(
                     new GUIContent("Enable",
-                        "Expose unity_execute_csharp through the DotCraft profile and MCP Tool Gateway."),
+                        "Expose unity_execute_csharp through the DotCraft profile and MCP Gateway."),
                     _settings.EnableCSharpAutomation);
                 if (enableCSharpAutomation != _settings.EnableCSharpAutomation)
                 {
@@ -351,7 +294,6 @@ namespace DotCraft.Editor.Settings
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    GUILayout.Space(EditorGUI.indentLevel * 15);
                     if (GUILayout.Button("Refresh Custom Tools", GUILayout.Width(160)))
                     {
                         RefreshRuntimeToolCatalog();
@@ -406,8 +348,6 @@ namespace DotCraft.Editor.Settings
                         (_runtimeToolCatalog.Diagnostics.Count > 6 ? "\n..." : ""),
                         MessageType.Warning);
                 }
-
-                EditorGUI.indentLevel--;
             }
         }
 
@@ -434,8 +374,6 @@ namespace DotCraft.Editor.Settings
         private void DrawGeneralSettingsSection()
         {
             EditorGUILayout.LabelField("General Settings", EditorStyles.boldLabel);
-            EditorGUI.indentLevel++;
-
             _settings.AutoReconnect = EditorGUILayout.Toggle(
                 new GUIContent("Auto Reconnect", "Automatically reconnect after Domain Reload"),
                 _settings.AutoReconnect);
@@ -456,18 +394,11 @@ namespace DotCraft.Editor.Settings
             _settings.MaxHistoryMessages = EditorGUILayout.IntField(
                 new GUIContent("Max History Messages", "Maximum number of messages to keep in history"),
                 _settings.MaxHistoryMessages);
-
-            EditorGUI.indentLevel--;
         }
 
         private void DrawEnvironmentVariablesSection()
         {
             EditorGUILayout.LabelField("Environment Variables", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(
-                "Add environment variables like API keys. These are injected into the in-editor agent process only; MCP Gateway setup never writes secrets.",
-                MessageType.Info);
-
-            EditorGUI.indentLevel++;
 
             var keys = new List<string>(_settings.EnvironmentVariables.Keys);
             for (int i = 0; i < keys.Count; i++)
@@ -499,14 +430,11 @@ namespace DotCraft.Editor.Settings
             }
 
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(EditorGUI.indentLevel * 15);
             if (GUILayout.Button("+ Add Variable", GUILayout.Width(120)))
             {
                 _settings.EnvironmentVariables["NEW_KEY"] = "";
             }
             EditorGUILayout.EndHorizontal();
-
-            EditorGUI.indentLevel--;
         }
 
         private string FormatEnabledToolSummary()
@@ -553,10 +481,6 @@ namespace DotCraft.Editor.Settings
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.LabelField("MCP Servers for DotCraft Sessions", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox(
-                    "MCP servers defined here are injected into every new DotCraft session via the ACP " +
-                    "mcpServers field. This does not configure dotcraft-unity as an MCP server for external clients; use MCP Tool Gateway Setup above for that.",
-                    MessageType.Info);
 
                 // Ensure foldout list is in sync with server list length
                 while (_mcpServerFoldouts.Count < _settings.McpServers.Count)
@@ -591,8 +515,6 @@ namespace DotCraft.Editor.Settings
                         if (!_mcpServerFoldouts[i])
                             continue;
 
-                        EditorGUI.indentLevel++;
-
                         server.Name = EditorGUILayout.TextField(
                             new GUIContent("Name", "Unique name for this MCP server"),
                             server.Name);
@@ -612,8 +534,6 @@ namespace DotCraft.Editor.Settings
                         {
                             DrawHttpFields(server);
                         }
-
-                        EditorGUI.indentLevel--;
                     }
                 }
 
@@ -629,8 +549,6 @@ namespace DotCraft.Editor.Settings
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    GUILayout.Space(EditorGUI.indentLevel * 15);
-
                     if (GUILayout.Button("+ Add stdio Server", GUILayout.Width(140)))
                     {
                         _settings.McpServers.Add(new McpServerEntry { Transport = "stdio" });
@@ -695,7 +613,6 @@ namespace DotCraft.Editor.Settings
             }
 
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(EditorGUI.indentLevel * 15);
             if (GUILayout.Button("+ Add Env Var", GUILayout.Width(110)))
                 server.EnvironmentVariables["NEW_KEY"] = "";
             EditorGUILayout.EndHorizontal();
@@ -739,7 +656,6 @@ namespace DotCraft.Editor.Settings
             }
 
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(EditorGUI.indentLevel * 15);
             if (GUILayout.Button("+ Add Header", GUILayout.Width(100)))
                 server.Headers["Authorization"] = "Bearer ";
             EditorGUILayout.EndHorizontal();

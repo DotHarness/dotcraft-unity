@@ -14,6 +14,4 @@ Use Unity Package Manager and add this Git URL:
 https://github.com/{{ REPO }}.git#{{ VERSION }}
 ```
 
-## What's Changed
-
 {{ CHANGELOG }}

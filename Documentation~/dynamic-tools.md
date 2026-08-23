@@ -2,13 +2,11 @@
 
 This document defines how Unity Editor code exposes Custom Project Tools through dotcraft-unity.
 
-Related: [MCP Tool Gateway](tool-gateway.md).
-
 ## Contract
 
 - Custom Project Tools are declared to in-editor ACP sessions only when **Project Settings > DotCraft > Agent** is `DotCraft`.
 - `Custom ACP` agents connected through the in-editor chat do not receive these tools, even if they support ACP extension methods.
-- Enabled Custom Project Tools are also available to external MCP clients through the MCP Tool Gateway.
+- Enabled Custom Project Tools are also available to external MCP clients through the stdio MCP Gateway.
 - Tools are discovered from loaded Editor assemblies that reference `DotCraft.Editor`.
 - A tool method must be `static`, non-generic, and must not use `ref` or `out` parameters.
 - Newly discovered custom tools default to disabled. Users enable them in **Project Settings > DotCraft > Unity Tools > Custom Project Tools**.
@@ -110,3 +108,8 @@ public static object WriteFile(string path, string content)
 ```
 
 `ApprovalTargetArgument` and `ApprovalOperationArgument`, when used, must reference top-level string parameters. Approval policy is owned by DotCraft; dotcraft-unity only forwards the descriptor.
+
+## Related docs
+
+- [Unity tool gateway](tool-gateway.md)
+- [README](../README.md)

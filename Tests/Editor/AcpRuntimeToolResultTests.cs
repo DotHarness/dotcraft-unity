@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -59,8 +58,8 @@ namespace DotCraft.Editor.Tests
             LogAssert.Expect(LogType.Exception, new Regex("AcpRequestException: Invalid parameters"));
             var response = await InvokeTransportAsync(
                 router,
-                FindTool(nameof(IntegerArgumentTool)),
-                new JObject { ["value"] = "not-an-integer" });
+                "_unity/execute_csharp",
+                new JObject { ["code"] = 42, ["mode"] = "editor" });
 
             Assert.That(response["result"], Is.Null);
             Assert.That(response["error"]?["code"]?.Value<int>(), Is.EqualTo(-32602));
@@ -80,12 +79,6 @@ namespace DotCraft.Editor.Tests
             Assert.That(response["error"]?["message"]?.Value<string>(), Does.Contain("broken router"));
         }
 
-        [AgentTool(Name = "integer_argument_tool", Description = "Accept an integer.")]
-        private static object IntegerArgumentTool(int value)
-        {
-            return new { value };
-        }
-
         private static Task<JObject> InvokeExecuteCSharpAsync(string code)
         {
             var router = CreateRouter();
@@ -100,14 +93,6 @@ namespace DotCraft.Editor.Tests
             var router = new ExtensionMethodRouter();
             router.RegisterRuntimeTools(RuntimeToolCatalog.Discover().Tools);
             return router;
-        }
-
-        private static string FindTool(string methodName)
-        {
-            var method = typeof(AcpRuntimeToolResultTests).GetMethod(
-                methodName,
-                BindingFlags.NonPublic | BindingFlags.Static);
-            return RuntimeToolCatalog.Discover().Tools.Single(tool => tool.Method == method).Descriptor.AcpMethod;
         }
 
         private static async Task<JObject> InvokeTransportAsync(

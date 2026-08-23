@@ -9,7 +9,7 @@ namespace DotCraft.Editor
     /// </summary>
     public static class DotCraftResources
     {
-        private const string BasePath = "Packages/com.dotcraft.unityclient/Editor/";
+        private const string BasePath = "Packages/com.dotcraft.unity/Editor/";
 
         /// <summary>
         /// Loads a VisualTreeAsset from the UXML folder.

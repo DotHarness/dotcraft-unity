@@ -43,8 +43,10 @@ namespace DotCraft.Editor.Tests
 
             var root = JObject.Parse(File.ReadAllText(path));
             Assert.That(root["mcpServers"]?["existing"]?["command"]?.Value<string>(), Is.EqualTo("node"));
-            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["type"]?.Value<string>(), Is.EqualTo("http"));
-            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["url"]?.Value<string>(), Is.EqualTo(McpGatewaySetupDefaults.Endpoint));
+            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["type"]?.Value<string>(), Is.EqualTo("stdio"));
+            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["command"]?.Value<string>(), Is.EqualTo(GatewayCommand));
+            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["args"]?.Values<string>(),
+                Is.EqualTo(new[] { "--project-root", _tempRoot }));
 
             var uninstall = provider.Uninstall(_tempRoot);
             Assert.That(uninstall.Success, Is.True, uninstall.Error);
@@ -62,7 +64,9 @@ namespace DotCraft.Editor.Tests
             Assert.That(result.Success, Is.True, result.Error);
             var path = Path.Combine(_tempRoot, ".cursor", "mcp.json");
             var root = JObject.Parse(File.ReadAllText(path));
-            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["url"]?.Value<string>(), Is.EqualTo(McpGatewaySetupDefaults.Endpoint));
+            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["command"]?.Value<string>(), Is.EqualTo(GatewayCommand));
+            Assert.That(root["mcpServers"]?["dotcraft-unity"]?["args"]?.Values<string>(),
+                Is.EqualTo(new[] { "--project-root", _tempRoot }));
             Assert.That(root["mcpServers"]?["dotcraft-unity"]?["type"], Is.Null);
         }
 
@@ -73,7 +77,7 @@ namespace DotCraft.Editor.Tests
             var path = Path.Combine(_tempRoot, ".codex", "config.toml");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             File.WriteAllText(path,
-                "[model]\nname = \"gpt-5\"\n\n[mcp_servers.dotcraft_unity]\nurl = \"http://old/mcp\"\nenabled = false\n\n[mcp_servers.dotcraft_unity.tools.old]\napproval_mode = \"approve\"\n\n[mcp_servers.other]\ncommand = \"node\"\n");
+                "[model]\nname = \"gpt-5\"\n\n[mcp_servers.other]\ncommand = \"node\"\n");
 
             var result = provider.Install(_tempRoot, Options());
             Assert.That(result.Success, Is.True, result.Error);
@@ -82,9 +86,8 @@ namespace DotCraft.Editor.Tests
             Assert.That(toml, Does.Contain("[model]"));
             Assert.That(toml, Does.Contain("[mcp_servers.other]"));
             Assert.That(toml, Does.Contain("# BEGIN dotcraft-unity MCP Gateway"));
-            Assert.That(toml, Does.Contain($"url = \"{McpGatewaySetupDefaults.Endpoint}\""));
-            Assert.That(toml, Does.Not.Contain("http://old/mcp"));
-            Assert.That(toml, Does.Not.Contain("[mcp_servers.dotcraft_unity.tools.old]"));
+            Assert.That(toml, Does.Contain($"command = \"{GatewayCommand.Replace("\\", "\\\\")}\""));
+            Assert.That(toml, Does.Contain("args = [\"--project-root\""));
 
             var uninstall = provider.Uninstall(_tempRoot);
             Assert.That(uninstall.Success, Is.True, uninstall.Error);
@@ -241,8 +244,10 @@ namespace DotCraft.Editor.Tests
             Assert.That(File.ReadAllText(path), Is.EqualTo("{ invalid"));
         }
 
-        private static McpInstallOptions Options() =>
-            new(McpGatewaySetupDefaults.Endpoint);
+        private string GatewayCommand => Path.Combine(_tempRoot, "dotcraft-unity-mcp.exe");
+
+        private McpInstallOptions Options() =>
+            new(GatewayCommand, _tempRoot);
 
         private static AgentSkillInstaller SkillInstaller(params AgentSkillFile[] files) =>
             new(new MemorySkillSourceFetcher(files));

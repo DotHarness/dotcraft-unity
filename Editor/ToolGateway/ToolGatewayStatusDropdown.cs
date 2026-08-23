@@ -6,24 +6,23 @@ using UnityEngine.UIElements;
 namespace DotCraft.Editor.ToolGateway
 {
     /// <summary>
-    /// Borderless UI Toolkit dropdown shown from the bottom-right MCP status indicator.
+    /// Borderless UI Toolkit dropdown shown from the bottom-right tool gateway status indicator.
     /// </summary>
-    internal sealed class McpGatewayStatusDropdown : EditorWindow
+    internal sealed class ToolGatewayStatusDropdown : EditorWindow
     {
         private const float Width = 340f;
+        private ToolGatewayStatusSummary _summary = ToolGatewayStatusSummary.Empty;
 
-        private McpGatewayStatusSummary _summary = McpGatewayStatusSummary.Empty;
-
-        public static void Show(Rect screenActivatorRect, McpGatewayStatusSummary summary)
+        public static void Show(Rect screenActivatorRect, ToolGatewayStatusSummary summary)
         {
-            var window = CreateInstance<McpGatewayStatusDropdown>();
-            window._summary = summary ?? McpGatewayStatusSummary.Empty;
+            var window = CreateInstance<ToolGatewayStatusDropdown>();
+            window._summary = summary ?? ToolGatewayStatusSummary.Empty;
             window.ShowAsDropDown(screenActivatorRect, new Vector2(Width, window.EstimateHeight()));
         }
 
         private float EstimateHeight()
         {
-            var height = 202f;
+            var height = 224f;
             if (!string.IsNullOrWhiteSpace(_summary.LastError))
                 height += 54f;
             return height;
@@ -31,45 +30,25 @@ namespace DotCraft.Editor.ToolGateway
 
         public void CreateGUI()
         {
-            var root = rootVisualElement;
-            GatewayPanelView.ApplyStyle(root);
-
             var panel = new VisualElement();
+            GatewayPanelView.ApplyStyle(rootVisualElement);
             panel.AddToClassList("gw-dropdown");
-            root.Add(panel);
+            rootVisualElement.Add(panel);
 
             panel.Add(GatewayPanelView.BrandHeader(
                 "DotCraft Unity",
-                _summary.IsRunning ? "MCP Tool Gateway is running." : "MCP Tool Gateway is stopped."));
+                _summary.IsRunning ? "Gateway is running." : "Gateway is stopped."));
             panel.Add(GatewayPanelView.Divider());
-
             panel.Add(GatewayPanelView.KeyValueRow(
-                "MCP Gateway",
+                "Gateway",
                 _summary.IsRunning ? "Running" : "Stopped",
                 out _));
-
-            if (string.IsNullOrWhiteSpace(_summary.Endpoint))
-            {
-                panel.Add(GatewayPanelView.KeyValueRow("MCP Endpoint", "Unavailable", out _));
-            }
-            else
-            {
-                var endpoint = new VisualElement();
-                endpoint.AddToClassList("gw-endpoint");
-
-                var url = new Label(_summary.Endpoint);
-                url.AddToClassList("gw-endpoint-url");
-                endpoint.Add(url);
-
-                endpoint.Add(GatewayPanelView.CopyIconButton(
-                    "Copy MCP endpoint",
-                    () =>
-                    {
-                        McpGatewayStatusBarActions.CopyMcpUrl(_summary.Endpoint);
-                        Close();
-                    }));
-                panel.Add(endpoint);
-            }
+            panel.Add(GatewayPanelView.KeyValueRow("Package", _summary.PackageVersion, out _));
+            panel.Add(GatewayPanelView.KeyValueRow("Tools", _summary.ToolCount.ToString(), out _));
+            panel.Add(GatewayPanelView.KeyValueRow(
+                "Manifest",
+                ShortRevision(_summary.ManifestRevision),
+                out _));
 
             if (!string.IsNullOrWhiteSpace(_summary.LastError))
             {
@@ -86,23 +65,21 @@ namespace DotCraft.Editor.ToolGateway
         {
             var footer = new VisualElement();
             footer.AddToClassList("gw-footer");
-
             footer.Add(FooterButton("Assistant", () =>
             {
                 Close();
-                McpGatewayStatusBarActions.OpenAssistant();
+                ToolGatewayStatusBarActions.OpenAssistant();
             }));
             footer.Add(FooterButton("Setup MCP", () =>
             {
                 Close();
-                McpGatewayStatusBarActions.OpenSetup();
+                ToolGatewayStatusBarActions.OpenSetup();
             }, "gw-btn--primary"));
             footer.Add(FooterButton("Settings", () =>
             {
                 Close();
-                McpGatewayStatusBarActions.OpenSettings();
+                ToolGatewayStatusBarActions.OpenSettings();
             }));
-
             return footer;
         }
 
@@ -111,6 +88,13 @@ namespace DotCraft.Editor.ToolGateway
             var button = GatewayPanelView.Button(text, onClick, classes);
             button.style.flexGrow = 1;
             return button;
+        }
+
+        private static string ShortRevision(string revision)
+        {
+            if (string.IsNullOrWhiteSpace(revision))
+                return "Unavailable";
+            return revision.Length <= 20 ? revision : revision.Substring(0, 20) + "…";
         }
     }
 }
