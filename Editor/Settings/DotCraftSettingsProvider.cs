@@ -17,6 +17,8 @@ namespace DotCraft.Editor.Settings
     public sealed class DotCraftSettingsProvider : SettingsProvider
     {
         private const string SettingsPath = "Project/DotCraft";
+        private static readonly GUIContent SettingsMenuIcon = EditorGUIUtility.IconContent("_Popup");
+        private static readonly GUIContent ResetLabel = EditorGUIUtility.TrTextContent("Reset");
         private DotCraftSettings _settings;
         private VisualElement _rootElement;
         private RuntimeToolCatalogSnapshot _runtimeToolCatalog;
@@ -105,39 +107,26 @@ namespace DotCraft.Editor.Settings
                 EditorGUILayout.HelpBox(string.Join("\n", errors), MessageType.Warning);
             }
 
-            // Workspace / .craft directory validation
-            if (!_settings.ValidateWorkspace(out var workspaceError))
-            {
-                EditorGUILayout.HelpBox(workspaceError, MessageType.Error);
-            }
-            else
-            {
-                EditorGUILayout.HelpBox(
-                    $"Workspace OK: \"{_settings.EffectiveWorkspacePath}\" contains a .craft directory.",
-                    MessageType.Info);
-            }
-
-            EditorGUILayout.Space(10);
-
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                if (GUILayout.Button("Reset to Defaults", GUILayout.Width(120)))
-                {
-                    _settings.ResetToDefaults();
-                }
-
-                GUILayout.FlexibleSpace();
-
-                if (GUILayout.Button("Save", GUILayout.Width(80)))
-                {
-                    _settings.Save();
-                }
-            }
-
             if (EditorGUI.EndChangeCheck())
             {
                 _settings.Save();
             }
+        }
+
+        public override void OnTitleBarGUI()
+        {
+            if (!EditorGUILayout.DropdownButton(SettingsMenuIcon, FocusType.Passive, EditorStyles.label))
+                return;
+
+            var menu = new GenericMenu();
+            menu.AddItem(ResetLabel, false, () =>
+            {
+                _settings.ResetToDefaults();
+                _settings.Save();
+                UnityToolGatewayBootstrap.ApplySettings();
+                RefreshRuntimeToolCatalog();
+            });
+            menu.ShowAsContext();
         }
 
         private void DrawInEditorAgentChatSection()
