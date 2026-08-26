@@ -346,3 +346,32 @@
     align-items: center;
     margin-top: 10px;
 }
+
+/* -- Connection rows (status-bar dropdown) -- */
+.gw-connection {
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+}
+
+.gw-connection-name {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 12px;
+    color: var(--unity-colors-default_text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gw-connection-activity {
+    flex-shrink: 0;
+    margin-left: 8px;
+    font-size: 12px;
+    color: rgba(175, 175, 175, 0.7);
+}
+
+.gw-connection-empty {
+    flex-grow: 1;
+    font-size: 12px;
+    color: rgba(175, 175, 175, 0.7);
+}

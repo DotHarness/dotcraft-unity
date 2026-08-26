@@ -112,12 +112,17 @@ public sealed class McpProtocolTests : IDisposable
                 }
             });
             var call = await ReadJsonRpcResponseAsync(process.StandardOutput, 3);
-            var forwarded = await gatewayRequest.WaitAsync(TimeSpan.FromSeconds(5));
+            var captured = await gatewayRequest.WaitAsync(TimeSpan.FromSeconds(15));
+            var forwarded = captured.Body;
 
             Assert.False(call.GetProperty("result").GetProperty("isError").GetBoolean());
             Assert.Equal(GatewayConstants.ExecuteCSharpToolName, forwarded.GetProperty("name").GetString());
             Assert.Equal("return 42;", forwarded.GetProperty("arguments").GetProperty("code").GetString());
             Assert.Equal("editor", forwarded.GetProperty("arguments").GetProperty("mode").GetString());
+
+            Assert.False(string.IsNullOrWhiteSpace(captured.CallSessionHeader));
+            if (captured.PresenceSessionId is not null)
+                Assert.Equal(captured.PresenceSessionId, captured.CallSessionHeader);
         }
         finally
         {
@@ -138,14 +143,56 @@ public sealed class McpProtocolTests : IDisposable
 
         await using var client = await CreateClientAsync();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
-        var acceptTask = listener.AcceptTcpClientAsync();
+
+        // Presence beats also connect here, so match on the request line.
+        var acceptTask = AcceptToolCallConnectionAsync(listener);
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.CallToolAsync(
             GatewayConstants.ExecuteCSharpToolName,
             new Dictionary<string, object?> { ["code"] = "return 1;" },
             cancellationToken: cancellation.Token).AsTask());
 
-        using var accepted = await acceptTask.WaitAsync(TimeSpan.FromSeconds(5));
+        using var accepted = await acceptTask.WaitAsync(TimeSpan.FromSeconds(15));
+    }
+
+    private static async Task<TcpClient> AcceptToolCallConnectionAsync(TcpListener listener)
+    {
+        while (true)
+        {
+            var accepted = await listener.AcceptTcpClientAsync();
+            var requestLine = await ReadRequestLineAsync(accepted);
+            if (requestLine is not null
+                && requestLine.Contains(GatewayConstants.ToolGatewayCallPath, StringComparison.Ordinal))
+            {
+                return accepted;
+            }
+
+            accepted.Dispose();
+        }
+    }
+
+    private static async Task<string?> ReadRequestLineAsync(TcpClient client)
+    {
+        try
+        {
+            var buffer = new byte[512];
+            // Loopback data arrives in milliseconds; a long budget here would let a few queued
+            // presence beats consume the caller's whole wait.
+            var read = await client.GetStream()
+                .ReadAsync(buffer)
+                .AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(1));
+            if (read <= 0)
+                return null;
+
+            var text = Encoding.ASCII.GetString(buffer, 0, read);
+            var newline = text.IndexOf('\n');
+            return newline >= 0 ? text[..newline] : text;
+        }
+        catch (Exception ex) when (ex is IOException or TimeoutException or ObjectDisposedException)
+        {
+            return null;
+        }
     }
 
     public void Dispose()
@@ -162,8 +209,7 @@ public sealed class McpProtocolTests : IDisposable
         {
             Name = "dotcraft-unity-test",
             Command = executable,
-            Arguments = ["--project-root", _projectRoot],
-            WorkingDirectory = _projectRoot
+            Arguments = ["--project-root", _projectRoot]
         });
         return await McpClient.CreateAsync(
             transport,
@@ -175,7 +221,6 @@ public sealed class McpProtocolTests : IDisposable
         var startInfo = new ProcessStartInfo
         {
             FileName = GetGatewayExecutable(),
-            WorkingDirectory = _projectRoot,
             UseShellExecute = false,
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -243,9 +288,58 @@ public sealed class McpProtocolTests : IDisposable
         });
     }
 
-    private static async Task<JsonElement> CaptureGatewayCallAsync(HttpListener listener)
+    /// <summary>
+    /// Waits for the tool-call request, acknowledging any client-presence beats that arrive first.
+    /// Returns the forwarded call body plus the session id it was attributed to.
+    /// </summary>
+    private static async Task<GatewayCallCapture> CaptureGatewayCallAsync(HttpListener listener)
     {
-        var context = await listener.GetContextAsync();
+        string? presenceSessionId = null;
+        while (true)
+        {
+            var pending = await listener.GetContextAsync();
+            if (pending.Request.Url?.AbsolutePath.EndsWith("/session", StringComparison.Ordinal) == true)
+            {
+                presenceSessionId = await AcknowledgePresenceAsync(pending);
+                continue;
+            }
+
+            var callSessionHeader = pending.Request.Headers[GatewayConstants.ToolGatewaySessionHeader];
+            var body = await ReadToolCallAsync(pending);
+            return new GatewayCallCapture(body, callSessionHeader, presenceSessionId);
+        }
+    }
+
+    private sealed record GatewayCallCapture(
+        JsonElement Body,
+        string? CallSessionHeader,
+        string? PresenceSessionId);
+
+    private static async Task<string?> AcknowledgePresenceAsync(HttpListenerContext context)
+    {
+        string? sessionId = null;
+        using (var presenceReader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
+        {
+            using var presence = JsonDocument.Parse(await presenceReader.ReadToEndAsync());
+            if (presence.RootElement.TryGetProperty("sessionId", out var id))
+                sessionId = id.GetString();
+        }
+
+        var ack = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new
+        {
+            success = true,
+            heartbeatSeconds = GatewayConstants.DefaultHeartbeatSeconds
+        }));
+        context.Response.StatusCode = 200;
+        context.Response.ContentType = "application/json";
+        context.Response.ContentLength64 = ack.Length;
+        await context.Response.OutputStream.WriteAsync(ack);
+        context.Response.Close();
+        return sessionId;
+    }
+
+    private static async Task<JsonElement> ReadToolCallAsync(HttpListenerContext context)
+    {
         Assert.True(context.Request.ContentLength64 > 0);
         Assert.Null(context.Request.Headers["Transfer-Encoding"]);
         using var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding);

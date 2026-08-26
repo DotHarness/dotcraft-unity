@@ -8,11 +8,16 @@ internal sealed class UnityProxyTool : McpServerTool
 {
     private static readonly IReadOnlyList<object> EmptyMetadata = Array.Empty<object>();
     private readonly UnityToolGatewayClient _toolGatewayClient;
+    private readonly ClientPresenceState _presence;
     private readonly Tool _protocolTool;
 
-    public UnityProxyTool(ToolManifestEntry entry, UnityToolGatewayClient toolGatewayClient)
+    public UnityProxyTool(
+        ToolManifestEntry entry,
+        UnityToolGatewayClient toolGatewayClient,
+        ClientPresenceState presence)
     {
         _toolGatewayClient = toolGatewayClient;
+        _presence = presence;
         _protocolTool = new Tool
         {
             Name = entry.Name,
@@ -31,7 +36,7 @@ internal sealed class UnityProxyTool : McpServerTool
     {
         ArgumentNullException.ThrowIfNull(request);
         var result = await _toolGatewayClient
-            .CallAsync(_protocolTool.Name, request.Params.Arguments, cancellationToken)
+            .CallAsync(_protocolTool.Name, request.Params.Arguments, cancellationToken, _presence.SessionId)
             .ConfigureAwait(false);
 
         var structured = BuildStructuredContent(result);

@@ -10,6 +10,8 @@ namespace DotCraft.Editor.ToolGateway
     internal sealed class UnityToolGatewayHandler
     {
         public const string BasePath = "/dotcraft-unity";
+        public const string SessionPath = "/session";
+
         private readonly string _token;
 
         public UnityToolGatewayHandler(string token)
@@ -32,23 +34,64 @@ namespace DotCraft.Editor.ToolGateway
 
             var path = GetPath(context.Target);
             if (string.Equals(path, BasePath + "/call", StringComparison.Ordinal))
-                return await HandleCallAsync(context.Method, context.Body, cancellationToken).ConfigureAwait(false);
+                return await HandleCallAsync(context, cancellationToken).ConfigureAwait(false);
+
+            if (string.Equals(path, BasePath + SessionPath, StringComparison.Ordinal))
+                return HandleSession(context);
 
             return ToolGatewayHttpResponse.Error(404, "Not Found", "RouteNotFound", "Unity Tool Gateway route was not found.");
         }
 
+        /// <summary>Stays off the main thread so presence works while Unity is compiling.</summary>
+        private static ToolGatewayHttpResponse HandleSession(ToolGatewayHttpRequestContext context)
+        {
+            if (!string.Equals(context.Method, "POST", StringComparison.OrdinalIgnoreCase))
+                return MethodNotAllowed("Unity Tool Gateway client presence supports POST.");
+
+            JObject request;
+            try
+            {
+                request = string.IsNullOrWhiteSpace(context.Body) ? new JObject() : JObject.Parse(context.Body);
+            }
+            catch (Exception ex)
+            {
+                return ToolGatewayHttpResponse.Error(400, "Bad Request", "InvalidJson", $"Invalid JSON: {ex.Message}");
+            }
+
+            if (!McpClientSessionRegistry.TryParse(request, out var session, out var isClosing))
+            {
+                return ToolGatewayHttpResponse.Error(
+                    400,
+                    "Bad Request",
+                    "InvalidSession",
+                    "A client presence session id is required.");
+            }
+
+            var registry = McpClientSessionRegistry.Instance;
+            var changed = isClosing
+                ? registry.Remove(session.SessionId)
+                : registry.Upsert(session, DateTime.UtcNow);
+            if (changed)
+                UnityToolGatewayRuntime.Instance.NotifySessionsChanged();
+
+            return ToolGatewayHttpResponse.Json(new
+            {
+                success = true,
+                heartbeatSeconds = (int)McpClientSessionRegistry.HeartbeatInterval.TotalSeconds
+            });
+        }
+
         private static async Task<ToolGatewayHttpResponse> HandleCallAsync(
-            string method,
-            string body,
+            ToolGatewayHttpRequestContext context,
             CancellationToken cancellationToken)
         {
-            if (!string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(context.Method, "POST", StringComparison.OrdinalIgnoreCase))
                 return MethodNotAllowed("Unity Tool Gateway call supports POST.");
 
             JObject request;
             try
             {
-                request = string.IsNullOrWhiteSpace(body) ? new JObject() : JObject.Parse(body);
+                request = string.IsNullOrWhiteSpace(context.Body) ? new JObject() : JObject.Parse(context.Body);
             }
             catch (Exception ex)
             {
@@ -57,6 +100,11 @@ namespace DotCraft.Editor.ToolGateway
 
             var name = request.Value<string>("name");
             var arguments = request["arguments"] ?? new JObject();
+
+            McpClientSessionRegistry.Instance.Touch(
+                context.GetHeader(UnityToolGatewayState.SessionHeader),
+                DateTime.UtcNow);
+
             var result = await MainThreadDispatcher
                 .RunOnMainThread(
                     () =>

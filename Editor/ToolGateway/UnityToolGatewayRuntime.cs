@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using DotCraft.Editor.Extensions;
 using DotCraft.Editor.Settings;
 using UnityEngine;
@@ -50,19 +51,25 @@ namespace DotCraft.Editor.ToolGateway
 
         public int ToolCount => _state.CurrentManifest?.Tools?.Count ?? 0;
 
+        /// <summary>MCP clients currently attached, most recent activity first.</summary>
+        public IReadOnlyList<McpClientSession> ClientSessions =>
+            McpClientSessionRegistry.Instance.Snapshot(DateTime.UtcNow);
+
         internal event Action StatusChanged;
+
+        internal void NotifySessionsChanged() => NotifyStatusChanged();
 
         public void ApplySettings()
         {
             if (DotCraftSettings.Instance.EnableToolGateway)
                 Start();
             else
-                Shutdown();
+                Shutdown(notify: true, clearSessions: true);
         }
 
         public void Restart()
         {
-            Shutdown(notify: false);
+            Shutdown(notify: false, clearSessions: false);
             Start();
         }
 
@@ -79,7 +86,8 @@ namespace DotCraft.Editor.ToolGateway
             }
         }
 
-        public void Shutdown() => Shutdown(notify: true);
+        /// <summary>Domain reload and quit. Sessions are kept: gateways stay connected across a reload.</summary>
+        public void Shutdown() => Shutdown(notify: true, clearSessions: false);
 
         private void Start()
         {
@@ -117,7 +125,7 @@ namespace DotCraft.Editor.ToolGateway
             NotifyStatusChanged();
         }
 
-        private void Shutdown(bool notify)
+        private void Shutdown(bool notify, bool clearSessions)
         {
             lock (_gate)
             {
@@ -126,6 +134,9 @@ namespace DotCraft.Editor.ToolGateway
                 _state.RemoveDiscovery(_token);
                 _token = null;
             }
+
+            if (clearSessions)
+                McpClientSessionRegistry.Instance.Clear();
 
             if (notify)
                 NotifyStatusChanged();

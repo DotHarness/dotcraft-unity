@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "dotcraft-unity",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "displayName": "DotCraft Unity",
   "description": "Guide agents to use dotcraft-unity MCP tools.",
   "capabilities": ["skill"],

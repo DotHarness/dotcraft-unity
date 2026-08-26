@@ -59,6 +59,29 @@ The MCP Gateway reads discovery immediately before each call. It reports:
 
 The next independent call reads discovery again and can reach a newly started Unity instance.
 
+## Client presence
+
+Each MCP Gateway process registers itself so Unity can list the attached clients:
+
+```text
+POST /dotcraft-unity/session
+X-DotCraft-Unity-Token: <discovery token>
+
+{
+  "state": "online",
+  "sessionId": "9f3c1ab27d4e46f0b81c2e5a7d90cc31",
+  "processId": 24188,
+  "client": { "name": "claude-code", "title": "Claude Code", "version": "2.0.31" }
+}
+```
+
+The route is an idempotent upsert. Unity replies with `heartbeatSeconds`, which the gateway clamps to
+5-120 seconds. `client` is null until the client identifies itself during `initialize`.
+
+A session is dropped on `"state": "closing"`, when its process id is gone, or after a 45-second TTL.
+Tool calls carry the optional `X-DotCraft-Unity-Session` header so activity stays accurate between
+heartbeats.
+
 ## Tool registry
 
 `UnityToolRegistry` is the execution authority:

@@ -49,6 +49,7 @@ namespace DotCraft.Editor.ToolGateway
     {
         public const int SchemaVersion = 1;
         public const string TokenHeader = "X-DotCraft-Unity-Token";
+        public const string SessionHeader = "X-DotCraft-Unity-Session";
 
         private readonly string _discoveryPath;
         private readonly string _manifestPath;

@@ -71,3 +71,37 @@ internal sealed class UnityToolGatewayResult
     [JsonPropertyName("durationMs")]
     public long DurationMs { get; set; }
 }
+
+internal sealed class ClientPresenceClientInfo
+{
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    [JsonPropertyName("version")]
+    public string? Version { get; set; }
+}
+
+internal sealed class ClientPresenceRequest
+{
+    [JsonPropertyName("state")]
+    public string State { get; set; } = GatewayConstants.PresenceStateOnline;
+
+    [JsonPropertyName("sessionId")]
+    public string SessionId { get; set; } = string.Empty;
+
+    [JsonPropertyName("processId")]
+    public int ProcessId { get; set; }
+
+    /// <summary>Null until the client identifies itself during initialize.</summary>
+    [JsonPropertyName("client")]
+    public ClientPresenceClientInfo? Client { get; set; }
+}
+
+internal sealed class ClientPresenceAck
+{
+    [JsonPropertyName("heartbeatSeconds")]
+    public int HeartbeatSeconds { get; set; }
+}

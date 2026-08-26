@@ -10,6 +10,7 @@ internal sealed class ToolManifestMonitor : BackgroundService
     private readonly ProjectStateStore _stateStore;
     private readonly UnityToolGatewayClient _toolGatewayClient;
     private readonly McpServerPrimitiveCollection<McpServerTool> _tools;
+    private readonly ClientPresenceState _presence;
     private readonly ILogger<ToolManifestMonitor> _logger;
     private string? _revision;
 
@@ -17,11 +18,13 @@ internal sealed class ToolManifestMonitor : BackgroundService
         ProjectStateStore stateStore,
         UnityToolGatewayClient toolGatewayClient,
         McpServerPrimitiveCollection<McpServerTool> tools,
+        ClientPresenceState presence,
         ILogger<ToolManifestMonitor> logger)
     {
         _stateStore = stateStore;
         _toolGatewayClient = toolGatewayClient;
         _tools = tools;
+        _presence = presence;
         _logger = logger;
     }
 
@@ -53,7 +56,7 @@ internal sealed class ToolManifestMonitor : BackgroundService
         {
             _tools.Clear();
             foreach (var entry in manifest.Tools)
-                _tools.Add(new UnityProxyTool(entry, _toolGatewayClient));
+                _tools.Add(new UnityProxyTool(entry, _toolGatewayClient, _presence));
         }
 
         _revision = manifest.Revision;

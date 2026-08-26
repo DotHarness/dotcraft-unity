@@ -8,6 +8,7 @@ using DotCraft.Editor.Extensions;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.Settings;
 using DotCraft.Editor.UI;
+using DotCraft.Editor.ToolGateway;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -78,6 +79,9 @@ namespace DotCraft.Editor.Window
         private readonly SingleFlightOperation<bool> _connectOperation = new();
         private readonly CancellationTokenSource _windowLifetimeCts = new();
         private bool _isDestroyed;
+
+        /// <summary>When the current agent connection was established, for the status-bar dropdown.</summary>
+        private DateTime? _agentConnectedAtUtc;
 
         // Authentication state
         private VisualElement _authPanel;
@@ -669,6 +673,8 @@ namespace DotCraft.Editor.Window
             _client.OnAuthenticationRequired += HandleAuthenticationRequired;
             _client.OnAvailableCommandsUpdate += HandleAvailableCommandsUpdate;
             _client.OnConfigOptionsUpdate += HandleConfigOptionsUpdate;
+
+            DotCraftAgentPresence.Publish(this, AgentPresenceSnapshot.WindowOpen());
         }
 
         private Task<bool> ConnectAsync(
@@ -1103,6 +1109,9 @@ namespace DotCraft.Editor.Window
 
         private void UpdateConnectionStatus(ConnectionStatus status)
         {
+            // Must stay above the guard below; the toolbar may not be built yet.
+            PublishAgentPresence(status);
+
             if (_statusIndicator == null) return;
 
             _statusIndicator.RemoveFromClassList("connected");
@@ -1133,6 +1142,22 @@ namespace DotCraft.Editor.Window
             }
 
             UpdateSessionManagementUI();
+        }
+
+        /// <summary>Mirrors the connection state onto the status-bar indicator.</summary>
+        private void PublishAgentPresence(ConnectionStatus status)
+        {
+            if (status == ConnectionStatus.Connected)
+                _agentConnectedAtUtc ??= DateTime.UtcNow;
+            else
+                _agentConnectedAtUtc = null;
+
+            DotCraftAgentPresence.Publish(this, status switch
+            {
+                ConnectionStatus.Connected => AgentPresenceSnapshot.FromClient(_client, _agentConnectedAtUtc),
+                ConnectionStatus.Connecting => AgentPresenceSnapshot.Connecting(),
+                _ => AgentPresenceSnapshot.WindowOpen()
+            });
         }
 
         private void HandleConnectionButtonClick()
@@ -1295,6 +1320,8 @@ namespace DotCraft.Editor.Window
             {
                 DomainReloadHandler.SaveSessionState(_client.SessionId);
             }
+
+            DotCraftAgentPresence.Clear(this);
 
             // Kill and dispose synchronously; Dispose now kills the process
             // first so there is no deadlock with the reader loop.
@@ -1544,6 +1571,7 @@ namespace DotCraft.Editor.Window
         private void OnDestroy()
         {
             _isDestroyed = true;
+            DotCraftAgentPresence.Clear(this);
             EditorApplication.update -= ProcessScrollDirty;
             DomainReloadHandler.OnRestoreSession -= HandleSessionRestore;
             _windowLifetimeCts.Cancel();

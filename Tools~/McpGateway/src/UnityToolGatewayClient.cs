@@ -23,7 +23,8 @@ internal sealed class UnityToolGatewayClient
     public async Task<UnityToolGatewayResult> CallAsync(
         string name,
         IDictionary<string, JsonElement>? arguments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? sessionId = null)
     {
         var discovery = _stateStore.ReadLiveDiscovery();
         if (discovery is null)
@@ -33,6 +34,8 @@ internal sealed class UnityToolGatewayClient
             HttpMethod.Post,
             discovery.Endpoint.TrimEnd('/') + "/call");
         request.Headers.TryAddWithoutValidation(GatewayConstants.ToolGatewayTokenHeader, discovery.Token);
+        if (!string.IsNullOrEmpty(sessionId))
+            request.Headers.TryAddWithoutValidation(GatewayConstants.ToolGatewaySessionHeader, sessionId);
         request.Content = new StringContent(
             JsonSerializer.Serialize(new
             {
@@ -81,6 +84,50 @@ internal sealed class UnityToolGatewayClient
         catch (JsonException ex)
         {
             return Disconnected(name, $"Unity returned an invalid tool result: {ex.Message}");
+        }
+    }
+
+    /// <summary>Returns null when Unity is unreachable, which is an ordinary state.</summary>
+    public async Task<ClientPresenceAck?> PostPresenceAsync(
+        ClientPresenceRequest presence,
+        CancellationToken cancellationToken)
+    {
+        var discovery = _stateStore.ReadLiveDiscovery();
+        if (discovery is null)
+            return null;
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            discovery.Endpoint.TrimEnd('/') + "/session");
+        request.Headers.TryAddWithoutValidation(GatewayConstants.ToolGatewayTokenHeader, discovery.Token);
+        request.Content = new StringContent(
+            JsonSerializer.Serialize(presence, JsonOptions),
+            Encoding.UTF8,
+            "application/json");
+
+        // The shared HttpClient timeout is sized for tool calls (65s).
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+
+        try
+        {
+            using var response = await _httpClient
+                .SendAsync(request, HttpCompletionOption.ResponseContentRead, timeout.Token)
+                .ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            return await response.Content
+                .ReadFromJsonAsync<ClientPresenceAck>(JsonOptions, timeout.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException or JsonException or OperationCanceledException)
+        {
+            return null;
         }
     }
 

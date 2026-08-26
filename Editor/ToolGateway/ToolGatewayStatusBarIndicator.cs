@@ -1,3 +1,4 @@
+using System;
 using System.Reflection;
 using DotCraft.Editor.Settings;
 using UnityEditor;
@@ -122,12 +123,18 @@ namespace DotCraft.Editor.ToolGateway
                 return;
 
             UnityToolGatewayRuntime.Instance.StatusChanged += OnStatusChanged;
+            DotCraftAgentPresence.Changed += OnPresenceChanged;
             s_serviceEventsRegistered = true;
         }
 
         private static void OnStatusChanged()
         {
             TryInject();
+        }
+
+        private static void OnPresenceChanged()
+        {
+            RefreshIndicator();
         }
 
         private static void RegisterStatusBarRoot(VisualElement root)
@@ -151,7 +158,7 @@ namespace DotCraft.Editor.ToolGateway
             s_configuredIndicator = container;
             container.RegisterCallback<AttachToPanelEvent>(OnIndicatorAttached);
             container.RegisterCallback<DetachFromPanelEvent>(OnIndicatorDetached);
-            s_layoutRefreshSchedule = container.schedule.Execute(RefreshLayout).Every(LayoutRefreshIntervalMilliseconds);
+            s_layoutRefreshSchedule = container.schedule.Execute(RefreshTick).Every(LayoutRefreshIntervalMilliseconds);
         }
 
         private static void UnconfigureIndicator()
@@ -241,15 +248,30 @@ namespace DotCraft.Editor.ToolGateway
             }
 
             RefreshLayout();
-            var service = UnityToolGatewayRuntime.Instance;
-            s_summary = ToolGatewayStatusSummary.FromState(
-                service.IsRunning,
-                DotCraftPackageInfo.Version,
-                service.ManifestRevision,
-                service.ToolCount,
-                service.LastError);
+            s_summary = ToolGatewayStatusSource.Capture();
             s_indicator.style.display = s_summary.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
             s_indicator.tooltip = s_summary.Tooltip;
+            s_indicator.MarkDirtyRepaint();
+        }
+
+        private static void RefreshTick()
+        {
+            RefreshLayout();
+            if (s_indicator == null || s_indicator.panel == null)
+                return;
+
+            var summary = ToolGatewayStatusSource.Capture();
+            if (summary.Indicator == s_summary.Indicator
+                && string.Equals(summary.Tooltip, s_summary.Tooltip, StringComparison.Ordinal)
+                && summary.IsVisible == s_summary.IsVisible)
+            {
+                s_summary = summary;
+                return;
+            }
+
+            s_summary = summary;
+            s_indicator.style.display = summary.IsVisible ? DisplayStyle.Flex : DisplayStyle.None;
+            s_indicator.tooltip = summary.Tooltip;
             s_indicator.MarkDirtyRepaint();
         }
 
@@ -424,7 +446,20 @@ namespace DotCraft.Editor.ToolGateway
             var statusDotTop = logoTop + StatusDotVerticalNudge;
             EditorGUI.DrawRect(
                 new Rect(statusDotLeft, statusDotTop, StatusDotSize, StatusDotSize),
-                new Color(0.3f, 0.85f, 0.4f));
+                ResolveStatusDotColor(s_summary.Indicator));
+        }
+
+        private static Color ResolveStatusDotColor(ToolGatewayIndicatorState state)
+        {
+            switch (state)
+            {
+                case ToolGatewayIndicatorState.Warning:
+                    return new Color(0.95f, 0.62f, 0.15f);
+                case ToolGatewayIndicatorState.Active:
+                    return new Color(0.3f, 0.85f, 0.4f);
+                default:
+                    return new Color(0.42f, 0.55f, 0.45f);
+            }
         }
 
         private static Texture2D GetLogo()

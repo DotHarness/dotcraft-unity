@@ -22,6 +22,7 @@ internal static class Program
 
         var stateStore = new ProjectStateStore(projectRoot!);
         var toolGatewayClient = new UnityToolGatewayClient(stateStore);
+        var presence = new ClientPresenceState();
         var tools = new McpServerPrimitiveCollection<McpServerTool>(StringComparer.Ordinal);
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
@@ -34,9 +35,11 @@ internal static class Program
 
         builder.Services.AddSingleton(stateStore);
         builder.Services.AddSingleton(toolGatewayClient);
+        builder.Services.AddSingleton(presence);
         builder.Services.AddSingleton(tools);
         builder.Services.AddSingleton<ToolManifestMonitor>();
         builder.Services.AddHostedService(provider => provider.GetRequiredService<ToolManifestMonitor>());
+        builder.Services.AddHostedService<ClientPresenceMonitor>();
 
         builder.Services
             .AddMcpServer(options =>

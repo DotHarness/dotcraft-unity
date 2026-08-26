@@ -18,8 +18,12 @@ namespace DotCraft.Editor.McpSetup
                 root.styleSheets.Add(sheet);
         }
 
-        public static VisualElement BrandHeader(string title, string subtitle)
+        public static VisualElement BrandHeader(string title, string subtitle) =>
+            BrandHeader(title, subtitle, out _);
+
+        public static VisualElement BrandHeader(string title, string subtitle, out Label subtitleLabel)
         {
+            subtitleLabel = null;
             var header = new VisualElement();
             header.AddToClassList("gw-header");
 
@@ -41,7 +45,7 @@ namespace DotCraft.Editor.McpSetup
 
             if (!string.IsNullOrEmpty(subtitle))
             {
-                var subtitleLabel = new Label(subtitle);
+                subtitleLabel = new Label(subtitle);
                 subtitleLabel.AddToClassList("gw-subtitle");
                 text.Add(subtitleLabel);
             }
