@@ -19,11 +19,6 @@
 | C# 自动化 | 想让 agent 批量操作 Unity | `unity_execute_csharp` |
 | 自定义工具 | 想暴露项目专属 Unity 工具 | `[AgentTool]` |
 
-Unity 内聊天和 MCP Gateway 是两条独立路径。
-
-- Unity 内聊天会启动一个 ACP agent 进程，并在 Unity 面板中和它对话。
-- MCP Gateway 为外部 Agent 提供稳定的 stdio MCP Server，并把调用转发到当前 Unity Editor 进程。
-
 ## 快速开始
 
 ### 安装 Unity Package
@@ -66,11 +61,9 @@ Unity 内聊天和 MCP Gateway 是两条独立路径。
 
 ![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
 
-dotcraft-unity 会为外部 coding agent 安装版本化的 stdio MCP Gateway。MCP Host 管理 Gateway 进程，Unity 则运行私有、带认证的 loopback Unity Tool Gateway。两者生命周期彼此分离，因此重启 Unity 不会结束 MCP 会话：Unity 离线时调用返回 `UnityUnavailable`，Unity 再次启动后，后续调用会自动连接新的 Unity Tool Gateway。
+dotcraft-unity 为 coding agent 提供了一个生命周期稳定的 MCP Gateway，不受 Domain Reload、Editor 重启影响。
 
-Setup 窗口从对应 Package 版本的 GitHub Release 下载并校验 Gateway，然后为 Claude Code、Codex 或 Cursor 写入 command/args 配置。Unity Tool Gateway endpoint 和 token 只保存在项目的私有状态中，不会写入客户端配置。
-
-生命周期、安全、发现和错误契约见 [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md)。
+详情见 [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md)。
 
 ## 内置工具
 
@@ -84,7 +77,9 @@ dotcraft-unity 基于 Roslyn 提供了一个内置 Unity 运行时工具：
 
 ## 自定义工具
 
-Unity Editor 代码可以通过给静态方法添加 `AgentToolAttribute`，暴露项目自定义工具。新工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭；启用后可由 DotCraft 或通过 Gateway 连接的 MCP client 使用。工具列表变化会由 Gateway 发布，无需重启 MCP Host 会话。
+Unity Editor 代码可以通过给静态方法添加 `AgentToolAttribute`，暴露项目自定义工具。
+
+新工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭。
 
 ```csharp
 using System.ComponentModel;
@@ -102,7 +97,7 @@ public static class ExampleDotCraftTools
 }
 ```
 
-方法参数会使用 Newtonsoft.Json 命名规则转换成 JSON Schema。完整注册契约见 [Documentation~/dynamic-tools.md](./Documentation~/dynamic-tools.md)。
+详情见 [Documentation~/dynamic-tools.md](./Documentation~/dynamic-tools.md)。
 
 ## Agent 集成
 
@@ -124,16 +119,6 @@ dotcraft-unity 为外部 agent 提供共享的自动化 skill，并为 DotCraft 
 ### ACP Extension
 
 使用 dotcraft 作为 ACP Server 时，无需使用 MCP 服务，内置工具和自定义工具会走 ACP 拓展传递给会话，以减少非 Unity 会话的上下文开销。
-
-## 贡献代码
-
-欢迎在 [DotHarness/dotcraft-unity](https://github.com/DotHarness/dotcraft-unity) 贡献代码。Agent Harness 本体请使用 [DotHarness/dotcraft](https://github.com/DotHarness/dotcraft)。
-
-## 引用
-
-[DotCraft](https://github.com/DotHarness/dotcraft)
-
-[Agent Client Protocol](https://agentclientprotocol.com/)
 
 ## License
 
