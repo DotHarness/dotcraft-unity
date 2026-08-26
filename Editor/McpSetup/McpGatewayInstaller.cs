@@ -58,14 +58,26 @@ namespace DotCraft.Editor.McpSetup
         private const string ReleaseBaseUrl = "https://github.com/DotHarness/dotcraft-unity/releases/download/";
         private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromMinutes(10) };
 
-        private static string InstalledDirectory => Path.Combine(
+        private static string RootDirectory => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             ".craft",
             "unity",
-            "mcp-gateway",
-            DotCraftPackageInfo.Version);
+            "mcp-gateway");
+
+        private static string InstalledDirectory => Path.Combine(RootDirectory, DotCraftPackageInfo.Version);
 
         public static string InstalledExecutablePath => Path.Combine(InstalledDirectory, GatewayFileName);
+
+        /// <summary>An executable from another package version makes the pending action an upgrade.</summary>
+        public static bool HasOtherVersion()
+        {
+            if (!Directory.Exists(RootDirectory))
+                return false;
+
+            return Directory.EnumerateDirectories(RootDirectory).Any(directory =>
+                !string.Equals(Path.GetFileName(directory), DotCraftPackageInfo.Version, StringComparison.Ordinal)
+                && File.Exists(Path.Combine(directory, GatewayFileName)));
+        }
 
         private static string InstalledManifestPath => Path.Combine(InstalledDirectory, ArtifactManifestFileName);
 

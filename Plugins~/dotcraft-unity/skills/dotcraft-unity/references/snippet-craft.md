@@ -118,8 +118,6 @@ fails there is no way to tell which half failed.
 
 ## Return Shape
 
-Return only what the next decision needs — paths, names, counts, the specific error message.
-
 For inspection, a `StringBuilder` with one labelled fact per line reads well and diffs well
 across calls. `loaded=12 loading=0` stays unambiguous three calls later in a way that two bare
 numbers do not. Where a value has an expectation, state it inline — `loaded=0 <- expect 0` makes

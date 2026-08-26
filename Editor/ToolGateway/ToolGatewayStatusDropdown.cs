@@ -146,6 +146,7 @@ namespace DotCraft.Editor.ToolGateway
                 RebuildAgentSection(_summary);
                 RebuildClientSection(_summary);
                 GatewayPanelView.SetBanner(_banner, _bannerText, _summary.LastError, "gw-banner--warn");
+                _bannerText.tooltip = _summary.LastError;
             }
 
             ApplyActivity(_summary);

@@ -5,20 +5,11 @@ window looks like — GameView, SceneView, or the Editor as a whole.
 
 ## Capture From Outside The Process
 
-Unity exposes no public API for capturing an arbitrary `EditorWindow`. The entry points that
-appear to do it are internal, carry no compatibility guarantee, and are not present on every
-Editor — so a snippet built on one fails as a bare compile error on the next machine.
+Capture the Editor window at the OS level, not through Unity. Nothing is focused, shown or
+re-laid-out, and no extra render is forced — which matters when the screenshot documents a memory
+or GPU-memory measurement it would otherwise perturb.
 
-Capture the Editor's window at the OS level instead. This needs no Unity API at all, so it cannot
-drift with the Editor version, and it has two properties that matter for this skill:
-
-- **It does not disturb the Editor.** No window is focused, shown, or re-laid-out, which keeps
-  faith with the default behaviour rules in `SKILL.md`.
-- **It does not perturb what it documents.** Every in-Editor route allocates a render target and
-  forces an extra render. When the screenshot exists to document a memory or GPU-memory
-  measurement, that changes the number the picture is supposed to explain.
-
-The tradeoff is honest to state: this captures the whole Editor window, not a single pane. See
+This captures the whole Editor window, not a single pane. See
 [Cropping to one pane](#cropping-to-one-pane) if a single pane is required.
 
 ## Windows

@@ -16,11 +16,17 @@ namespace DotCraft.Editor.Execution
 
     internal sealed class ExecutionRequest
     {
-        public ExecutionRequest(string engine, string mode, string code, JObject inputs = null)
+        public ExecutionRequest(
+            string engine,
+            string mode,
+            string code,
+            string path = null,
+            JObject inputs = null)
         {
             Engine = engine;
             Mode = mode;
             Code = code;
+            Path = path;
             Inputs = inputs;
         }
 
@@ -29,6 +35,9 @@ namespace DotCraft.Editor.Execution
         public string Mode { get; }
 
         public string Code { get; }
+
+        /// <summary>Project-relative path of a script file to execute instead of <see cref="Code"/>.</summary>
+        public string Path { get; }
 
         public JObject Inputs { get; }
     }

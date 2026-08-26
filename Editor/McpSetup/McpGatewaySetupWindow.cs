@@ -22,6 +22,8 @@ namespace DotCraft.Editor.McpSetup
         private Label _toolsValue;
         private VisualElement _gatewayBanner;
         private Label _gatewayBannerText;
+        private Button _installGatewayButton;
+        private Button _serviceButton;
         private string _gatewayOperationError;
 
         public static void ShowWindow()
@@ -60,7 +62,7 @@ namespace DotCraft.Editor.McpSetup
 
             RefreshGatewayStatus();
             foreach (var card in _clientCards)
-                RefreshChip(card);
+                RefreshClientState(card);
         }
 
         private VisualElement BuildGatewayCard()
@@ -109,8 +111,10 @@ namespace DotCraft.Editor.McpSetup
 
             var buttons = new VisualElement();
             buttons.AddToClassList("gw-btn-row");
-            buttons.Add(GatewayPanelView.Button("Install Gateway", InstallGateway));
-            buttons.Add(GatewayPanelView.Button("Enable / Restart Gateway", EnableAndRestartToolGateway, "gw-btn--primary"));
+            _installGatewayButton = GatewayPanelView.Button("Install Gateway", InstallGateway);
+            _serviceButton = GatewayPanelView.Button("Enable Gateway", EnableAndRestartToolGateway, "gw-btn--primary");
+            buttons.Add(_installGatewayButton);
+            buttons.Add(_serviceButton);
             card.Add(buttons);
 
             return card;
@@ -144,8 +148,9 @@ namespace DotCraft.Editor.McpSetup
             path.AddToClassList("gw-client-path");
             head.Add(path);
 
-            var chip = GatewayPanelView.Chip("Not set up", "gw-chip--muted");
-            head.Add(chip);
+            var check = new Label("✓");
+            check.AddToClassList("gw-check");
+            head.Add(check);
             card.Add(head);
 
             var hint = new Label(provider.GetSetupHint(BuildOptions()));
@@ -161,13 +166,17 @@ namespace DotCraft.Editor.McpSetup
             result.style.display = DisplayStyle.None;
             card.Add(result);
 
-            var view = new ClientCardView(provider, chip, result);
+            // The handlers need the view, and the view needs the buttons, so the capture closes the loop.
+            ClientCardView view = null;
+            var install = GatewayPanelView.Button("Install", () => InstallClient(view), "gw-btn--primary");
+            var remove = GatewayPanelView.Button("Remove", () => UninstallClient(view), "gw-btn--danger");
+            view = new ClientCardView(provider, check, install, remove, result);
             _clientCards.Add(view);
 
             var buttons = new VisualElement();
             buttons.AddToClassList("gw-btn-row");
-            buttons.Add(GatewayPanelView.Button("Install / Update", () => InstallClient(view), "gw-btn--primary"));
-            buttons.Add(GatewayPanelView.Button("Remove", () => UninstallClient(view), "gw-btn--danger"));
+            buttons.Add(install);
+            buttons.Add(remove);
             card.Add(buttons);
 
             return card;
@@ -190,7 +199,7 @@ namespace DotCraft.Editor.McpSetup
                 skillResult = SkillInstaller.Install(McpGatewaySetupDefaults.ProjectRoot, view.Provider.SkillRelativePath);
 
             ShowClientInstallResult(view, result, skillResult);
-            RefreshChip(view);
+            RefreshClientState(view);
             RefreshGatewayStatus();
         }
 
@@ -198,7 +207,7 @@ namespace DotCraft.Editor.McpSetup
         {
             var result = view.Provider.Uninstall(McpGatewaySetupDefaults.ProjectRoot);
             ShowClientResult(view, result);
-            RefreshChip(view);
+            RefreshClientState(view);
             RefreshGatewayStatus();
         }
 
@@ -240,19 +249,13 @@ namespace DotCraft.Editor.McpSetup
             view.Result.style.display = DisplayStyle.Flex;
         }
 
-        private void RefreshChip(ClientCardView view)
+        private void RefreshClientState(ClientCardView view)
         {
-            var configured = false;
-            try
-            {
-                configured = view.Provider.IsConfigured(McpGatewaySetupDefaults.ProjectRoot);
-            }
-            catch
-            {
-                configured = false;
-            }
-
-            GatewayPanelView.SetChip(view.Chip, configured ? "Configured" : "Not set up", configured);
+            var configured = view.Provider.IsConfigured(McpGatewaySetupDefaults.ProjectRoot);
+            var visibility = configured ? DisplayStyle.Flex : DisplayStyle.None;
+            view.InstallButton.text = configured ? "Update" : "Install";
+            view.Check.style.display = visibility;
+            view.RemoveButton.style.display = visibility;
         }
 
         private void RefreshGatewayStatus()
@@ -267,10 +270,13 @@ namespace DotCraft.Editor.McpSetup
             _statusDot.EnableInClassList("gw-dot--on", running);
             _statusDot.EnableInClassList("gw-dot--off", !running);
             _statusText.text = running ? "Gateway running" : "Gateway stopped";
+            _serviceButton.text = running ? "Restart Gateway" : "Enable Gateway";
             _statusSub.text = running
                 ? "MCP Gateway calls can reach this Editor"
                 : "MCP clients stay connected while Unity is unavailable";
 
+            _installGatewayButton.style.display = gateway.IsInstalled ? DisplayStyle.None : DisplayStyle.Flex;
+            _installGatewayButton.text = McpGatewayInstaller.HasOtherVersion() ? "Update Gateway" : "Install Gateway";
             _gatewayValue.text = gateway.IsInstalled
                 ? $"{DotCraftPackageInfo.Version} / {gateway.Version} installed"
                 : $"{DotCraftPackageInfo.Version} / not installed";
@@ -325,16 +331,27 @@ namespace DotCraft.Editor.McpSetup
 
         private sealed class ClientCardView
         {
-            public ClientCardView(IMcpClientConfigProvider provider, Label chip, Label result)
+            public ClientCardView(
+                IMcpClientConfigProvider provider,
+                Label check,
+                Button installButton,
+                Button removeButton,
+                Label result)
             {
                 Provider = provider;
-                Chip = chip;
+                Check = check;
+                InstallButton = installButton;
+                RemoveButton = removeButton;
                 Result = result;
             }
 
             public IMcpClientConfigProvider Provider { get; }
 
-            public Label Chip { get; }
+            public Label Check { get; }
+
+            public Button InstallButton { get; }
+
+            public Button RemoveButton { get; }
 
             public Label Result { get; }
         }

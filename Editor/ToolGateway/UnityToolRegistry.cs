@@ -112,14 +112,22 @@ namespace DotCraft.Editor.ToolGateway
                 new UnityToolSpec
                 {
                     Name = ExecuteCSharpToolName,
-                    Description = "Compile and execute C# in the running Unity Editor.",
+                    Description = "Compile and execute C# in the running Unity Editor, from an inline snippet or a saved script file.",
                     InputSchema = JObject.Parse(
                         @"{
   ""type"": ""object"",
   ""properties"": {
     ""code"": {
       ""type"": ""string"",
-      ""description"": ""C# method body to compile and execute. Use return to provide a result.""
+      ""description"": ""C# method body to compile and execute. Use return to provide a result. Provide either code or path.""
+    },
+    ""path"": {
+      ""type"": ""string"",
+      ""description"": ""Project-relative path of a saved C# script to execute instead of code, for example .craft/scripts/console-read.cs.""
+    },
+    ""args"": {
+      ""type"": ""object"",
+      ""description"": ""Values passed to the script as the Args JObject.""
     },
     ""mode"": {
       ""type"": ""string"",
@@ -127,7 +135,6 @@ namespace DotCraft.Editor.ToolGateway
       ""description"": ""Execution mode.""
     }
   },
-  ""required"": [""code""],
   ""additionalProperties"": false
 }")
                 },
@@ -160,19 +167,13 @@ namespace DotCraft.Editor.ToolGateway
             Stopwatch stopwatch)
         {
             var args = arguments as JObject ?? new JObject();
-            var code = args.Value<string>("code");
-            var mode = args.Value<string>("mode") ?? UnityExecutionModes.Editor;
-            if (string.IsNullOrWhiteSpace(code))
-            {
-                return UnityToolResult.Failed(
-                    ExecuteCSharpToolName,
-                    "InvalidArguments",
-                    "unity_execute_csharp requires a non-empty 'code' argument.",
-                    stopwatch.ElapsedMilliseconds);
-            }
 
             ct.ThrowIfCancellationRequested();
-            var result = await RunExecuteCSharpAsync(code, mode).ConfigureAwait(false);
+            var result = await RunExecuteCSharpAsync(
+                args.Value<string>("code"),
+                args.Value<string>("mode") ?? UnityExecutionModes.Editor,
+                args.Value<string>("path"),
+                args["args"] as JObject).ConfigureAwait(false);
             return ProjectOutcome(RuntimeToolOutcome.FromResult(
                 ExecuteCSharpToolName,
                 result,
@@ -231,9 +232,13 @@ namespace DotCraft.Editor.ToolGateway
                 timeoutMs: 60000);
         }
 
-        private static Task<ExecutionResult> RunExecuteCSharpAsync(string code, string mode)
+        private static Task<ExecutionResult> RunExecuteCSharpAsync(
+            string code,
+            string mode,
+            string path,
+            JObject args)
         {
-            var request = new ExecutionRequest(UnityExecutionEngines.CSharp, mode, code);
+            var request = new ExecutionRequest(UnityExecutionEngines.CSharp, mode, code, path, args);
             if (MainThreadDispatcher.IsMainThread)
                 return ExecutionRouter.Instance.ExecuteAsync(request);
 

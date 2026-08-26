@@ -120,23 +120,6 @@ namespace DotCraft.Editor.McpSetup
                 "d_Duplicate");
         }
 
-        public static Label Chip(string text, string variantClass)
-        {
-            var chip = new Label(text);
-            chip.AddToClassList("gw-chip");
-            if (!string.IsNullOrEmpty(variantClass))
-                chip.AddToClassList(variantClass);
-            return chip;
-        }
-
-        public static void SetChip(Label chip, string text, bool ok)
-        {
-            chip.text = text;
-            chip.RemoveFromClassList("gw-chip--ok");
-            chip.RemoveFromClassList("gw-chip--muted");
-            chip.AddToClassList(ok ? "gw-chip--ok" : "gw-chip--muted");
-        }
-
         public static VisualElement Banner(string variantClass, out Label textLabel)
         {
             var banner = new VisualElement();
@@ -170,13 +153,6 @@ namespace DotCraft.Editor.McpSetup
 
             textLabel.text = message;
             banner.style.display = DisplayStyle.Flex;
-        }
-
-        public static VisualElement Divider()
-        {
-            var divider = new VisualElement();
-            divider.AddToClassList("gw-divider");
-            return divider;
         }
 
         public static void CopyToClipboard(string value)

@@ -45,7 +45,9 @@ namespace DotCraft.Editor.Tests
 
             Assert.That(tool.Description, Is.Not.Empty);
             Assert.That(tool.InputSchema.Value<string>("type"), Is.EqualTo("object"));
-            Assert.That(tool.InputSchema["required"]?.Values<string>(), Contains.Item("code"));
+            Assert.That(
+                ((JObject)tool.InputSchema["properties"]).Properties().Select(p => p.Name),
+                Is.EquivalentTo(new[] { "code", "path", "args", "mode" }));
         }
 
         [Test]

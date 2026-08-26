@@ -180,10 +180,9 @@ namespace DotCraft.Editor.ToolGateway
                     await WriteResponseAsync(stream, response, cancellationToken).ConfigureAwait(false);
                 }
             }
+            // A client hanging up mid-request is ordinary and says nothing about gateway health.
             catch (Exception ex) when (ex is IOException or SocketException or OperationCanceledException)
             {
-                if (!cancellationToken.IsCancellationRequested)
-                    RecordError(ex.Message);
             }
             catch (Exception ex)
             {
@@ -342,7 +341,29 @@ namespace DotCraft.Editor.ToolGateway
         private void RecordError(string message)
         {
             lock (_gate)
-                _lastError = message;
+                _lastError = OneLine(message);
+        }
+
+        /// <summary>Mono pads Winsock error text with NULs, which would stretch every status surface.</summary>
+        private static string OneLine(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+                return message;
+
+            var builder = new StringBuilder(message.Length);
+            foreach (var character in message)
+            {
+                if (character == ' ')
+                    continue;
+
+                var normalized = char.IsControl(character) ? ' ' : character;
+                if (normalized == ' ' && (builder.Length == 0 || builder[builder.Length - 1] == ' '))
+                    continue;
+
+                builder.Append(normalized);
+            }
+
+            return builder.ToString().TrimEnd();
         }
 
         private sealed class ToolGatewayHttpRequest

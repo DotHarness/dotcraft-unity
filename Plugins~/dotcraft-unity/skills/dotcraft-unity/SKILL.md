@@ -11,6 +11,24 @@ Use `unity_execute_csharp` for short Unity Editor snippets containing optional l
 
 This skill governs Unity tool calls, especially `unity_execute_csharp`. It does not replace normal repository file editing workflows.
 
+## Inline Code Or A Saved Script
+
+`unity_execute_csharp` takes either `code` or `path`, never both. `path` is project-relative and must stay inside the Unity project root. A script file holds exactly the same thing `code` does — optional leading `using` directives followed by method-body statements — and is never compiled by Unity.
+
+Pass `args` to parameterise a script. It arrives as a Newtonsoft `JObject` named `Args`:
+
+```csharp
+var maxRows = (int?)Args["maxRows"] ?? 20;
+```
+
+Use `path` when a task recurs — the same script re-runs from a short path instead of resending the whole snippet, and it hits the compilation cache. Use inline `code` for one-off work.
+
+## Where Scripts Live
+
+Bundled scripts ship in `scripts/` inside this skill directory.
+
+Write new scripts to `.craft/scripts/`. Before writing one, check whether it already exists there.
+
 ## References
 
 Load only the reference needed for the current task:
@@ -22,11 +40,7 @@ Load only the reference needed for the current task:
 
 ## Default Behavior
 
-Keep Unity in the background by default. Do not change the user's current Editor focus, selected window, dock layout, active view, or Play Mode state unless the user explicitly asked for that visible action.
-
-Prefer read-only inspection first, then make the smallest useful change when the user's request clearly asks to fix, create, modify, or automate something in Unity.
-
-Return concise summaries from snippets. Include paths, object names, counts, and error messages that help the next step. Avoid dumping huge JSON, broad hierarchy listings, or full asset databases unless the user asks.
+Keep Unity in the background: prefer read-only inspection first, then make the smallest useful change when the user's request clearly asks to fix, create, modify, or automate something in Unity.
 
 ## Good Uses
 

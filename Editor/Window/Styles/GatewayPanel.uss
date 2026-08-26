@@ -210,33 +210,12 @@
     justify-content: center;
 }
 
-/* ── Chips ── */
-.gw-chip {
-    padding: 1px 9px;
-    border-radius: 10px;
-    font-size: 10px;
+.gw-check {
+    font-size: 13px;
     -unity-font-style: bold;
-    -unity-text-align: middle-center;
-    border-width: 1px;
+    color: #6FCF73;
     flex-shrink: 0;
-}
-
-.gw-chip--ok {
-    background-color: rgba(76, 175, 80, 0.16);
-    border-color: rgba(76, 175, 80, 0.4);
-    color: #8BD18F;
-}
-
-.gw-chip--muted {
-    background-color: rgba(150, 150, 150, 0.1);
-    border-color: rgba(150, 150, 150, 0.28);
-    color: rgba(190, 190, 190, 0.78);
-}
-
-.gw-chip--warn {
-    background-color: rgba(255, 152, 0, 0.14);
-    border-color: rgba(255, 152, 0, 0.4);
-    color: #FFC078;
+    margin-left: 8px;
 }
 
 /* ── Client cards ── */
@@ -334,11 +313,10 @@
     flex-grow: 1;
 }
 
-.gw-divider {
-    height: 1px;
-    background-color: rgba(140, 140, 140, 0.18);
-    margin-top: 8px;
-    margin-bottom: 8px;
+/* Two lines at most, so the popup height estimate cannot be outgrown by a long error. */
+.gw-dropdown .gw-banner {
+    max-height: 46px;
+    overflow: hidden;
 }
 
 .gw-footer {

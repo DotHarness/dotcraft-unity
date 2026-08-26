@@ -9,8 +9,10 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using DotCraft.Editor.McpSetup;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Newtonsoft.Json.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -20,6 +22,7 @@ namespace DotCraft.Editor.Execution
     {
         private const int MaxNormalizedDepth = 4;
         private const int MaxNormalizedItems = 32;
+        private const string InlineSourceLabel = "unity_execute_csharp";
 
         private readonly ConcurrentDictionary<string, CompiledSnippet> _compiledSnippets = new();
 
@@ -49,22 +52,21 @@ namespace DotCraft.Editor.Execution
                     stopwatch.ElapsedMilliseconds));
             }
 
-            var code = request.Code ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(code))
-            {
-                return Task.FromResult(ExecutionResult.Failed(
-                    mode,
-                    "EmptyCode",
-                    "unity_execute_csharp requires a non-empty code snippet.",
-                    stopwatch.ElapsedMilliseconds));
-            }
-
             try
             {
-                var hash = ComputeHash(code);
+                if (!TryResolveSource(request, out var code, out var sourceLabel, out var sourceError))
+                {
+                    return Task.FromResult(ExecutionResult.Failed(
+                        mode,
+                        sourceError.Code,
+                        sourceError.Message,
+                        stopwatch.ElapsedMilliseconds));
+                }
+
+                var hash = ComputeHash(sourceLabel, code);
                 if (!_compiledSnippets.TryGetValue(hash, out var compiledSnippet))
                 {
-                    if (!TryCompile(code, hash, out var runMethod, out var diagnostics, out var errorMessage))
+                    if (!TryCompile(code, sourceLabel, hash, out var runMethod, out var diagnostics, out var errorMessage))
                     {
                         return Task.FromResult(ExecutionResult.Failed(
                             mode,
@@ -92,7 +94,9 @@ namespace DotCraft.Editor.Execution
                 Application.logMessageReceived += callback;
                 try
                 {
-                    rawReturnValue = compiledSnippet.RunMethod.Invoke(null, Array.Empty<object>());
+                    rawReturnValue = compiledSnippet.RunMethod.Invoke(
+                        null,
+                        new object[] { request.Inputs ?? new JObject() });
                 }
                 finally
                 {
@@ -127,8 +131,80 @@ namespace DotCraft.Editor.Execution
             }
         }
 
+        /// <summary>
+        /// Resolves the snippet text from either inline code or a project-relative script path.
+        /// The label is what <c>#line</c> reports, so it is part of the compilation cache key.
+        /// </summary>
+        private static bool TryResolveSource(
+            ExecutionRequest request,
+            out string code,
+            out string sourceLabel,
+            out (string Code, string Message) error)
+        {
+            code = null;
+            sourceLabel = InlineSourceLabel;
+            error = default;
+
+            var hasCode = !string.IsNullOrWhiteSpace(request.Code);
+            var hasPath = !string.IsNullOrWhiteSpace(request.Path);
+
+            if (hasCode && hasPath)
+            {
+                error = ("InvalidArguments", "unity_execute_csharp accepts 'code' or 'path', not both.");
+                return false;
+            }
+
+            if (!hasCode && !hasPath)
+            {
+                error = ("EmptyCode", "unity_execute_csharp requires either a 'code' snippet or a script 'path'.");
+                return false;
+            }
+
+            if (hasCode)
+            {
+                code = request.Code;
+                return true;
+            }
+
+            var root = McpGatewaySetupDefaults.ProjectRoot;
+            var relative = request.Path.Trim().Replace('\\', '/');
+            var fullPath = Path.GetFullPath(Path.Combine(
+                root,
+                relative.Replace('/', Path.DirectorySeparatorChar)));
+
+            if (!IsWithinDirectory(root, fullPath))
+            {
+                error = ("InvalidScriptPath",
+                    $"Script path must stay inside the Unity project root: {request.Path}");
+                return false;
+            }
+
+            if (!File.Exists(fullPath))
+            {
+                error = ("ScriptNotFound", $"Script not found: {request.Path}");
+                return false;
+            }
+
+            code = File.ReadAllText(fullPath);
+            sourceLabel = relative;
+            return true;
+        }
+
+        private static bool IsWithinDirectory(string rootPath, string path)
+        {
+            var root = Path.GetFullPath(rootPath)
+                           .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                       + Path.DirectorySeparatorChar;
+            var comparison = Environment.OSVersion.Platform == PlatformID.Unix
+                ? StringComparison.Ordinal
+                : StringComparison.OrdinalIgnoreCase;
+
+            return path.StartsWith(root, comparison);
+        }
+
         private static bool TryCompile(
             string code,
+            string sourceLabel,
             string hash,
             out MethodInfo runMethod,
             out List<ExecutionDiagnostic> diagnostics,
@@ -139,7 +215,7 @@ namespace DotCraft.Editor.Execution
             errorMessage = null;
 
             var className = $"Snippet_{hash}";
-            var source = BuildSource(className, code);
+            var source = BuildSource(className, code, sourceLabel);
             var syntaxTree = CSharpSyntaxTree.ParseText(
                 source,
                 new CSharpParseOptions(LanguageVersion.Latest));
@@ -180,27 +256,27 @@ namespace DotCraft.Editor.Execution
             return true;
         }
 
-        private static string BuildSource(string className, string code)
+        private static string BuildSource(string className, string code, string sourceLabel)
         {
             var snippet = ParseSnippet(code);
             var source = new StringBuilder();
 
-            AppendMappedUsings(source, snippet.GlobalUsings);
+            AppendMappedUsings(source, snippet.GlobalUsings, sourceLabel);
             source.AppendLine("using System;");
             source.AppendLine("using System.Linq;");
             source.AppendLine("using System.Collections.Generic;");
             source.AppendLine("using UnityEngine;");
             source.AppendLine("using UnityEditor;");
             source.AppendLine("using DotCraft.Editor;");
-            AppendMappedUsings(source, snippet.Usings);
+            AppendMappedUsings(source, snippet.Usings, sourceLabel);
             source.AppendLine();
             source.AppendLine("namespace DotCraft.Editor.Execution.Generated");
             source.AppendLine("{");
             source.Append("    public static class ").AppendLine(className);
             source.AppendLine("    {");
-            source.AppendLine("        public static object Run()");
+            source.AppendLine("        public static object Run(Newtonsoft.Json.Linq.JObject Args)");
             source.AppendLine("        {");
-            source.AppendLine("#line 1 \"unity_execute_csharp\"");
+            source.Append("#line 1 \"").Append(sourceLabel).AppendLine("\"");
             source.AppendLine(snippet.Body);
             source.AppendLine("#line default");
             source.AppendLine("            return null;");
@@ -282,13 +358,16 @@ namespace DotCraft.Editor.Execution
 
         private static void AppendMappedUsings(
             StringBuilder source,
-            IEnumerable<MappedUsingDirective> directives)
+            IEnumerable<MappedUsingDirective> directives,
+            string sourceLabel)
         {
             foreach (var directive in directives)
             {
                 source.Append("#line ")
                     .Append(directive.Line)
-                    .AppendLine(" \"unity_execute_csharp\"");
+                    .Append(" \"")
+                    .Append(sourceLabel)
+                    .AppendLine("\"");
                 source.AppendLine(directive.Text);
                 source.AppendLine("#line default");
             }
@@ -521,10 +600,10 @@ namespace DotCraft.Editor.Execution
             return string.IsNullOrEmpty(trimmed) ? UnityExecutionModes.Editor : trimmed;
         }
 
-        private static string ComputeHash(string code)
+        private static string ComputeHash(string sourceLabel, string code)
         {
             using var sha = SHA256.Create();
-            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(code));
+            var bytes = sha.ComputeHash(Encoding.UTF8.GetBytes(sourceLabel + "\n" + code));
             var builder = new StringBuilder(16);
             for (var i = 0; i < 8 && i < bytes.Length; i++)
                 builder.Append(bytes[i].ToString("x2"));

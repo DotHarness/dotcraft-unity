@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using DotCraft.Editor.ToolGateway;
 using DotCraft.Editor.Execution;
 using DotCraft.Editor.Protocol;
 using DotCraft.Editor.RuntimeTools;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -173,6 +175,91 @@ namespace DotCraft.Editor.Tests
             Assert.That(tool.Descriptor.Namespace, Is.EqualTo("unity"));
             Assert.That(tool.Descriptor.AcpMethod, Is.EqualTo("_unity/execute_csharp"));
             Assert.That(tool.Descriptor.Kind, Is.EqualTo(AcpToolKind.Execute));
+        }
+
+        [Test]
+        public void ExecuteCSharpRunsAScriptFromAProjectRelativePath()
+        {
+            var relativePath = WriteScript("return 1 + 2;");
+
+            var result = ExecuteScript(relativePath);
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.ReturnValue, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void ExecuteCSharpPassesArgsToTheScript()
+        {
+            var relativePath = WriteScript("return (int)Args[\"count\"] * 2;");
+
+            var result = ExecuteScript(relativePath, new JObject { ["count"] = 21 });
+
+            Assert.That(result.Success, Is.True, result.ErrorMessage);
+            Assert.That(result.ReturnValue, Is.EqualTo(42));
+        }
+
+        [Test]
+        public void ExecuteCSharpRejectsAScriptPathOutsideTheProjectRoot()
+        {
+            var result = ExecuteScript("../outside.cs");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("InvalidScriptPath"));
+        }
+
+        [Test]
+        public void ExecuteCSharpReportsAMissingScript()
+        {
+            var result = ExecuteScript(ScriptDirectory + "/missing.cs");
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.ErrorCode, Is.EqualTo("ScriptNotFound"));
+        }
+
+        [Test]
+        public void ExecuteCSharpRequiresExactlyOneOfCodeAndPath()
+        {
+            Assert.That(Execute(null).ErrorCode, Is.EqualTo("EmptyCode"));
+            Assert.That(
+                WaitForResult(ExecutionRouter.Instance.ExecuteAsync(new ExecutionRequest(
+                    UnityExecutionEngines.CSharp,
+                    UnityExecutionModes.Editor,
+                    "return 1;",
+                    WriteScript("return 2;")))).ErrorCode,
+                Is.EqualTo("InvalidArguments"));
+        }
+
+        [TearDown]
+        public void DeleteScripts()
+        {
+            var directory = Path.Combine(ProjectRoot, ScriptDirectory);
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, true);
+        }
+
+        private const string ScriptDirectory = "Temp/DotCraftExecuteCSharpTests";
+
+        private static string ProjectRoot =>
+            Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+
+        private static string WriteScript(string code)
+        {
+            var relativePath = $"{ScriptDirectory}/{Guid.NewGuid():N}.cs";
+            var fullPath = Path.Combine(ProjectRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+            File.WriteAllText(fullPath, code);
+            return relativePath;
+        }
+
+        private static ExecutionResult ExecuteScript(string relativePath, JObject args = null)
+        {
+            return WaitForResult(ExecutionRouter.Instance.ExecuteAsync(new ExecutionRequest(
+                UnityExecutionEngines.CSharp,
+                UnityExecutionModes.Editor,
+                null,
+                relativePath,
+                args)));
         }
 
         private static ExecutionResult Execute(string code)

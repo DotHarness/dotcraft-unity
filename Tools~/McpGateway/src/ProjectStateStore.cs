@@ -124,7 +124,15 @@ internal static class DefaultManifest
           "properties": {
             "code": {
               "type": "string",
-              "description": "C# method body to compile and execute. Use return to provide a result."
+              "description": "C# method body to compile and execute. Use return to provide a result. Provide either code or path."
+            },
+            "path": {
+              "type": "string",
+              "description": "Project-relative path of a saved C# script to execute instead of code, for example .craft/scripts/console-read.cs."
+            },
+            "args": {
+              "type": "object",
+              "description": "Values passed to the script as the Args JObject."
             },
             "mode": {
               "type": "string",
@@ -132,7 +140,6 @@ internal static class DefaultManifest
               "description": "Execution mode."
             }
           },
-          "required": ["code"],
           "additionalProperties": false
         }
         """);
@@ -147,7 +154,7 @@ internal static class DefaultManifest
                 new ToolManifestEntry
                 {
                     Name = GatewayConstants.ExecuteCSharpToolName,
-                    Description = "Compile and execute C# in the running Unity Editor.",
+                    Description = "Compile and execute C# in the running Unity Editor, from an inline snippet or a saved script file.",
                     InputSchema = schema.RootElement.Clone()
                 }
             ]
