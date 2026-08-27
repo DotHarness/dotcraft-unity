@@ -42,6 +42,23 @@ Load only the reference needed for the current task:
 
 Keep Unity in the background: prefer read-only inspection first, then make the smallest useful change when the user's request clearly asks to fix, create, modify, or automate something in Unity.
 
+## Waiting For Editor Readiness
+
+After an action triggers script compilation, asset import, Domain Reload, or asynchronous Shader compilation, do not report completion from the action's immediate return value alone. Probe the current Editor state with `unity_execute_csharp`:
+
+```csharp
+return new Dictionary<string, object>
+{
+    ["isCompiling"] = EditorApplication.isCompiling,
+    ["isUpdating"] = EditorApplication.isUpdating,
+    ["isShaderCompiling"] = ShaderUtil.anythingCompiling
+};
+```
+
+If the call reports `UnityUnavailable` or `UnityDisconnected`, treat Unity as still reloading or recovering and retry after a short delay. When the call succeeds, require all three values to be `false` in two consecutive probes before reporting the Editor ready. Bound the whole retry sequence with a deadline appropriate to the operation; use 120 seconds by default. On timeout, report the last observed state instead of claiming completion.
+
+For script or assembly-definition changes, read the Console after the Editor becomes ready and report visible compiler errors. Do not attribute pre-existing or filtered Console errors to the current operation without evidence.
+
 ## Good Uses
 
 - Read Console logs, Editor state, Play Mode state, build settings, scene names, selected objects, GameObjects, Components, serialized fields, asset metadata, and project settings.
@@ -59,7 +76,7 @@ Do not call these APIs unless the user explicitly asked for the visible effect o
 - Entering or exiting Play Mode, pausing, stepping frames, or changing time scale unless the user requested runtime inspection.
 - Broad `AssetDatabase.Refresh`, `ImportAsset`, `ForceReserializeAssets`, scene saves, package changes, or project-wide rewrites.
 
-Do not use long polling loops. If Unity needs time to compile, import, enter Play Mode, or finish an async action, return the current state and ask for or perform one bounded follow-up check.
+Do not poll or sleep in a `unity_execute_csharp` snippet. For compilation, import, Domain Reload, and Shader work, perform bounded external readiness probes as described above. For other asynchronous actions, return the current state and perform one bounded follow-up check.
 
 ## Confirmation Policy
 
