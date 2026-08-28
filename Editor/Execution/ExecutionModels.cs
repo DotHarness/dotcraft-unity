@@ -36,7 +36,7 @@ namespace DotCraft.Editor.Execution
 
         public string Code { get; }
 
-        /// <summary>Project-relative path of a script file to execute instead of <see cref="Code"/>.</summary>
+        /// <summary>Project-relative or absolute path of a script file to execute instead of <see cref="Code"/>.</summary>
         public string Path { get; }
 
         public JObject Inputs { get; }

@@ -128,7 +128,7 @@ internal static class DefaultManifest
             },
             "path": {
               "type": "string",
-              "description": "Project-relative path of a saved C# script to execute instead of code, for example .craft/scripts/console-read.cs."
+              "description": "Project-relative or absolute path of a saved C# script to execute instead of code."
             },
             "args": {
               "type": "object",

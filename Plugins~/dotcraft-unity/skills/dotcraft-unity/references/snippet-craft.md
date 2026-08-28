@@ -4,23 +4,28 @@
 practice: it times out, it buries the answer in stack traces, or it refuses to compile with no
 detail. These are ordered by how often they bite.
 
-## Long Operations Time The Call Out
+## Long Operations Outlive The Call
 
 Anything that blocks the main thread for more than a few seconds — capturing a memory snapshot,
 writing a large file, loading a lot of scene content, a heavy asset operation — exceeds the tool
 timeout. The operation usually completes anyway, so the result is an error message attached to
 work that actually succeeded, which is a confusing state to debug from.
 
-Schedule it and return immediately:
+For script compilation, Domain Reload, or any workflow that must survive a Tool Gateway restart,
+use `references/compilation-and-reload.md`. Its operation file is the source of truth outside the
+managed domain.
+
+For a short asynchronous action that cannot reload assemblies, schedule it and return immediately:
 
 ```csharp
 EditorApplication.delayCall += () => DoTheExpensiveThing();
 return "scheduled";
 ```
 
-Observe completion from outside the snippet: poll the output file until its size stops changing,
-or re-query Editor state on a later call. Never sit in a polling loop inside a snippet — the loop
-holds the main thread, so the Editor cannot make the progress being waited for.
+Before scheduling longer work, create a durable operation with `DcuLongRunningOperation.Begin`,
+then report explicit checkpoints and finish it with `Complete` or `Fail`. Monitor that state file
+from PowerShell. Never infer completion from output-file size becoming stable, and never poll on
+Unity's main thread.
 
 ## Logs Return With Full Stack Traces
 

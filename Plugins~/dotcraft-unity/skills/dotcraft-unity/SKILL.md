@@ -13,7 +13,7 @@ This skill governs Unity tool calls, especially `unity_execute_csharp`. It does 
 
 ## Inline Code Or A Saved Script
 
-`unity_execute_csharp` takes either `code` or `path`, never both. `path` is project-relative and must stay inside the Unity project root. A script file holds exactly the same thing `code` does — optional leading `using` directives followed by method-body statements — and is never compiled by Unity.
+`unity_execute_csharp` takes either `code` or `path`, never both. `path` accepts either a project-relative path or an absolute path. A script file holds exactly the same thing `code` does — optional leading `using` directives followed by method-body statements — and is never compiled by Unity.
 
 Pass `args` to parameterise a script. It arrives as a Newtonsoft `JObject` named `Args`:
 
@@ -25,9 +25,9 @@ Use `path` when a task recurs — the same script re-runs from a short path inst
 
 ## Where Scripts Live
 
-Bundled scripts ship in `scripts/` inside this skill directory.
+Bundled scripts ship in `scripts/` inside this skill directory and are the canonical source. Pass their absolute paths directly to `unity_execute_csharp`; do not copy them into the Unity project first.
 
-Write new scripts to `.craft/scripts/`. Before writing one, check whether it already exists there.
+Write project-specific scripts to `.craft/scripts/`. Before writing one, check whether the installed skill already provides it.
 
 ## References
 
@@ -37,6 +37,7 @@ Load only the reference needed for the current task:
 - **Console reading**: Read `references/console-reading.md` when the user asks to inspect, summarize, search, or diagnose Unity Console logs.
 - **API helpers**: Read `references/api.md` when a `unity_execute_csharp` snippet needs loaded-type lookup or third-party component reflection.
 - **Snippet failure modes**: Read `references/snippet-craft.md` when a snippet times out, returns a wall of stack traces, fails to compile without detail, or when the effect of a call is not visible in the same call.
+- **Compilation and Domain Reload**: Read `references/compilation-and-reload.md` before triggering script compilation, Domain Reload, or any operation that must survive Unity Tool Gateway restarts.
 
 ## Default Behavior
 
@@ -44,18 +45,9 @@ Keep Unity in the background: prefer read-only inspection first, then make the s
 
 ## Waiting For Editor Readiness
 
-After an action triggers script compilation, asset import, Domain Reload, or asynchronous Shader compilation, do not report completion from the action's immediate return value alone. Probe the current Editor state with `unity_execute_csharp`:
+For script compilation and Domain Reload, use the durable operation workflow in `references/compilation-and-reload.md`. Wait from the external PowerShell process, then reconnect with a fresh bounded tool call. Do not infer readiness from window focus, progress bars, Editor log silence, or a fixed delay.
 
-```csharp
-return new Dictionary<string, object>
-{
-    ["isCompiling"] = EditorApplication.isCompiling,
-    ["isUpdating"] = EditorApplication.isUpdating,
-    ["isShaderCompiling"] = ShaderUtil.anythingCompiling
-};
-```
-
-If the call reports `UnityUnavailable` or `UnityDisconnected`, treat Unity as still reloading or recovering and retry after a short delay. When the call succeeds, require all three values to be `false` in two consecutive probes before reporting the Editor ready. Bound the whole retry sequence with a deadline appropriate to the operation; use 120 seconds by default. On timeout, report the last observed state instead of claiming completion.
+For asset import or asynchronous Shader compilation that does not reload managed assemblies, use bounded external readiness probes. Require `EditorApplication.isUpdating` and `ShaderUtil.anythingCompiling` to be false in two consecutive successful probes before reporting readiness.
 
 For script or assembly-definition changes, read the Console after the Editor becomes ready and report visible compiler errors. Do not attribute pre-existing or filtered Console errors to the current operation without evidence.
 
@@ -76,7 +68,7 @@ Do not call these APIs unless the user explicitly asked for the visible effect o
 - Entering or exiting Play Mode, pausing, stepping frames, or changing time scale unless the user requested runtime inspection.
 - Broad `AssetDatabase.Refresh`, `ImportAsset`, `ForceReserializeAssets`, scene saves, package changes, or project-wide rewrites.
 
-Do not poll or sleep in a `unity_execute_csharp` snippet. For compilation, import, Domain Reload, and Shader work, perform bounded external readiness probes as described above. For other asynchronous actions, return the current state and perform one bounded follow-up check.
+Do not poll or sleep in a `unity_execute_csharp` snippet. Use the durable operation workflow for compilation and Domain Reload, and bounded external readiness probes for import and Shader work. For other asynchronous actions, return the current state and perform one bounded follow-up check.
 
 ## Confirmation Policy
 

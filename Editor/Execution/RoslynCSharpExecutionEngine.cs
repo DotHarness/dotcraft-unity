@@ -132,7 +132,7 @@ namespace DotCraft.Editor.Execution
         }
 
         /// <summary>
-        /// Resolves the snippet text from either inline code or a project-relative script path.
+        /// Resolves the snippet text from either inline code or a project-relative or absolute script path.
         /// The label is what <c>#line</c> reports, so it is part of the compilation cache key.
         /// </summary>
         private static bool TryResolveSource(
@@ -166,18 +166,12 @@ namespace DotCraft.Editor.Execution
                 return true;
             }
 
-            var root = McpGatewaySetupDefaults.ProjectRoot;
-            var relative = request.Path.Trim().Replace('\\', '/');
-            var fullPath = Path.GetFullPath(Path.Combine(
-                root,
-                relative.Replace('/', Path.DirectorySeparatorChar)));
-
-            if (!IsWithinDirectory(root, fullPath))
-            {
-                error = ("InvalidScriptPath",
-                    $"Script path must stay inside the Unity project root: {request.Path}");
-                return false;
-            }
+            var requestedPath = request.Path.Trim();
+            var fullPath = Path.IsPathRooted(requestedPath)
+                ? Path.GetFullPath(requestedPath)
+                : Path.GetFullPath(Path.Combine(
+                    McpGatewaySetupDefaults.ProjectRoot,
+                    requestedPath.Replace('/', Path.DirectorySeparatorChar)));
 
             if (!File.Exists(fullPath))
             {
@@ -186,20 +180,8 @@ namespace DotCraft.Editor.Execution
             }
 
             code = File.ReadAllText(fullPath);
-            sourceLabel = relative;
+            sourceLabel = fullPath.Replace('\\', '/');
             return true;
-        }
-
-        private static bool IsWithinDirectory(string rootPath, string path)
-        {
-            var root = Path.GetFullPath(rootPath)
-                           .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                       + Path.DirectorySeparatorChar;
-            var comparison = Environment.OSVersion.Platform == PlatformID.Unix
-                ? StringComparison.Ordinal
-                : StringComparison.OrdinalIgnoreCase;
-
-            return path.StartsWith(root, comparison);
         }
 
         private static bool TryCompile(

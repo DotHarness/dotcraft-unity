@@ -18,13 +18,7 @@ namespace DotCraft.Editor.ToolGateway
         static UnityToolGatewayBootstrap()
         {
             RestoreSessions();
-
-            EditorApplication.delayCall += () =>
-            {
-                MainThreadDispatcher.RunOrEnqueue(() => { });
-                UnityToolGatewayRuntime.Instance.ApplySettings();
-            };
-
+            EditorApplication.update += StartRuntimeWhenEditorIsReady;
             EditorApplication.update += SweepWhenDue;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
             EditorApplication.quitting += UnityToolGatewayRuntime.Instance.Shutdown;
@@ -32,6 +26,16 @@ namespace DotCraft.Editor.ToolGateway
 
         public static void ApplySettings()
         {
+            UnityToolGatewayRuntime.Instance.ApplySettings();
+        }
+
+        private static void StartRuntimeWhenEditorIsReady()
+        {
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating)
+                return;
+
+            EditorApplication.update -= StartRuntimeWhenEditorIsReady;
+            MainThreadDispatcher.RunOrEnqueue(() => { });
             UnityToolGatewayRuntime.Instance.ApplySettings();
         }
 

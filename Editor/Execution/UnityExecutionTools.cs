@@ -20,7 +20,7 @@ namespace DotCraft.Editor.Execution
             [Description("Execution mode: editor or playmode.")]
             [AgentToolSchemaHint(EnumValues = new[] { UnityExecutionModes.Editor, UnityExecutionModes.PlayMode })]
             string mode = UnityExecutionModes.Editor,
-            [Description("Project-relative path of a saved C# script to execute instead of code, for example .craft/scripts/console-read.cs.")]
+            [Description("Project-relative or absolute path of a saved C# script to execute instead of code.")]
             string path = null,
             [Description("Values passed to the script as the Args JObject.")]
             JObject args = null)
