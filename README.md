@@ -69,6 +69,8 @@ See [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md) for more 
 
 dotcraft-unity provides one built-in Unity runtime tool based on Roslyn:
 
+![How C# automation works inside Unity](./Documentation~/csharp-automation-how-it-works.svg)
+
 | Tool | Description |
 |------|-------------|
 | `unity_execute_csharp` | Compile and execute a C# method-body snippet in the Unity Editor process. |

@@ -69,6 +69,8 @@ dotcraft-unity 为 coding agent 提供了一个生命周期稳定的 MCP Gateway
 
 dotcraft-unity 基于 Roslyn 提供了一个内置 Unity 运行时工具：
 
+![C# 自动化在 Unity 内部的工作原理](./Documentation~/csharp-automation-how-it-works.svg)
+
 | 工具 | 描述 |
 |------|------|
 | `unity_execute_csharp` | 在 Unity Editor 进程中编译并执行一段 C# 方法体代码。 |
