@@ -26,6 +26,7 @@
       <feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#0b3d62" flood-opacity=".22"/>
     </filter>
   </defs>
+  <rect width="1024" height="1024" rx="224" fill="#1E88E5"/>
 
   <g transform="translate(-40 70) rotate(-7 512 612) scale(.9)">
     <g filter="url(#robot-shadow)">

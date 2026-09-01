@@ -19,7 +19,6 @@
     "category": "Engineering",
     "capabilities": ["Skill", "Unity", "Read", "Write"],
     "defaultPrompt": ["Inspect or automate the connected Unity Editor."],
-    "brandColor": "#1E88E5",
     "composerIcon": "./assets/dotcraft-unity.svg",
     "logo": "./assets/dotcraft-unity.svg",
     "websiteURL": "https://github.com/DotHarness/dotcraft-unity"
