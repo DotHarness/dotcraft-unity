@@ -1,8 +1,7 @@
 # Snippet Failure Modes
 
 `references/api.md` covers the `Dcu.*` helpers. This file covers the ways a snippet fails in
-practice: it times out, it buries the answer in stack traces, or it refuses to compile with no
-detail. These are ordered by how often they bite.
+practice: it times out, it buries the answer in stack traces, or it fails to compile. These are ordered by how often they bite.
 
 ## Long Operations Outlive The Call
 
@@ -39,9 +38,12 @@ the operation is fast enough that timeout is not a concern.
 
 When the logs *are* the point, read them deliberately — see `references/console-reading.md`.
 
-## Compile Failures Report No Detail
+## Reading Compile Failures
 
-A compile error comes back as a bare failure message. Two causes account for most of them.
+A compile failure returns `errorCode: "CompilationFailed"` with a `diagnostics` list: each entry
+carries the Roslyn id, message, line, and column. Line numbers refer to the snippet as written
+(after the leading `using` directives). Read the diagnostics before changing anything; two causes
+account for most of them.
 
 **Ambiguous type names.** `System.Object` and `UnityEngine.Object` are both in scope, so bare
 `Object` fails. Write `UnityEngine.Object.DestroyImmediate(...)`. The same applies to `Random`

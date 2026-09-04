@@ -1,4 +1,4 @@
-name: Validate MCP Gateway
+name: Validate CLI and MCP Gateway
 
 on:
   pull_request:
@@ -28,9 +28,12 @@ jobs:
         shell: pwsh
         run: |
           $package = Get-Content package.json -Raw | ConvertFrom-Json
-          $publishedExe = 'artifacts/gateway-source/dotcraft-unity-mcp.exe'
+          $publishedExe = 'artifacts/gateway-source/dotcraft-unity.exe'
 
           $version = (& $publishedExe version --json | ConvertFrom-Json)
           if ($version.version -ne $package.version) { throw 'Gateway version does not match package.json.' }
           if ($version.rid -ne 'win-x64') { throw 'Gateway reports an unexpected RID.' }
           if ($version.mcpSdkVersion -ne '2.2.0') { throw 'Gateway reports an unexpected MCP SDK version.' }
+      - name: Test PATH installer
+        shell: pwsh
+        run: '& "Tools~/McpGateway/tests/Install.Tests.ps1" -ArtifactDirectory artifacts/gateway-source'

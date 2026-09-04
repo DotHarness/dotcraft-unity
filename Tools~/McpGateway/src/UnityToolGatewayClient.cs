@@ -10,13 +10,15 @@ internal sealed class UnityToolGatewayClient
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly ProjectStateStore _stateStore;
     private readonly HttpClient _httpClient;
+    private readonly TimeSpan _callTimeout;
 
-    public UnityToolGatewayClient(ProjectStateStore stateStore, HttpClient? httpClient = null)
+    public UnityToolGatewayClient(ProjectStateStore stateStore, HttpClient? httpClient = null, TimeSpan? callTimeout = null)
     {
         _stateStore = stateStore;
-        _httpClient = httpClient ?? new HttpClient
+        _callTimeout = callTimeout ?? TimeSpan.FromSeconds(65);
+        _httpClient = httpClient ?? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseProxy = false })
         {
-            Timeout = TimeSpan.FromSeconds(65)
+            Timeout = Timeout.InfiniteTimeSpan
         };
     }
 
@@ -26,9 +28,12 @@ internal sealed class UnityToolGatewayClient
         CancellationToken cancellationToken,
         string? sessionId = null)
     {
-        var discovery = _stateStore.ReadLiveDiscovery();
+        var discovery = _stateStore.ReadLiveDiscovery(out var discoveryError, out _);
         if (discovery is null)
-            return Unavailable(name, "Unity Tool Gateway is unavailable because Unity is not running or reloading.");
+            return Unavailable(name, discoveryError!);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(_callTimeout);
 
         using var request = new HttpRequestMessage(
             HttpMethod.Post,
@@ -48,7 +53,7 @@ internal sealed class UnityToolGatewayClient
         try
         {
             using var response = await _httpClient
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token)
                 .ConfigureAwait(false);
 
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden
@@ -65,7 +70,7 @@ internal sealed class UnityToolGatewayClient
             }
 
             var result = await response.Content
-                .ReadFromJsonAsync<UnityToolGatewayResult>(JsonOptions, cancellationToken)
+                .ReadFromJsonAsync<UnityToolGatewayResult>(JsonOptions, timeout.Token)
                 .ConfigureAwait(false);
             return result ?? Disconnected(name, "Unity Tool Gateway returned an empty response.");
         }
@@ -73,11 +78,16 @@ internal sealed class UnityToolGatewayClient
         {
             throw;
         }
-        catch (HttpRequestException ex)
+        catch (OperationCanceledException)
         {
-            return Disconnected(name, $"Unity disconnected during the tool call: {ex.Message}");
+            return new UnityToolGatewayResult
+            {
+                Success = false, Name = name, ErrorCode = "UnityTimeout",
+                ErrorMessage = "Timed out waiting for Unity. Work already started may still have executed; do not replay automatically.",
+                Text = $"{name} timed out waiting for Unity. Do not replay automatically."
+            };
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is HttpRequestException or IOException)
         {
             return Disconnected(name, $"Unity disconnected during the tool call: {ex.Message}");
         }
@@ -87,7 +97,6 @@ internal sealed class UnityToolGatewayClient
         }
     }
 
-    /// <summary>Returns null when Unity is unreachable, which is an ordinary state.</summary>
     public async Task<ClientPresenceAck?> PostPresenceAsync(
         ClientPresenceRequest presence,
         CancellationToken cancellationToken)
@@ -105,7 +114,6 @@ internal sealed class UnityToolGatewayClient
             Encoding.UTF8,
             "application/json");
 
-        // The shared HttpClient timeout is sized for tool calls (65s).
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(5));
 

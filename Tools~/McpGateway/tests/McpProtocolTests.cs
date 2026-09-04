@@ -203,13 +203,13 @@ public sealed class McpProtocolTests : IDisposable
 
     private async Task<McpClient> CreateClientAsync()
     {
-        var executable = Path.Combine(AppContext.BaseDirectory, "dotcraft-unity-mcp.exe");
+        var executable = Path.Combine(AppContext.BaseDirectory, "dotcraft-unity.exe");
         Assert.True(File.Exists(executable), $"Gateway executable not found: {executable}");
         var transport = new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = "dotcraft-unity-test",
             Command = executable,
-            Arguments = ["--project-root", _projectRoot]
+            Arguments = ["mcp", "--project-root", _projectRoot]
         });
         return await McpClient.CreateAsync(
             transport,
@@ -227,6 +227,7 @@ public sealed class McpProtocolTests : IDisposable
             RedirectStandardError = true,
             CreateNoWindow = true
         };
+        startInfo.ArgumentList.Add("mcp");
         startInfo.ArgumentList.Add("--project-root");
         startInfo.ArgumentList.Add(_projectRoot);
         return Process.Start(startInfo)!;
@@ -252,7 +253,7 @@ public sealed class McpProtocolTests : IDisposable
 
     private static string GetGatewayExecutable()
     {
-        var executable = Path.Combine(AppContext.BaseDirectory, "dotcraft-unity-mcp.exe");
+        var executable = Path.Combine(AppContext.BaseDirectory, "dotcraft-unity.exe");
         Assert.True(File.Exists(executable), $"Gateway executable not found: {executable}");
         return executable;
     }

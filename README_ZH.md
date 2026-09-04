@@ -16,6 +16,7 @@
 |--------|----------|------|
 | Unity 内 Agent 对话 | 想直接在 Unity 中和 DotCraft 或其他 ACP agent 对话 | **Tools → DotCraft → AI Assistant** |
 | MCP Gateway | 想让 Claude Code、Codex、Cursor 等外部 MCP client 调用 Unity 工具 | **Tools → DotCraft → MCP Gateway Setup** |
+| CLI | 想通过终端或 agent 直接调用 Unity，无需配置 MCP | `dotcraft-unity exec` / `dotcraft-unity call` |
 | C# 自动化 | 想让 agent 批量操作 Unity | `unity_execute_csharp` |
 | 自定义工具 | 想暴露项目专属 Unity 工具 | `[AgentTool]` |
 
@@ -35,27 +36,37 @@
 
 ![assistant](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/assistant.png)
 
-1. 从 Package Manager 安装 dotcraft-unity。
-2. 打开 **Tools → DotCraft → AI Assistant**。
-3. 在 **Project Settings → DotCraft** 中选择 **DotCraft** 或 **Custom ACP Agent**。
-4. 点击 **Connect**。
+1. 打开 **Tools → DotCraft → AI Assistant**。
+2. 在 **Project Settings → DotCraft** 中选择 **DotCraft** 或 **Custom ACP Agent**。
+3. 点击 **Connect**。
 
 ### Option B：通过 MCP 操作 Unity
 
 ![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
 
-1. 打开 Unity 项目。
-2. 在 **Project Settings → DotCraft** 中启用 **Unity Tool Gateway**。
-3. 运行 **Tools → DotCraft → MCP Gateway Setup**。
-4. 选择 Agent 工具：Claude Code、Codex 或 Cursor。
-5. 从项目根目录启动你的 coding agent。
+1. 在 **Project Settings → DotCraft** 中启用 **Unity Tool Gateway**。
+2. 运行 **Tools → DotCraft → MCP Gateway Setup**，选择 Claude Code、Codex 或 Cursor。
+3. 从项目根目录启动你的 coding agent。
 
-### Option C：添加项目自定义工具
+### Option C：无需 MCP，直接通过 CLI 操作 Unity
+
+在 **Project Settings → DotCraft** 中启用 **Unity Tool Gateway**。Windows x64 用户在 Unity 项目根目录运行以下命令，即可安装最新版 CLI 到 `~/.craft/bin` 并加入用户 PATH：
+
+```powershell
+irm https://github.com/DotHarness/dotcraft-unity/releases/latest/download/install.ps1 | iex
+$projectRoot = (Get-Location).Path
+dotcraft-unity version --json
+dotcraft-unity exec --code 'return Application.unityVersion;' --project-root $projectRoot --json
+```
+
+使用 `exec` 还需启用 **C# Automation**。CLI 与 Unity 包版本必须一致，不需要管理员权限。脚本、自定义工具、JSON 输入和错误处理见 [CLI 使用说明](./Plugins~/dotcraft-unity/skills/dotcraft-unity/references/cli.md)。
+
+### Option D：添加项目自定义工具
 
 1. 创建一个带 `[AgentTool]` 的静态 Editor 方法。
 2. 等待 Unity 编译。
 3. 在 **Project Settings → DotCraft → Unity Tools** 中启用这个工具。
-4. 从 DotCraft 或任何通过 MCP Gateway 连接的 MCP client 使用它。
+4. 从 DotCraft、MCP client 或 `dotcraft-unity call` 使用它。
 
 ## MCP Gateway
 
@@ -67,21 +78,13 @@ dotcraft-unity 为 coding agent 提供了一个生命周期稳定的 MCP Gateway
 
 ## 内置工具
 
-dotcraft-unity 基于 Roslyn 提供了一个内置 Unity 运行时工具：
+`unity_execute_csharp` 用 Roslyn 编译一段 C# snippet 并在 Unity Editor 进程中执行。Snippet 由可选的开头 `using` 指令和方法体语句组成，可用来读取或修改场景状态、选中对象、Console 输出、项目元数据和资源。
 
 ![C# 自动化在 Unity 内部的工作原理](./Documentation~/csharp-automation-how-it-works.svg)
 
-| 工具 | 描述 |
-|------|------|
-| `unity_execute_csharp` | 在 Unity Editor 进程中编译并执行一段 C# 方法体代码。 |
-
-可以通过 `unity_execute_csharp` 编写 C# snippet 来读取或修改场景状态、选中对象、Console 输出、项目元数据和资源。
-
 ## 自定义工具
 
-Unity Editor 代码可以通过给静态方法添加 `AgentToolAttribute`，暴露项目自定义工具。
-
-新工具会显示在 **Edit → Project Settings → DotCraft → Unity Tools**，默认关闭。
+给静态 Editor 方法添加 `[AgentTool]` 即可。新工具会显示在 **Project Settings → DotCraft → Unity Tools**，默认关闭，需手动启用。
 
 ```csharp
 using System.ComponentModel;
@@ -103,24 +106,20 @@ public static class ExampleDotCraftTools
 
 ## Agent 集成
 
-dotcraft-unity 为外部 agent 提供共享的自动化 skill，并为 DotCraft 提供直接的 ACP 集成。
-
 ### Agent 插件
 
-仓库将同一份 Unity 自动化 skill 同时发布为 DotCraft 插件和 Codex 插件。请另外在 Unity 中配置 MCP Gateway，让安装插件后的 agent 能够调用该 skill 所描述的工具。
+同一份 Unity 自动化 skill 同时发布为 DotCraft 插件和 Codex 插件。它优先使用 MCP 工具，没有 MCP 时回退到 CLI。启用 Unity Tool Gateway 后，配置 MCP 或安装 CLI 即可。
 
 在 DotCraft 中：
 
-1. 在 DotCraft 中打开 **Plugins**。
-2. 打开 **Create** 旁的菜单，然后选择 **Add marketplace**。
-3. 输入 `DotHarness/dotcraft-unity` 作为 marketplace source。
-4. 添加 marketplace，然后安装 **DotCraft Unity**。
+1. 打开 **Plugins**，在 **Create** 旁的菜单中选择 **Add marketplace**。
+2. 输入 `DotHarness/dotcraft-unity`，然后安装 **DotCraft Unity**。
 
 在 Codex 中，将 `DotHarness/dotcraft-unity` 添加为 plugin marketplace，然后从该 marketplace 安装 **DotCraft Unity**。
 
 ### ACP Extension
 
-使用 dotcraft 作为 ACP Server 时，无需使用 MCP 服务，内置工具和自定义工具会走 ACP 拓展传递给会话，以减少非 Unity 会话的上下文开销。
+使用 DotCraft 作为 ACP Server 时无需 MCP 服务：内置工具和自定义工具通过 ACP 扩展传给会话，非 Unity 会话不会带上 Unity 工具的上下文。
 
 ## License
 

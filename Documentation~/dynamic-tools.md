@@ -49,8 +49,6 @@ Expected tool failures are valid JSON-RPC results with `success: false`. An unkn
 
 ## Registration API
 
-The built-in `unity_execute_csharp` runtime tool accepts optional leading ordinary, alias, `static`, or `global` using directives followed by method-body statements. It does not accept a complete namespace, class, or method declaration.
-
 Mark a static method with `AgentToolAttribute`:
 
 ```csharp

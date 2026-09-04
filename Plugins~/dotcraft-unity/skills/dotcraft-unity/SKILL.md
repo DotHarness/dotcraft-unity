@@ -1,6 +1,6 @@
 ---
 name: dotcraft-unity
-description: Use when dotcraft-unity MCP or unity_execute_csharp is available, or when the user asks to inspect, automate, capture, or debug Unity Editor state, scenes, assets, Console logs, or GameView output. Provides background-first Unity Editor automation rules.
+description: Use when dotcraft-unity MCP, CLI, or unity_execute_csharp is available, or when the user asks to inspect, automate, capture, or debug Unity Editor state, scenes, assets, Console logs, or GameView output. Provides background-first Unity Editor automation through MCP or CLI.
 ---
 
 # DotCraft Unity
@@ -10,6 +10,12 @@ description: Use when dotcraft-unity MCP or unity_execute_csharp is available, o
 Use `unity_execute_csharp` for short Unity Editor snippets containing optional leading `using` directives followed by method-body statements. Treat it as live editor automation: it can inspect and mutate scene, asset, and project state. Do not send namespace, class, or method declarations.
 
 This skill governs Unity tool calls, especially `unity_execute_csharp`. It does not replace normal repository file editing workflows.
+
+## Choose The Connection
+
+Prefer the available dotcraft-unity MCP tools. When MCP is not configured or not exposed in the current session, use `dotcraft-unity.exe` from PATH. Read `references/cli.md` for installation, project selection, command syntax, and result handling. CLI use requires Unity Tool Gateway to be enabled, but does not require an MCP client configuration.
+
+Choose the transport before issuing the call. If a dispatched MCP or CLI call fails, times out, or disconnects, do not switch transports and replay it automatically: Unity may already have executed it. Both transports use the same Unity tool registry and the same background-operation rules below.
 
 ## Inline Code Or A Saved Script
 
@@ -36,12 +42,12 @@ Load only the reference needed for the current task:
 - **Editor window screenshots**: Read `references/gameview-screenshot.md` when the user asks to capture, compare, inspect, or save what a Unity Editor window looks like — GameView, SceneView, or the whole Editor.
 - **Console reading**: Read `references/console-reading.md` when the user asks to inspect, summarize, search, or diagnose Unity Console logs.
 - **API helpers**: Read `references/api.md` when a `unity_execute_csharp` snippet needs loaded-type lookup or third-party component reflection.
-- **Snippet failure modes**: Read `references/snippet-craft.md` when a snippet times out, returns a wall of stack traces, fails to compile without detail, or when the effect of a call is not visible in the same call.
+- **Snippet failure modes**: Read `references/snippet-craft.md` when a snippet times out, returns a wall of stack traces, fails to compile, or when the effect of a call is not visible in the same call.
 - **Compilation and Domain Reload**: Read `references/compilation-and-reload.md` before triggering script compilation, Domain Reload, or any operation that must survive Unity Tool Gateway restarts.
 
 ## Default Behavior
 
-Keep Unity in the background: prefer read-only inspection first, then make the smallest useful change when the user's request clearly asks to fix, create, modify, or automate something in Unity.
+Keep Unity in the background: prefer read-only inspection first, then make the smallest useful change when the user's request clearly asks to fix, create, modify, or automate something in Unity. Keep each automation bounded to what was asked, and use `AssetDatabase`, `EditorSceneManager`, `PrefabUtility`, and `Undo` deliberately for asset, scene, and prefab work.
 
 ## Waiting For Editor Readiness
 
@@ -50,12 +56,6 @@ For script compilation and Domain Reload, use the durable operation workflow in 
 For asset import or asynchronous Shader compilation that does not reload managed assemblies, use bounded external readiness probes. Require `EditorApplication.isUpdating` and `ShaderUtil.anythingCompiling` to be false in two consecutive successful probes before reporting readiness.
 
 For script or assembly-definition changes, read the Console after the Editor becomes ready and report visible compiler errors. Do not attribute pre-existing or filtered Console errors to the current operation without evidence.
-
-## Good Uses
-
-- Read Console logs, Editor state, Play Mode state, build settings, scene names, selected objects, GameObjects, Components, serialized fields, asset metadata, and project settings.
-- Run small, bounded Editor automations the user requested, such as creating objects, adjusting components, updating selected assets, saving a scene, or validating a setup.
-- Use `AssetDatabase`, `EditorSceneManager`, `PrefabUtility`, and `Undo` deliberately for bounded asset, scene, and prefab work.
 
 ## Avoid By Default
 

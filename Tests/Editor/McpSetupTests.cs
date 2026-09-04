@@ -46,7 +46,7 @@ namespace DotCraft.Editor.Tests
             Assert.That(root["mcpServers"]?["dotcraft-unity"]?["type"]?.Value<string>(), Is.EqualTo("stdio"));
             Assert.That(root["mcpServers"]?["dotcraft-unity"]?["command"]?.Value<string>(), Is.EqualTo(GatewayCommand));
             Assert.That(root["mcpServers"]?["dotcraft-unity"]?["args"]?.Values<string>(),
-                Is.EqualTo(new[] { "--project-root", _tempRoot }));
+                Is.EqualTo(new[] { "mcp", "--project-root", _tempRoot }));
 
             var uninstall = provider.Uninstall(_tempRoot);
             Assert.That(uninstall.Success, Is.True, uninstall.Error);
@@ -66,7 +66,7 @@ namespace DotCraft.Editor.Tests
             var root = JObject.Parse(File.ReadAllText(path));
             Assert.That(root["mcpServers"]?["dotcraft-unity"]?["command"]?.Value<string>(), Is.EqualTo(GatewayCommand));
             Assert.That(root["mcpServers"]?["dotcraft-unity"]?["args"]?.Values<string>(),
-                Is.EqualTo(new[] { "--project-root", _tempRoot }));
+                Is.EqualTo(new[] { "mcp", "--project-root", _tempRoot }));
             Assert.That(root["mcpServers"]?["dotcraft-unity"]?["type"], Is.Null);
         }
 
@@ -87,7 +87,7 @@ namespace DotCraft.Editor.Tests
             Assert.That(toml, Does.Contain("[mcp_servers.other]"));
             Assert.That(toml, Does.Contain("# BEGIN dotcraft-unity MCP Gateway"));
             Assert.That(toml, Does.Contain($"command = \"{GatewayCommand.Replace("\\", "\\\\")}\""));
-            Assert.That(toml, Does.Contain("args = [\"--project-root\""));
+            Assert.That(toml, Does.Contain("args = [\"mcp\", \"--project-root\""));
 
             var uninstall = provider.Uninstall(_tempRoot);
             Assert.That(uninstall.Success, Is.True, uninstall.Error);
@@ -244,7 +244,7 @@ namespace DotCraft.Editor.Tests
             Assert.That(File.ReadAllText(path), Is.EqualTo("{ invalid"));
         }
 
-        private string GatewayCommand => Path.Combine(_tempRoot, "dotcraft-unity-mcp.exe");
+        private string GatewayCommand => Path.Combine(_tempRoot, "dotcraft-unity.exe");
 
         private McpInstallOptions Options() =>
             new(GatewayCommand, _tempRoot);

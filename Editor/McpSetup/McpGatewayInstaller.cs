@@ -52,7 +52,7 @@ namespace DotCraft.Editor.McpSetup
 
     internal static class McpGatewayInstaller
     {
-        private const string GatewayFileName = "dotcraft-unity-mcp.exe";
+        private const string GatewayFileName = "dotcraft-unity.exe";
         private const string ArtifactManifestFileName = "gateway-artifact.json";
         private const string ThirdPartyNoticesFileName = "THIRD-PARTY-NOTICES.txt";
         private const string ReleaseBaseUrl = "https://github.com/DotHarness/dotcraft-unity/releases/download/";

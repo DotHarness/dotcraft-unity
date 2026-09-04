@@ -23,10 +23,10 @@ jobs:
       with:
         dotnet-version: 10.0.x
 
-    - name: Test MCP Gateway
+    - name: Test CLI and MCP Gateway
       run: dotnet test "Tools~/McpGateway/tests/DotCraft.Unity.McpGateway.Tests.csproj" -c Release
 
-    - name: Publish MCP Gateway
+    - name: Publish dotcraft-unity
       run: >-
         dotnet publish "Tools~/McpGateway/src/DotCraft.Unity.McpGateway.csproj"
         -c Release -r win-x64 --self-contained true
@@ -37,7 +37,7 @@ jobs:
       shell: pwsh
       run: |
         $package = Get-Content package.json -Raw | ConvertFrom-Json
-        $executable = 'artifacts/gateway/dotcraft-unity-mcp.exe'
+        $executable = 'artifacts/gateway/dotcraft-unity.exe'
         $version = (& $executable version --json | ConvertFrom-Json)
         if ($version.version -ne $package.version) { throw 'Gateway version does not match package.json.' }
         if ($version.rid -ne 'win-x64') { throw 'Gateway reports an unexpected RID.' }
@@ -46,11 +46,16 @@ jobs:
         $manifest = [ordered]@{
           version = $package.version
           rid = 'win-x64'
-          fileName = 'dotcraft-unity-mcp.exe'
+          fileName = 'dotcraft-unity.exe'
           sha256 = (Get-FileHash $executable -Algorithm SHA256).Hash.ToLowerInvariant()
         }
         $manifest | ConvertTo-Json | Set-Content 'artifacts/gateway/gateway-artifact.json' -Encoding utf8
         Copy-Item 'Tools~/McpGateway/THIRD-PARTY-NOTICES.txt' 'artifacts/gateway/THIRD-PARTY-NOTICES.txt'
+        Copy-Item 'Tools~/install.ps1' 'artifacts/gateway/install.ps1'
+
+    - name: Test PATH installer
+      shell: pwsh
+      run: '& "Tools~/McpGateway/tests/Install.Tests.ps1" -ArtifactDirectory artifacts/gateway'
 
     - name: Prepare Release Notes
       shell: pwsh
@@ -76,8 +81,9 @@ jobs:
         prerelease: false
         generate_release_notes: true
         files: |
-          artifacts/gateway/dotcraft-unity-mcp.exe
+          artifacts/gateway/dotcraft-unity.exe
           artifacts/gateway/gateway-artifact.json
           artifacts/gateway/THIRD-PARTY-NOTICES.txt
+          artifacts/gateway/install.ps1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -323,7 +323,7 @@ public sealed class ClientPresenceTests : IDisposable
 
     private Process StartGatewayProcess()
     {
-        var executable = Path.Combine(AppContext.BaseDirectory, "dotcraft-unity-mcp.exe");
+        var executable = Path.Combine(AppContext.BaseDirectory, "dotcraft-unity.exe");
         Assert.True(File.Exists(executable), $"Gateway executable not found: {executable}");
 
         var startInfo = new ProcessStartInfo
@@ -335,6 +335,7 @@ public sealed class ClientPresenceTests : IDisposable
             RedirectStandardError = true,
             CreateNoWindow = true
         };
+        startInfo.ArgumentList.Add("mcp");
         startInfo.ArgumentList.Add("--project-root");
         startInfo.ArgumentList.Add(_projectRoot);
         return Process.Start(startInfo)!;

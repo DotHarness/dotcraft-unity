@@ -4,11 +4,11 @@ Use this reference when the user asks to inspect, summarize, search, or diagnose
 
 ## Run The Bundled Script
 
-Run `scripts/console-read.cs` from this skill directory. `path` is project-relative, so prefix the
-script with this skill's directory; pass `args` to size the result:
+Run the bundled `scripts/console-read.cs` by passing its absolute path inside this skill directory
+as `path`; pass `args` to size the result:
 
 ```json
-{ "path": "<skill directory>/scripts/console-read.cs", "args": { "maxRows": 20 } }
+{ "path": "<absolute skill directory>/scripts/console-read.cs", "args": { "maxRows": 20 } }
 ```
 
 `maxRows` defaults to 20 and `maxMessageLength` to 500. The script returns the visible row count,

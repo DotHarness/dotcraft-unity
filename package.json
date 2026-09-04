@@ -1,8 +1,8 @@
 {
     "name": "com.dotcraft.unity",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "displayName": "DotCraft Unity",
-    "description": "Agent-native Unity Editor integration with in-editor chat and MCP gateway.",
+    "description": "Agent-native Unity Editor integration with in-editor chat, CLI, and MCP gateway.",
     "unity": "2022.3",
     "documentationUrl": "https://github.com/DotHarness/dotcraft-unity",
     "licensesUrl": "https://github.com/DotHarness/dotcraft-unity/blob/main/LICENSE",

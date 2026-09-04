@@ -23,7 +23,7 @@ namespace DotCraft.Editor.McpSetup
             {
                 ["type"] = "stdio",
                 ["command"] = options.Command,
-                ["args"] = new JArray("--project-root", options.ProjectRoot)
+                ["args"] = new JArray("mcp", "--project-root", options.ProjectRoot)
             };
             return JsonConfigPatcher.PreviewInstall(path, before, McpInstallOptions.ServerName, serverConfig);
         }

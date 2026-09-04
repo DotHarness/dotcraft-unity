@@ -1,10 +1,11 @@
 # Unity tool gateway
 
-The MCP Gateway lets external MCP hosts call Unity Editor tools without sharing Unity's process lifetime.
+The `dotcraft-unity.exe` executable provides both an MCP Gateway and a direct CLI for Unity Editor tools. CLI use requires no MCP configuration. Both modes share discovery, authentication, and the Unity Tool Gateway HTTP client.
 
 ```mermaid
 flowchart LR
-    Host[MCP host] -->|stdio| Gateway[MCP Gateway]
+    Host[MCP host] -->|stdio| Gateway[dotcraft-unity mcp]
+    CLI[dotcraft-unity call / exec] -->|authenticated loopback HTTP| ToolGateway
     Gateway -->|authenticated loopback HTTP| ToolGateway[Unity Tool Gateway]
     ToolGateway --> Registry[UnityToolRegistry]
     Registry --> Tools[Execute C# and custom tools]
@@ -12,11 +13,16 @@ flowchart LR
 
 ## Lifecycle
 
-- The MCP host starts `dotcraft-unity-mcp.exe` and owns its stdio connection.
+- The MCP host starts `dotcraft-unity.exe mcp --project-root <project>` and owns its stdio connection.
 - The MCP Gateway uses the official `ModelContextProtocol` SDK for initialization, cancellation, tool calls, and `tools/list_changed`.
 - Unity owns the private Unity Tool Gateway and its `UnityToolRegistry`.
 - Restarting Unity does not restart the MCP Gateway. Calls fail while Unity is unavailable; later calls connect to the new Unity Tool Gateway.
 - Interrupted calls are never replayed automatically because tools may mutate project state.
+- CLI commands exit after one operation. Ctrl+C or the 65-second client deadline stops waiting, but cannot roll back Unity work already started.
+
+## CLI
+
+The Windows x64 installer puts the latest release in `~/.craft/bin` and on the user PATH after validating the manifest, SHA-256, and executable version. It does not configure an MCP client. Command syntax, input forms, output envelopes, exit codes, and the compilation/reload workflow are in the [CLI reference](../Plugins~/dotcraft-unity/skills/dotcraft-unity/references/cli.md).
 
 ## Package and installation
 
@@ -25,7 +31,7 @@ The package ID is `com.dotcraft.unity`. Package and MCP Gateway versions are ide
 Setup downloads the .NET 10 Windows x64, self-contained, single-file MCP Gateway from the GitHub Release whose tag matches the package version. It verifies the release manifest, SHA-256 digest, runtime identifier, MCP SDK version, and executable version before installing it under:
 
 ```text
-%USERPROFILE%\.craft\unity\mcp-gateway\<version>\dotcraft-unity-mcp.exe
+%USERPROFILE%\.craft\unity\mcp-gateway\<version>\dotcraft-unity.exe
 ```
 
 The installed executable is shared by projects using the same package version. Setup does not contact GitHub when that version is already installed and valid. Removing one project's client configuration does not delete it.
@@ -50,12 +56,13 @@ X-DotCraft-Unity-Token: <discovery token>
 
 Requests must originate from loopback, use a loopback `Host`, and use a loopback `Origin` when one is present. Tool execution is dispatched to Unity's main thread.
 
-The MCP Gateway reads discovery immediately before each call. It reports:
+Both the CLI and MCP Gateway read discovery immediately before each call. They report:
 
 | Condition | Error code |
 |-----------|------------|
 | Unity is closed, reloading, or discovery is stale | `UnityUnavailable` |
 | Unity disconnects after a call starts | `UnityDisconnected` |
+| Unity does not respond within the client deadline | `UnityTimeout` |
 
 The next independent call reads discovery again and can reach a newly started Unity instance.
 
@@ -95,7 +102,7 @@ When settings or loaded assemblies change the manifest revision, the MCP Gateway
 
 ## Setup
 
-Open **Tools > DotCraft > MCP Gateway Setup**. Setup downloads and installs the package's exact MCP Gateway version, then writes a project-scoped stdio server named `dotcraft-unity` for Claude Code, Codex, or Cursor. Each configuration passes the current project root through `--project-root`.
+**Tools > DotCraft > MCP Gateway Setup** installs the executable described above and writes a project-scoped stdio server named `dotcraft-unity` for Claude Code, Codex, or Cursor, each using `mcp --project-root <project>`.
 
 The setup page reports package and MCP Gateway versions, installation integrity, Unity Tool Gateway state, manifest revision, and tool count. It can restart the Unity Tool Gateway or install, update, and remove client configuration. The private endpoint and token are never written to MCP client configuration.
 

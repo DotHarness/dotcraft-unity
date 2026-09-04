@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>dotcraft-unity-mcp</AssemblyName>
+    <AssemblyName>dotcraft-unity</AssemblyName>
     <RootNamespace>DotCraft.Unity.McpGateway</RootNamespace>
     <PackageJsonPath>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..\..\package.json'))</PackageJsonPath>
     <PackageVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(PackageJsonPath)')), '&quot;version&quot;\s*:\s*&quot;([^&quot;]+)&quot;').Groups[1].Value)</PackageVersion>

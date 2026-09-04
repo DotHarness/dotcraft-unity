@@ -36,7 +36,7 @@ namespace DotCraft.Editor.McpSetup
             builder.AppendLine(BeginMarker);
             builder.AppendLine(TableHeader);
             builder.AppendLine($"command = {Quote(options.Command)}");
-            builder.AppendLine($"args = [{Quote("--project-root")}, {Quote(options.ProjectRoot)}]");
+            builder.AppendLine($"args = [{Quote("mcp")}, {Quote("--project-root")}, {Quote(options.ProjectRoot)}]");
             builder.AppendLine("enabled = true");
             builder.AppendLine("tool_timeout_sec = 60");
             builder.AppendLine("default_tools_approval_mode = \"prompt\"");

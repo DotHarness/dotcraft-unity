@@ -1,6 +1,6 @@
 # Compilation and Domain Reload
 
-Use this workflow whenever Unity must compile scripts or reload managed assemblies. The durable operation file is the source of truth; the MCP call that starts the work is not expected to remain connected.
+Use this workflow whenever Unity must compile scripts or reload managed assemblies. The durable operation file is the source of truth; the MCP or CLI call that starts the work is not expected to remain connected.
 
 ## Protocol
 
@@ -22,11 +22,13 @@ Do not infer readiness from window focus, progress bars, Editor log silence, or 
 
 Run the bundled `scripts/unity-operation.cs` directly by passing its absolute installed path to `unity_execute_csharp(path=...)`.
 
+Without MCP, use `dotcraft-unity exec --path <absolute-script-path> --args-file <json-file> --project-root <project> --json`. The JSON file contains the same script args described below. See [cli.md](cli.md) for CLI installation and result handling; the operation protocol and external waiter are shared by both transports.
+
 - Use `action=compile` after changing C# sources. The operation state is persisted before `CompilationPipeline.RequestScriptCompilation` is called; Unity performs the compilation asynchronously. Keep `cleanBuildCache=false` unless a clean rebuild is explicitly required.
 - Use `action=reload` only when assemblies must be reloaded without compiling changed code. The operation state is persisted before `EditorUtility.RequestScriptReload` requests the next-frame reload.
-- Generate a unique lowercase GUID without separators outside Unity and pass it as `id`. This makes the operation address known even if Domain Reload disconnects the initiating MCP request. The returned JSON repeats that ID when the response arrives in time.
+- Generate a unique lowercase GUID without separators outside Unity and pass it as `id`. This makes the operation address known even if Domain Reload disconnects the initiating request. The returned JSON repeats that ID when the response arrives in time.
 
-The Gateway may disappear before the MCP response arrives; that is normal and does not lose the operation address.
+The Gateway may disappear before the MCP or CLI response arrives; that is normal and does not lose the operation address. Do not replay the initiating call.
 
 ## Wait Outside Unity
 
