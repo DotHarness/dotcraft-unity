@@ -14,6 +14,8 @@ Chat with an agent inside Unity, or expose Unity tools to DotCraft, Claude Code,
 
 | Workflow | Use this when | Entry point |
 |----------|---------------|-------------|
+| Attach | You want C# automation without installing a Unity package on Windows x64 Mono | `dotcraft-unity exec --backend attach` |
+| DotCraft native plugin | You want to connect directly from DotCraft | Install **Unity** from the official DotCraft plugin marketplace |
 | In-Unity Agent Chat | You want to chat with DotCraft or another ACP agent inside Unity | **Tools → DotCraft → AI Assistant** |
 | MCP Gateway | You want external MCP clients such as Claude Code, Codex, or Cursor to call Unity tools | **Tools → DotCraft → MCP Gateway Setup** |
 | CLI | You want to call Unity from a terminal or agent without MCP configuration | `dotcraft-unity exec` / `dotcraft-unity call` |
@@ -27,10 +29,10 @@ Chat with an agent inside Unity, or expose Unity tools to DotCraft, Claude Code,
 Open **Window → Package Manager** and add this Git URL:
 
    ```text
-   https://github.com/DotHarness/dotcraft-unity.git
+   https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.unity
    ```
 
-Minimum Unity version: **2021.3**, recommended version: **Unity 6**.
+Minimum Unity version: **2022.3**.
 
 ### Option A: Chat inside Unity
 
@@ -50,7 +52,7 @@ Minimum Unity version: **2021.3**, recommended version: **Unity 6**.
 
 ### Option C: Use the CLI without MCP
 
-Enable **Unity Tool Gateway** in **Project Settings → DotCraft**. On Windows x64, run the following from the Unity project root to install the latest CLI to `~/.craft/bin` and the user PATH:
+On Windows x64, run the following from the Unity project root to install the CLI to `~/.craft/bin` and the user PATH:
 
 ```powershell
 irm https://github.com/DotHarness/dotcraft-unity/releases/latest/download/install.ps1 | iex
@@ -59,7 +61,7 @@ dotcraft-unity version --json
 dotcraft-unity exec --code 'return Application.unityVersion;' --project-root $projectRoot --json
 ```
 
-`exec` also needs **C# Automation** enabled. CLI and Unity package versions must match; no administrator rights are required. See the [CLI reference](./Plugins~/dotcraft-unity/skills/dotcraft-unity/references/cli.md) for scripts, custom tools, JSON input, and error handling.
+The CLI prefers an existing protocol-compatible Gateway and otherwise attaches to the unique matching Editor. Select `--backend gateway` or `--backend attach` explicitly when needed, and use `--pid` to choose among multiple Editors. Gateway mode requires **Unity Tool Gateway**, **C# Automation**, and a protocol-compatible CLI at `~/.craft/bin/dotcraft-unity.exe`. Attach needs no UPM package or DotCraft installation. See the [CLI reference](./Plugins/dotcraft-unity/skills/dotcraft-unity/references/cli.md).
 
 ### Option D: Add project-specific tools
 
@@ -72,15 +74,15 @@ dotcraft-unity exec --code 'return Application.unityVersion;' --project-root $pr
 
 ![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
 
-dotcraft-unity provides a stable MCP Gateway for coding agents, unaffected by domain reloads or editor restarts.
+Run `dotcraft-unity mcp --project-root "<project>"` for a coding agent's stdio MCP connection. The MCP process remains available while Unity reloads. A reloaded Editor gets a fresh connection; interrupted C# executions are not resumed or replayed.
 
-See [Documentation~/tool-gateway.md](./Documentation~/tool-gateway.md) for more details.
+See [Documentations/tool-gateway.md](./Documentations/tool-gateway.md) for more details.
 
 ## Built-in tools
 
-`unity_execute_csharp` compiles a C# snippet with Roslyn and runs it in the Unity Editor process. A snippet is optional leading `using` directives followed by method-body statements; use it to read or modify scene state, selected objects, Console output, project metadata, and assets.
+`unity_execute_csharp` sends a C# snippet to the global CLI for Roslyn compilation, then loads and runs the compiled assembly on Unity's main thread. A snippet is optional leading `using` directives followed by method-body statements; use it to read or modify scene state, selected objects, Console output, project metadata, and assets.
 
-![How C# automation works inside Unity](./Documentation~/csharp-automation-how-it-works.svg)
+![How C# automation works inside Unity](./Documentations/csharp-automation-how-it-works.svg)
 
 ## Custom tools
 
@@ -102,18 +104,18 @@ public static class ExampleDotCraftTools
 }
 ```
 
-See [Documentation~/dynamic-tools.md](./Documentation~/dynamic-tools.md) for more details.
+See [Documentations/dynamic-tools.md](./Documentations/dynamic-tools.md) for more details.
 
 ## Agent integrations
 
 ### Agent plugins
 
-The same Unity automation skill is published as a DotCraft plugin and a Codex plugin. It uses MCP tools when available and falls back to the CLI. Enable Unity Tool Gateway, then configure MCP or install the CLI.
+The Agent skill supports MCP and CLI. The separate DotCraft native plugin provides `unity.list/connect/status/execute/wait/disconnect` directly through Attach.
 
 For DotCraft:
 
-1. Open **Plugins**, then **Add marketplace** from the menu beside **Create**.
-2. Enter `DotHarness/dotcraft-unity` and install **DotCraft Unity**.
+1. Open **Plugins** and select the official DotCraft marketplace (`DotHarness/dotcraft-plugins`).
+2. Install and enable **Unity** (`DotCraft.Unity`), then ask the agent to connect to your Editor.
 
 For Codex, add `DotHarness/dotcraft-unity` as a plugin marketplace, then install **DotCraft Unity** from that marketplace.
 

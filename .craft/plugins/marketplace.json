@@ -8,7 +8,7 @@
       "name": "dotcraft-unity",
       "source": {
         "source": "local",
-        "path": "./Plugins~/dotcraft-unity"
+        "path": "./Plugins/dotcraft-unity"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -1,0 +1,16 @@
+The dotcraft-unity CLI includes the following third-party software:
+
+Microsoft.CodeAnalysis.CSharp (Roslyn) 5.3.0
+Copyright .NET Foundation and Contributors
+Licensed under the MIT License.
+https://github.com/dotnet/roslyn
+
+ModelContextProtocol 2.2.0
+Copyright Model Context Protocol, a Series of LF Projects, LLC
+Licensed under the Apache License, Version 2.0.
+https://github.com/modelcontextprotocol/csharp-sdk
+
+Microsoft.Extensions libraries
+Copyright .NET Foundation and Contributors
+Licensed under the MIT License.
+https://github.com/dotnet/runtime

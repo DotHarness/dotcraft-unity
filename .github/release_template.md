@@ -11,7 +11,7 @@ Chat with an agent inside Unity, or expose Unity tools to DotCraft, Claude Code,
 Use Unity Package Manager and add this Git URL:
 
 ```text
-https://github.com/{{ REPO }}.git#{{ VERSION }}
+https://github.com/{{ REPO }}.git?path=/Packages/com.dotcraft.unity#{{ VERSION }}
 ```
 
 {{ CHANGELOG }}

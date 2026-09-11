@@ -1,89 +1,110 @@
-name: Publish Release
-
+name: Build and publish Unity
 on:
+  pull_request:
   push:
-    tags:
-      - 'v*.*.*'
-
+    branches: [master, main]
+    tags: ['v*.*.*']
 permissions:
   contents: read
-
 jobs:
-  release:
+  build:
     runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+      - name: Build all deliverables
+        shell: pwsh
+        run: ./Tools/Scripts/build.ps1 -OutputDirectory .artifacts/release
+      - name: Verify plugin installation
+        shell: pwsh
+        run: ./Tools/Scripts/test-plugin-host.ps1 -PluginRoot .artifacts/release/Unity
+      - name: Test Gateway and Attach
+        shell: pwsh
+        run: |
+          dotnet test Tools/DotCraft.Unity/tests/DotCraft.Unity.Cli.Tests.csproj -c Release
+          if ($LASTEXITCODE) { throw 'Gateway tests failed.' }
+          dotnet test Tools/DotCraft.Unity.Attach/tests/DotCraft.Unity.Attach.Tests.csproj -c Release
+          if ($LASTEXITCODE) { throw 'Attach tests failed.' }
+          ./Tools/DotCraft.Unity/tests/Install.Tests.ps1 -ArtifactDirectory .artifacts/release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unity-release-candidate
+          path: |
+            .artifacts/release/
+            !.artifacts/release/cli/**
+            !.artifacts/release/upm/**
+          include-hidden-files: true
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-
+    runs-on: windows-latest
+    environment: unity-release
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v6
-
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: 10.0.x
-
-    - name: Test CLI and MCP Gateway
-      run: dotnet test "Tools~/McpGateway/tests/DotCraft.Unity.McpGateway.Tests.csproj" -c Release
-
-    - name: Publish dotcraft-unity
-      run: >-
-        dotnet publish "Tools~/McpGateway/src/DotCraft.Unity.McpGateway.csproj"
-        -c Release -r win-x64 --self-contained true
-        -p:PublishSingleFile=true -p:PublishTrimmed=false
-        -o artifacts/gateway
-
-    - name: Prepare Gateway release assets
-      shell: pwsh
-      run: |
-        $package = Get-Content package.json -Raw | ConvertFrom-Json
-        $executable = 'artifacts/gateway/dotcraft-unity.exe'
-        $version = (& $executable version --json | ConvertFrom-Json)
-        if ($version.version -ne $package.version) { throw 'Gateway version does not match package.json.' }
-        if ($version.rid -ne 'win-x64') { throw 'Gateway reports an unexpected RID.' }
-        if ($version.mcpSdkVersion -ne '2.2.0') { throw 'Gateway reports an unexpected MCP SDK version.' }
-
-        $manifest = [ordered]@{
-          version = $package.version
-          rid = 'win-x64'
-          fileName = 'dotcraft-unity.exe'
-          sha256 = (Get-FileHash $executable -Algorithm SHA256).Hash.ToLowerInvariant()
-        }
-        $manifest | ConvertTo-Json | Set-Content 'artifacts/gateway/gateway-artifact.json' -Encoding utf8
-        Copy-Item 'Tools~/McpGateway/THIRD-PARTY-NOTICES.txt' 'artifacts/gateway/THIRD-PARTY-NOTICES.txt'
-        Copy-Item 'Tools~/install.ps1' 'artifacts/gateway/install.ps1'
-
-    - name: Test PATH installer
-      shell: pwsh
-      run: '& "Tools~/McpGateway/tests/Install.Tests.ps1" -ArtifactDirectory artifacts/gateway'
-
-    - name: Prepare Release Notes
-      shell: pwsh
-      run: |
-        $version = $env:GITHUB_REF -replace '^refs/tags/', ''
-        $repository = '${{ github.repository }}'
-        if (Test-Path '.github/release_template.md') {
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          name: unity-release-candidate
+          path: artifacts/release
+      - name: Verify release candidate
+        id: candidate
+        shell: pwsh
+        run: |
+          ./Tools/Scripts/verify-package.ps1 -ArtifactDirectory artifacts/release
+          $manifest = Get-Content artifacts/release/release-manifest.json -Raw | ConvertFrom-Json
+          if ($manifest.commit -cne '${{ github.sha }}' -or $manifest.sourceDirty -ne $false) { throw 'Release candidate must be a clean build of this commit.' }
+          if ('v' + $manifest.version -cne '${{ github.ref_name }}') { throw 'Release tag must match package.json version.' }
+          "version=$($manifest.version)" >> $env:GITHUB_OUTPUT
+      - name: Prepare release notes
+        shell: pwsh
+        run: |
           $notes = Get-Content '.github/release_template.md' -Raw
-          $notes = $notes.Replace('{{ VERSION }}', $version)
-          $notes = $notes.Replace('{{ REPO }}', $repository)
+          $notes = $notes.Replace('{{ VERSION }}', '${{ github.ref_name }}')
+          $notes = $notes.Replace('{{ REPO }}', '${{ github.repository }}')
           $notes = $notes.Replace('{{ CHANGELOG }}', '- See auto-generated notes below.')
           $notes | Set-Content 'release_notes.md' -Encoding utf8
-        } else {
-          "dotcraft-unity $version" | Set-Content 'release_notes.md' -Encoding utf8
-        }
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        body_path: release_notes.md
-        append_body: true
-        draft: false
-        prerelease: false
-        generate_release_notes: true
-        files: |
-          artifacts/gateway/dotcraft-unity.exe
-          artifacts/gateway/gateway-artifact.json
-          artifacts/gateway/THIRD-PARTY-NOTICES.txt
-          artifacts/gateway/install.ps1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_notes.md
+          append_body: true
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            artifacts/release/*.exe
+            artifacts/release/*.zip
+            artifacts/release/*.json
+            artifacts/release/install.ps1
+            artifacts/release/THIRD-PARTY-NOTICES.txt
+      - uses: actions/create-github-app-token@v2
+        id: app
+        with:
+          app-id: ${{ vars.MARKETPLACE_APP_ID }}
+          private-key: ${{ secrets.MARKETPLACE_APP_PRIVATE_KEY }}
+          owner: DotHarness
+          repositories: dotcraft-plugins
+      - uses: actions/checkout@v6
+        with:
+          repository: DotHarness/dotcraft-plugins
+          token: ${{ steps.app.outputs.token }}
+          path: marketplace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Stage complete official plugin
+        shell: pwsh
+        run: ./Tools/Scripts/sync-marketplace.ps1 -ArtifactDirectory artifacts/release -MarketplaceRoot marketplace
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          path: marketplace
+          token: ${{ steps.app.outputs.token }}
+          branch: updates/dotcraft-unity-${{ steps.candidate.outputs.version }}
+          commit-message: Update DotCraft.Unity to ${{ steps.candidate.outputs.version }}
+          title: Update DotCraft.Unity to ${{ steps.candidate.outputs.version }}
+          body: Complete Unity plugin binaries, skill and release provenance from the verified dotcraft-unity release. Maintainer review and merge are required.
+          add-paths: |
+            plugins/DotCraft.Unity/**
+            .craft/plugins/marketplace.json
