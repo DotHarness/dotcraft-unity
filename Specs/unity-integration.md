@@ -80,6 +80,11 @@ determine the outcome after dispatch. `unity.wait` may observe these states and
 may request cooperative termination. Terminal records have bounded retention;
 an expired execution ID returns `lost` and never starts the work again.
 
+The Attach host compiles each snippet with a fully qualified entry type and sends
+that type with the assembly path. The payload loads exactly that type and invokes
+its public static `Run` method. It must not scan the assembly or fall back to a
+hard-coded type name.
+
 The CLI and MCP server await normal calls rather than creating an independent job
 broker. The native DotCraft plugin may return an execution ID and use
 `unity.wait` for bounded background waiting, but ownership remains with the same
@@ -95,9 +100,11 @@ are rejected before new work is dispatched.
 
 Bootstrap dispatch is serialized across clients and recorded in a dispatch journal
 before injection. If dispatch has no proven outcome, clients observe the existing
-journal and wait for a valid handshake; they do not inject again. Each execution
-also carries an ID and domain generation. Duplicate starts return the existing
-record, while missing or expired records return `lost` rather than replaying work.
+journal and wait for a valid handshake for up to 60 seconds; cancellation and
+target exit end that wait earlier. A timeout leaves the journal intact, and no
+wait path injects again. Each execution also carries an ID and domain generation.
+Duplicate starts return the existing record, while missing or expired records
+return `lost` rather than replaying work.
 
 Each Attach service instance owns an independent client lease. Connecting adds or
 refreshes that lease; disconnecting or disposing releases only that client after

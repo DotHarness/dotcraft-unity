@@ -2090,9 +2090,6 @@ namespace DotCraft.Editor.UI
         }
     }
 
-    /// <summary>
-    /// Helper methods for creating UIElements (Unity 2022.3 compatible).
-    /// </summary>
     internal static class UIHelper
     {
         public static VisualElement CreateElement(params string[] classNames)
@@ -2158,9 +2155,6 @@ namespace DotCraft.Editor.UI
             return scrollView;
         }
 
-        /// <summary>
-        /// Sets pointer cursor on an element (Unity 2022.3 compatible).
-        /// </summary>
         public static void SetPointerCursor(VisualElement element)
         {
             element.RegisterCallback<MouseEnterEvent>(_ =>

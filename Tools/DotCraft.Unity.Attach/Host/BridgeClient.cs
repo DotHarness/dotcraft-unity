@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace DotCraft.Unity;
 
-internal sealed record PreparedExecution(string ExecutionId, string AssemblyPath, string Generation);
+internal sealed record PreparedExecution(string ExecutionId, string AssemblyPath, string EntryType, string Generation);
 
 internal static class BridgeClient
 {
@@ -17,6 +17,7 @@ internal static class BridgeClient
         string? id = null,
         string? expectedGeneration = null,
         string? executionId = null,
+        string? entryType = null,
         int? waitMs = null,
         bool terminate = false,
         string? clientId = null,
@@ -34,7 +35,7 @@ internal static class BridgeClient
         {
             await client.ConnectAsync("127.0.0.1", connection["port"]!.GetValue<int>(), deadline.Token);
             var request = new JsonObject {
-                ["protocol"] = 1,
+                ["protocol"] = AttachProtocol.Version,
                 ["clientId"] = clientId,
                 ["hostPid"] = Environment.ProcessId,
                 ["hostStartUtc"] = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime(),
@@ -45,6 +46,7 @@ internal static class BridgeClient
                 ["assembly"] = assembly,
                 ["args"] = args?.DeepClone(),
                 ["executionId"] = executionId,
+                ["entryType"] = entryType,
                 ["waitMs"] = waitMs,
                 ["terminate"] = terminate
             };
@@ -87,12 +89,19 @@ internal static class BridgeClient
         var directory = Path.Combine(cacheRoot, "snippets");
         Directory.CreateDirectory(directory);
         var source = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".cs");
-        File.WriteAllText(source, SnippetSourceBuilder.Build("Snippet", code, source, true, "DotCraft.Unity"));
+        const string className = "Snippet";
+        const string generatedNamespace = "DotCraft.Unity.Execution.Generated";
+        File.WriteAllText(source, SnippetSourceBuilder.Build(
+            className, code, source, true, "DotCraft.Unity", generatedNamespace));
         try
         {
             var generation = metadata["generation"]!.GetValue<string>();
             var assembly = TargetCompiler.Compile(source, references, Path.Combine(cacheRoot, "cache"), "Snippet_", generation);
-            return new PreparedExecution("unity_" + Guid.NewGuid().ToString("N"), Path.GetFullPath(assembly), generation);
+            return new PreparedExecution(
+                "unity_" + Guid.NewGuid().ToString("N"),
+                Path.GetFullPath(assembly),
+                generatedNamespace + "." + className,
+                generation);
         }
         finally { File.Delete(source); }
     }
@@ -104,6 +113,7 @@ internal static class BridgeClient
         CancellationToken cancellationToken = default) =>
         Call(connectionPath, "execute_start", execution.AssemblyPath, args,
             expectedGeneration: execution.Generation, executionId: execution.ExecutionId,
+            entryType: execution.EntryType,
             cancellationToken: cancellationToken);
 
     public static Task<JsonObject> Wait(
@@ -122,7 +132,7 @@ internal static class BridgeClient
     private static JsonObject ReadConnection(string connectionPath, string? expectedGeneration)
     {
         var connection = JsonNode.Parse(File.ReadAllText(connectionPath))!.AsObject();
-        if (connection["protocol"]?.GetValue<int>() != 1) throw new InvalidDataException("Unsupported Unity bridge protocol.");
+        if (connection["protocol"]?.GetValue<int>() != AttachProtocol.Version) throw new InvalidDataException("Unsupported Unity bridge protocol.");
         if (expectedGeneration != null && connection["generation"]?.GetValue<string>() != expectedGeneration)
             throw new InvalidDataException("Unity script domain changed during execution.");
         return connection;

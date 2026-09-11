@@ -30,7 +30,7 @@ Unity 内对话、MCP Gateway 和自定义项目工具需要安装 Unity Package
 https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.unity
 ```
 
-最低 Unity 版本：**2022.3**。
+最低 Unity 版本：**2021.3**。
 
 ### 方式 A：在 Unity 内聊天
 
@@ -44,9 +44,13 @@ https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.uni
 
 ![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
 
+![MCP Gateway 设置](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
+
 1. 在 **Project Settings → DotCraft** 中启用 **Unity Tool Gateway**。
 2. 运行 **Tools → DotCraft → MCP Gateway Setup**，选择 Claude Code、Codex 或 Cursor。
 3. 从项目根目录启动你的 coding agent。
+
+生命周期和传输约定参阅 [Unity Tool Gateway](./Documentations/tool-gateway.md)。
 
 ### 方式 C：无需 MCP，直接通过 CLI 操作 Unity
 
@@ -66,41 +70,13 @@ dotcraft-unity exec --code 'return Application.unityVersion;' --json
 3. 在 **Project Settings → DotCraft → Unity Tools** 中启用这个工具。
 4. 从 DotCraft、MCP client 或 `dotcraft-unity call` 使用它。
 
-## MCP Gateway
-
-![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
-
-使用 **Tools → DotCraft → MCP Gateway Setup**，将支持 MCP 的 coding agent 连接到当前项目已启用的 Unity 工具。
-
-配置和生命周期说明参阅 [Unity Tool Gateway](./Documentations/tool-gateway.md)。
+注册约定和支持的参数类型参阅[自定义项目工具](./Documentations/dynamic-tools.md)。
 
 ## C# 自动化
 
 `unity_execute_csharp` 在运行中的 Unity Editor 内执行 C# snippet 或已保存的脚本。它可以检查或修改场景、选中对象、Console 输出、项目元数据和资源。
 
 ![C# 自动化在 Unity 内部的工作原理](./Documentations/csharp-automation-how-it-works.svg)
-
-## 自定义工具
-
-给静态 Editor 方法添加 `[AgentTool]` 即可。新工具会显示在 **Project Settings → DotCraft → Unity Tools**，默认关闭，需手动启用。
-
-```csharp
-using System.ComponentModel;
-using DotCraft.Editor.Protocol;
-using DotCraft.Editor.RuntimeTools;
-
-public static class ExampleDotCraftTools
-{
-    [Description("Return a greeting from an example Unity plugin.")]
-    [AgentTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
-    public static object Greet([Description("Name to greet.")] string name = "Unity")
-    {
-        return new { message = $"Hello, {name}." };
-    }
-}
-```
-
-完整约定参阅 [自定义项目工具](./Documentations/dynamic-tools.md)。
 
 ## Agent 集成
 

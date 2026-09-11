@@ -7,6 +7,7 @@ namespace DotCraft.Unity;
 /// <summary>Local Mono Editor connection and target-side execution.</summary>
 public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapPath) : IAsyncDisposable
 {
+    private static readonly TimeSpan HandshakeTimeout = TimeSpan.FromSeconds(60);
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly ConcurrentDictionary<TargetIdentity, byte> owned = new();
     private readonly ConcurrentDictionary<string, TargetIdentity> selected = new(StringComparer.Ordinal);
@@ -77,24 +78,7 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
                 catch (Exception e) when (e is not UnityTargetException && (e is IOException or InvalidDataException or System.Net.Sockets.SocketException or InvalidOperationException or ArgumentException)) { }
             }
             if (File.Exists(path + ".lifecycle") && JsonNode.Parse(File.ReadAllText(path + ".lifecycle"))?["stage"]?.GetValue<int>() != 200)
-            {
-                var recovery = Stopwatch.StartNew();
-                while (recovery.Elapsed < TimeSpan.FromSeconds(20))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    try
-                    {
-                        var result = await BridgeClient.Call(path, "metadata", cancellationToken: cancellationToken);
-                        if (result["state"]?.GetValue<string>() != "completed")
-                            throw new IOException("Unity has not completed its main-thread handshake.");
-                        await RecordSelection(threadId, identity, result);
-                        return result;
-                    }
-                    catch (Exception e) when (e is IOException or System.Net.Sockets.SocketException or TimeoutException or InvalidDataException) { }
-                    await Task.Delay(100, cancellationToken);
-                }
-                throw new InvalidOperationException("Unity lifecycle recovery has not produced a fresh main-thread handshake. No bootstrap was replayed.");
-            }
+                return await WaitForHandshake(threadId, identity, target, path, journal, cancellationToken);
             if (!File.Exists(NativeBootstrapPath)) throw new FileNotFoundException("Native bootstrap is not configured.", NativeBootstrapPath);
             if (File.Exists(journal))
                 throw new InvalidOperationException("Bootstrap outcome is unknown. No new bootstrap was sent; wait for its handshake or restart the isolated test session.");
@@ -120,25 +104,7 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
             AttachStorage.Write(journal, new JsonObject { ["state"] = "dispatched", ["operationId"] = Guid.NewGuid().ToString("N"), ["startedUtc"] = DateTime.UtcNow });
             NativeInjector.Inject(pid, NativeBootstrapPath, payload, path);
             owned.TryAdd(identity, 0);
-            var watch = Stopwatch.StartNew();
-            while (watch.Elapsed < TimeSpan.FromSeconds(15))
-            {
-                if (File.Exists(path))
-                {
-                    try
-                    {
-                        var result = await BridgeClient.Call(path, "metadata");
-                        if (result["state"]?.GetValue<string>() != "completed")
-                            throw new IOException("Unity has not completed its main-thread handshake.");
-                        if (File.Exists(journal)) File.Delete(journal);
-                        await RecordSelection(threadId, identity, result);
-                        return result;
-                    }
-                    catch (Exception e) when (e is IOException or InvalidDataException or System.Net.Sockets.SocketException or System.Text.Json.JsonException) { }
-                }
-                await Task.Delay(100, cancellationToken);
-            }
-            throw new TimeoutException("Bootstrap loaded but no main-thread handshake arrived.");
+            return await WaitForHandshake(threadId, identity, target, path, journal, cancellationToken);
         }
         finally { gate.Release(); }
     }
@@ -285,6 +251,31 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
         await BridgeClient.Call(Connection(identity.Pid), "lease", clientId: clientId);
         selected[threadId] = identity;
         owned.TryAdd(identity, 0);
+    }
+
+    private async Task<JsonObject> WaitForHandshake(
+        string threadId,
+        TargetIdentity identity,
+        Process target,
+        string path,
+        string journal,
+        CancellationToken cancellationToken)
+    {
+        var response = await AttachHandshake.WaitAsync(async token =>
+        {
+            target.Refresh();
+            if (target.HasExited)
+                throw new UnityTargetException("UnityTargetUnavailable", "The selected Unity Editor exited before completing its main-thread handshake.");
+            if (!File.Exists(path)) throw new IOException("Unity has not published its bridge metadata.");
+            var result = await BridgeClient.Call(path, "metadata", cancellationToken: token);
+            if (result["state"]?.GetValue<string>() != "completed")
+                throw new IOException("Unity has not completed its main-thread handshake.");
+            ValidateRuntime(result);
+            return result;
+        }, HandshakeTimeout, cancellationToken);
+        if (File.Exists(journal)) File.Delete(journal);
+        await RecordSelection(threadId, identity, response);
+        return response;
     }
 
     private void ValidateRuntime(JsonObject response)

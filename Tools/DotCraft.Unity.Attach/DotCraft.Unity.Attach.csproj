@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Payload/**/*.cs;tests/**/*.cs" />
+    <EmbeddedResource Include="Host/AttachProtocol.cs" LogicalName="DotCraft.Unity.Payload.AttachProtocol.cs" />
     <EmbeddedResource Include="Payload/*.cs" LogicalName="DotCraft.Unity.Payload.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Native/DotCraft.Unity.Native.dll" LogicalName="DotCraft.Unity.Native.dll" Condition="Exists('Native/DotCraft.Unity.Native.dll')" />
     <EmbeddedResource Include="../../Packages/com.dotcraft.unity/Editor/Shared/Dcu.cs;../../Packages/com.dotcraft.unity/Editor/Shared/UnityJsonConverter.cs;../../Packages/com.dotcraft.unity/Editor/Shared/UnityValueNormalizer.cs;../../Packages/com.dotcraft.unity/Editor/Shared/UnityExecutionContext.cs;../../Packages/com.dotcraft.unity/Editor/Shared/UnityContinuationScheduler.cs" LogicalName="DotCraft.Unity.Payload.%(Filename)%(Extension)" />

@@ -30,7 +30,7 @@ Open **Window → Package Manager** and add this Git URL:
 https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.unity
 ```
 
-Minimum Unity version: **2022.3**.
+Minimum Unity version: **2021.3**.
 
 ### Option A: Chat inside Unity
 
@@ -44,9 +44,13 @@ Minimum Unity version: **2022.3**.
 
 ![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
 
+![MCP Gateway setup](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
+
 1. Enable **Unity Tool Gateway** in **Project Settings → DotCraft**.
 2. Run **Tools → DotCraft → MCP Gateway Setup** and choose Claude Code, Codex, or Cursor.
 3. Start your coding agent from the project root.
+
+See [Unity tool gateway](./Documentations/tool-gateway.md) for its lifecycle and transport contract.
 
 ### Option C: Use the CLI without MCP
 
@@ -66,41 +70,13 @@ See the [CLI reference](./Plugins/dotcraft-unity/skills/dotcraft-unity/reference
 3. Enable the tool in **Project Settings → DotCraft → Unity Tools**.
 4. Use it from DotCraft, an MCP client, or `dotcraft-unity call`.
 
-## MCP gateway
-
-![mcp](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
-
-Use **Tools → DotCraft → MCP Gateway Setup** to connect a coding agent that supports MCP to the Unity tools enabled for the project.
-
-See [Unity tool gateway](./Documentations/tool-gateway.md) for configuration and lifecycle details.
+See [Custom project tools](./Documentations/dynamic-tools.md) for the registration contract and supported parameter types.
 
 ## C# automation
 
 `unity_execute_csharp` runs an inline C# snippet or saved script in a live Unity Editor. Use it to inspect or modify scenes, selected objects, Console output, project metadata, and assets.
 
 ![How C# automation works inside Unity](./Documentations/csharp-automation-how-it-works.svg)
-
-## Custom tools
-
-Mark a static Editor method with `[AgentTool]`. New tools appear in **Project Settings → DotCraft → Unity Tools** and are disabled until you enable them.
-
-```csharp
-using System.ComponentModel;
-using DotCraft.Editor.Protocol;
-using DotCraft.Editor.RuntimeTools;
-
-public static class ExampleDotCraftTools
-{
-    [Description("Return a greeting from an example Unity plugin.")]
-    [AgentTool(Namespace = "example", Name = "example_greet", Kind = AcpToolKind.Read)]
-    public static object Greet([Description("Name to greet.")] string name = "Unity")
-    {
-        return new { message = $"Hello, {name}." };
-    }
-}
-```
-
-See [Custom project tools](./Documentations/dynamic-tools.md) for the complete contract.
 
 ## Agent integrations
 
