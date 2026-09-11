@@ -90,6 +90,30 @@ public sealed class BackendSelectionTests
     }
 
     [Fact]
+    public async Task AttachPreservesExecutionErrorCode()
+    {
+        using var fixture = new CliFixture();
+        var attach = new FakeAttach(fixture.Root)
+        {
+            Execute = _ => Task.FromResult(new JsonObject
+            {
+                ["state"] = "failed",
+                ["errorCode"] = "UnityExecutionEntryPointInvalid",
+                ["error"] = "The compiled Unity entry type was not found."
+            })
+        };
+        await using var session = new UnityBackendSession(new(fixture.Root), "attach", attach: attach);
+
+        var result = await session.CallAsync(
+            GatewayConstants.ExecuteCSharpToolName,
+            Code(),
+            TestContext.Current.CancellationToken);
+
+        Assert.False(result.Success);
+        Assert.Equal("UnityExecutionEntryPointInvalid", result.ErrorCode);
+    }
+
+    [Fact]
     public async Task AmbiguousOrMismatchedTargetsDoNotConnect()
     {
         using var fixture = new CliFixture();

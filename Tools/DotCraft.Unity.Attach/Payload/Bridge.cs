@@ -30,10 +30,12 @@ namespace DotCraft.Unity
         {
             public string Id;
             public string AssemblyPath;
+            public string EntryType;
             public JObject Args;
             public string State = "queued";
             public string Result;
             public string Error;
+            public string ErrorCode;
             public Task<object> Task;
             public bool CancellationRequested;
             public readonly CancellationTokenSource Cancellation = new CancellationTokenSource();
@@ -89,7 +91,7 @@ namespace DotCraft.Unity
             EditorApplication.quitting += Stop;
             var temporaryPath = path + ".tmp";
             File.WriteAllText(temporaryPath, JsonConvert.SerializeObject(new {
-                protocol = 1, pid = System.Diagnostics.Process.GetCurrentProcess().Id,
+                protocol = AttachProtocol.Version, pid = System.Diagnostics.Process.GetCurrentProcess().Id,
                 startUtc = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime(),
                 port = ((IPEndPoint)listener.LocalEndpoint).Port, token, generation,
                 bridgeSession = generation, domainEpoch = GetDomainEpoch(), runtimeIdentity = RuntimeIdentity.Value, runtimeVersion = RuntimeIdentity.Version,
@@ -127,7 +129,7 @@ namespace DotCraft.Unity
                     var bytes = reader.ReadBytes(length);
                     if (bytes.Length != length) return;
                     var request = JObject.Parse(Encoding.UTF8.GetString(bytes));
-                    if ((int?)request["protocol"] != 1) return;
+                    if ((int?)request["protocol"] != AttachProtocol.Version) return;
                     if ((string)request["token"] != token || (string)request["generation"] != generation) return;
                     var id = (string)request["id"];
                     if (string.IsNullOrEmpty(id)) return;
@@ -152,8 +154,10 @@ namespace DotCraft.Unity
         {
             var executionId = (string)request["executionId"];
             var assemblyPath = (string)request["assembly"];
-            if (string.IsNullOrEmpty(executionId) || string.IsNullOrEmpty(assemblyPath))
-                return Serialize(new { state = "failed", generation, executionId, error = "Invalid execution request." });
+            var entryType = (string)request["entryType"];
+            if (string.IsNullOrEmpty(executionId) || string.IsNullOrEmpty(assemblyPath) || string.IsNullOrEmpty(entryType))
+                return Serialize(new { state = "failed", generation, executionId,
+                    errorCode = "UnityExecutionEntryPointInvalid", error = "Invalid execution entry point." });
 
             Execution execution;
             lock (Sync)
@@ -169,6 +173,7 @@ namespace DotCraft.Unity
                 {
                     Id = executionId,
                     AssemblyPath = assemblyPath,
+                    EntryType = entryType,
                     Args = request["args"] as JObject ?? new JObject()
                 };
                 Executions.Add(executionId, execution);
@@ -315,9 +320,18 @@ namespace DotCraft.Unity
                 if (Thread.CurrentThread.ManagedThreadId != mainThread) throw new InvalidOperationException("Main thread changed.");
                 if (EditorApplication.isCompiling || EditorApplication.isUpdating) throw new InvalidOperationException("Editor is busy.");
                 var assembly = Assembly.LoadFrom(execution.AssemblyPath);
-                var method = assembly.GetType("DotCraft.Unity.Snippet").GetMethod("Run");
+                var type = assembly.GetType(execution.EntryType, false);
+                if (type == null) throw new ExecutionEntryPointException("The compiled Unity entry type was not found.");
+                var method = type.GetMethod("Run", BindingFlags.Public | BindingFlags.Static, null,
+                    new[] { typeof(JObject), typeof(UnityExecutionContext), typeof(CancellationToken) }, null);
+                if (method == null || method.ReturnType != typeof(Task<object>))
+                    throw new ExecutionEntryPointException("The compiled Unity entry point has an invalid signature.");
                 var context = new UnityExecutionContext(execution.Cancellation.Token, ScheduleContinuation);
                 execution.Task = (Task<object>)method.Invoke(null, new object[] { execution.Args, context, execution.Cancellation.Token });
+            }
+            catch (ExecutionEntryPointException e)
+            {
+                CompleteExecution(execution, "failed", null, e.Message, "UnityExecutionEntryPointInvalid");
             }
             catch (Exception e)
             {
@@ -347,7 +361,7 @@ namespace DotCraft.Unity
             foreach (var execution in completed) FinishExecution(execution, execution.Task);
         }
 
-        static void CompleteExecution(Execution execution, string state, object result, string error)
+        static void CompleteExecution(Execution execution, string state, object result, string error, string errorCode = null)
         {
             string serializedResult = null;
             if (state == "completed" && result != null)
@@ -360,6 +374,7 @@ namespace DotCraft.Unity
                 execution.State = state;
                 execution.Result = serializedResult;
                 execution.Error = error;
+                execution.ErrorCode = errorCode;
                 execution.Changed.Set();
             }
             EndExecutionRuntime();
@@ -388,7 +403,7 @@ namespace DotCraft.Unity
                 }
                 return Serialize(new { state = execution.State, generation, executionId = execution.Id,
                     elapsedMs = ElapsedMilliseconds(execution), cancellationRequested = execution.CancellationRequested,
-                    error = execution.Error });
+                    errorCode = execution.ErrorCode, error = execution.Error });
             }
         }
 
@@ -400,6 +415,11 @@ namespace DotCraft.Unity
         static bool IsTerminal(string state)
         {
             return state == "completed" || state == "failed" || state == "cancelled" || state == "lost";
+        }
+
+        sealed class ExecutionEntryPointException : Exception
+        {
+            public ExecutionEntryPointException(string message) : base(message) { }
         }
 
         static string Serialize(object value)

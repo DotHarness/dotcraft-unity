@@ -4,7 +4,7 @@ Use this reference when MCP is not configured or its tools are absent from the c
 
 ## Install and locate
 
-The executable is distributed for Windows x64. Attach requires a Windows x64 Mono Editor. The public UPM package requires Unity 2022.3 or later. The Release installer downloads the latest version, verifies the artifact manifest, SHA-256, and executable metadata, and adds `~/.craft/bin` to the user PATH without administrator rights:
+The executable is distributed for Windows x64. Attach requires a Windows x64 Mono Editor. The Release installer downloads the latest version, verifies the artifact manifest, SHA-256, and executable metadata, and adds `~/.craft/bin` to the user PATH without administrator rights:
 
 ```powershell
 irm https://github.com/DotHarness/dotcraft-unity/releases/latest/download/install.ps1 | iex

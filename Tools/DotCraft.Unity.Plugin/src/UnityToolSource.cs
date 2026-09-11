@@ -126,7 +126,7 @@ internal sealed class UnityToolSource(UnityAttachService service, string workspa
                 var json = result.ToJsonString();
                 return result["state"]?.GetValue<string>() is "completed" or "queued" or "running" or "cancelled" or "lost" or "unknown"
                     ? ToolExecutionResult.Succeeded(json, JsonSerializer.SerializeToElement(result))
-                    : Failure("UnityRequestIncomplete", json);
+                    : Failure(result["errorCode"]?.GetValue<string>() ?? "UnityRequestIncomplete", json);
             }
             catch (OperationCanceledException) { return Failure("UnityOutcomeUnknown", "The call stopped waiting. Execution may have started; do not replay automatically."); }
             catch (UnityTargetException e) { return Failure(e.Code, e.Message); }

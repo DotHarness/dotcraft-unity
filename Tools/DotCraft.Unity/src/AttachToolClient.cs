@@ -65,11 +65,11 @@ internal sealed class AttachToolClient(string projectRoot, int? pid, IAttachConn
             var result = await _connection.ExecuteAsync(code!, args, cancellationToken).ConfigureAwait(false);
             var state = result["state"]?.GetValue<string>();
             if (state != "completed")
-                return UnityBackendSession.Failure(name, state switch
+                return UnityBackendSession.Failure(name, result["errorCode"]?.GetValue<string>() ?? (state switch
                 {
                     "lost" => "UnityExecutionLost", "unknown" => "UnityOutcomeUnknown",
                     "cancelled" => "Cancelled", _ => "ExecutionException"
-                }, result["error"]?.ToString() ?? $"Unity execution is {state}. Do not replay automatically.");
+                }), result["error"]?.ToString() ?? $"Unity execution is {state}. Do not replay automatically.");
             return new UnityToolGatewayResult
             {
                 Name = name, Success = true, DurationMs = watch.ElapsedMilliseconds,

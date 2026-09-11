@@ -15,7 +15,7 @@ if ($LASTEXITCODE) { throw 'DotCraft adapter restore failed.' }
 if ($LASTEXITCODE) { throw 'DotCraft adapter build failed.' }
 
 New-Item -ItemType Directory -Path "$bundle/lib" -Force | Out-Null
-foreach ($name in @('.craft-plugin','assets','skills','README.md')) {
+foreach ($name in @('.craft-plugin','assets','skills')) {
     Copy-Item -LiteralPath "$root/Plugins/unity/$name" -Destination $bundle -Recurse
 }
 New-Item -ItemType Directory -Path "$bundle/skills/unity/scripts" -Force | Out-Null

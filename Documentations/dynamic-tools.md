@@ -106,8 +106,3 @@ public static object WriteFile(string path, string content)
 ```
 
 `ApprovalTargetArgument` and `ApprovalOperationArgument`, when used, must reference top-level string parameters. Approval policy is owned by DotCraft; dotcraft-unity only forwards the descriptor.
-
-## Related docs
-
-- [Unity tool gateway](tool-gateway.md)
-- [README](../README.md)
