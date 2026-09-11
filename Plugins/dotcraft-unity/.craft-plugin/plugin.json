@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "dotcraft-unity",
+  "version": "0.4.0",
+  "displayName": "DotCraft Unity",
+  "description": "Guide agents to inspect and automate Unity Editor through DotCraft Unity tools.",
+  "capabilities": ["skill"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "DotCraft Unity",
+    "shortDescription": "Automate Unity Editor",
+    "longDescription": "DotCraft Unity teaches agents to inspect and automate a running Unity Editor through dotcraft-unity MCP tools.",
+    "developerName": "DotHarness",
+    "category": "Engineering",
+    "capabilities": ["Skill", "Unity", "Read", "Write"],
+    "defaultPrompt": "Fix the error in the Unity Editor console.",
+    "composerIcon": "./assets/dotcraft-unity.svg",
+    "logo": "./assets/dotcraft-unity.svg",
+    "websiteUrl": "https://github.com/DotHarness/dotcraft-unity",
+    "privacyPolicyUrl": "https://github.com/DotHarness/dotcraft-unity",
+    "termsOfServiceUrl": "https://github.com/DotHarness/dotcraft-unity"
+  }
+}

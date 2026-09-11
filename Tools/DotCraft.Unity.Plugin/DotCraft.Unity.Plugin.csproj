@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DotCraft.Unity</AssemblyName>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DotCraft.Unity.Attach/DotCraft.Unity.Attach.csproj" />
+    <PackageReference Include="DotCraft.Harness" Version="*" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>

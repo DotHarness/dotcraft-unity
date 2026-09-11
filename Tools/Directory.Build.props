@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <UnityPackageJson>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../Packages/com.dotcraft.unity/package.json'))</UnityPackageJson>
+    <UnityProductVersion>$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(UnityPackageJson)')), '&quot;version&quot;\s*:\s*&quot;([^&quot;]+)&quot;').Groups[1].Value)</UnityProductVersion>
+    <Version>$(UnityProductVersion)</Version>
+    <InformationalVersion>$(UnityProductVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

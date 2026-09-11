@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "id": "DotCraft.Unity",
+  "version": "0.4.0",
+  "displayName": "Unity",
+  "description": "Inspect and automate a running Unity Editor.",
+  "capabilities": ["dotnet", "skill"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Unity",
+    "shortDescription": "Automate Unity Editor",
+    "longDescription": "Inspect and automate a running Unity Editor through DotCraft's native Unity tools.",
+    "developerName": "DotHarness",
+    "category": "Engineering",
+    "capabilities": ["Skill", "Unity", "Read", "Write"],
+    "defaultPrompt": "Inspect or automate the connected Unity Editor.",
+    "composerIcon": "./assets/unity.svg",
+    "logo": "./assets/unity.svg",
+    "websiteUrl": "https://github.com/DotHarness/dotcraft-unity",
+    "privacyPolicyUrl": "https://github.com/DotHarness/dotcraft-unity",
+    "termsOfServiceUrl": "https://github.com/DotHarness/dotcraft-unity"
+  },
+  "dotnet": {
+    "displayName": "Unity integration",
+    "description": "Provides native C# execution tools for Unity Editor.",
+    "minHostVersion": "0.6.4",
+    "entryAssembly": "./lib/DotCraft.Unity.dll",
+    "entryType": "DotCraft.Unity.Plugin"
+  }
+}

@@ -14,6 +14,3 @@ jobs:
         with:
           node-version: 22
       - run: node .github/scripts/validate-marketplace.mjs
-      - run: npm pack --dry-run --json > npm-pack.json
-      - name: Verify plugin bundle is published
-        run: node -e "const p=require('./npm-pack.json')[0];if(!p.files.some(f=>f.path==='Plugins~/dotcraft-unity/skills/dotcraft-unity/SKILL.md'))process.exit(1)"

@@ -68,7 +68,7 @@ function requireEqual(actual, expected, label) {
   if (actual !== expected) fail(`${label} must be '${expected}'`)
 }
 
-const packageManifest = readJson(resolve(repoRoot, 'package.json'))
+const packageManifest = readJson(resolve(repoRoot, 'Packages/com.dotcraft.unity/package.json'))
 const marketplace = readJson(resolve(repoRoot, '.craft', 'plugins', 'marketplace.json'))
 
 if (!isObject(marketplace)) {
@@ -86,7 +86,7 @@ let pluginRoot = null
 if (isObject(entry)) {
   requireEqual(entry.name, 'dotcraft-unity', 'plugin entry name')
   requireEqual(entry.source?.source, 'local', 'plugin source.source')
-  requireEqual(entry.source?.path, './Plugins~/dotcraft-unity', 'plugin source.path')
+  requireEqual(entry.source?.path, './Plugins/dotcraft-unity', 'plugin source.path')
   requireEqual(entry.policy?.installation, 'AVAILABLE', 'plugin policy.installation')
   requireEqual(entry.policy?.authentication, 'ON_INSTALL', 'plugin policy.authentication')
   requireEqual(entry.category, 'Engineering', 'plugin category')
@@ -145,7 +145,7 @@ const codexEntry = codexMarketplace?.plugins?.[0]
 if (isObject(codexEntry)) {
   requireEqual(codexEntry.name, 'dotcraft-unity', 'Codex plugin entry name')
   requireEqual(codexEntry.source?.source, 'local', 'Codex plugin source.source')
-  requireEqual(codexEntry.source?.path, './Plugins~/dotcraft-unity', 'Codex plugin source.path')
+  requireEqual(codexEntry.source?.path, './Plugins/dotcraft-unity', 'Codex plugin source.path')
   requireEqual(codexEntry.policy?.installation, 'AVAILABLE', 'Codex plugin policy.installation')
   requireEqual(codexEntry.policy?.authentication, 'ON_INSTALL', 'Codex plugin policy.authentication')
   requireEqual(codexEntry.category, 'Engineering', 'Codex plugin category')
