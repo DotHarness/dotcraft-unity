@@ -64,7 +64,6 @@ jobs:
           $notes = Get-Content '.github/release_template.md' -Raw
           $notes = $notes.Replace('{{ VERSION }}', '${{ github.ref_name }}')
           $notes = $notes.Replace('{{ REPO }}', '${{ github.repository }}')
-          $notes = $notes.Replace('{{ CHANGELOG }}', '- See auto-generated notes below.')
           $notes | Set-Content 'release_notes.md' -Encoding utf8
       - uses: softprops/action-gh-release@v2
         with:

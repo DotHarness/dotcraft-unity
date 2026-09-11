@@ -1,17 +1,15 @@
-# dotcraft-unity {{ VERSION }}
+# DotCraft Unity {{ VERSION }}
 
 ![intro](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/banner.png)
 
-Use coding agents with Unity Editor.
+Unified AI agent integration for Unity Editor—in-editor chat, CLI/MCP automation, and package-free Attach on Windows.
 
-Chat with an agent inside Unity, or expose Unity tools to DotCraft, Claude Code, Codex, Cursor, and other agents.
+## Install the Unity package
 
-## Install
-
-Use Unity Package Manager and add this Git URL:
+In Unity Package Manager, add this Git URL:
 
 ```text
 https://github.com/{{ REPO }}.git?path=/Packages/com.dotcraft.unity#{{ VERSION }}
 ```
 
-{{ CHANGELOG }}
+For other installation options, see [Quick start](https://github.com/{{ REPO }}#quick-start).
