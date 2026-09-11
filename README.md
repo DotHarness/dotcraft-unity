@@ -108,14 +108,14 @@ See [Custom project tools](./Documentations/dynamic-tools.md) for the complete c
 
 DotCraft and external coding agents use separate plugins:
 
-- **Unity** (`DotCraft.Unity`) is the native DotCraft plugin. Install it from the official marketplace to get `unity.*` tools without adding the Unity package to a project.
+- **Unity** (`DotCraft.Unity`) is the native DotCraft plugin. It provides `unity.*` tools without adding the Unity package to a project.
 - **DotCraft Unity** (`dotcraft-unity`) is the Agent skill plugin for MCP and CLI workflows. Add `DotHarness/dotcraft-unity` as a Codex plugin marketplace, then install **DotCraft Unity**.
 
-In DotCraft, open **Plugins**, select the official marketplace (`DotHarness/dotcraft-plugins`), then install and enable **Unity**.
+In DotCraft, open **Plugins**, then install and enable **Unity**.
 
-### ACP extension
+### In-Editor tools
 
-With DotCraft selected as the ACP server in Unity, built-in and custom project tools are available in the chat without MCP setup.
+When **DotCraft** is selected as the Agent in Unity, enabled C# Automation and custom project tools are available in the in-Editor chat without MCP setup.
 
 ## License
 

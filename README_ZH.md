@@ -108,14 +108,14 @@ public static class ExampleDotCraftTools
 
 DotCraft 和外部 coding agent 使用不同的插件：
 
-- **Unity**（`DotCraft.Unity`）是 DotCraft 原生插件。安装后即可使用 `unity.*` 工具，无需向项目添加 Unity Package。
+- **Unity**（`DotCraft.Unity`）是 DotCraft 原生插件，无需向项目添加 Unity Package 即可提供 `unity.*` 工具。
 - **DotCraft Unity**（`dotcraft-unity`）是服务于 MCP 和 CLI 工作流的 Agent skill 插件。在 Codex 中添加 `DotHarness/dotcraft-unity` plugin marketplace，然后安装 **DotCraft Unity**。
 
-在 DotCraft 中打开 **Plugins**，选择官方市场（`DotHarness/dotcraft-plugins`），然后安装并启用 **Unity**。
+在 DotCraft 中打开 **Plugins**，然后安装并启用 **Unity**。
 
-### ACP 扩展
+### Unity 内工具
 
-在 Unity 中选择 DotCraft 作为 ACP Server 后，可以直接在对话中使用内置工具和自定义项目工具，无需配置 MCP。
+在 Unity 中选择 **DotCraft** 作为 Agent 后，已启用的 C# Automation 和自定义项目工具可直接用于 Unity 内对话，无需配置 MCP。
 
 ## License
 
