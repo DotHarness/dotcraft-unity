@@ -4,7 +4,7 @@
 
 [中文](./README_ZH.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](./LICENSE)
 
-Unified AI agent integration for Unity Editor—in-editor chat, CLI/MCP automation, and package-free Attach on Windows.
+Unified AI agent integration for Unity Editor—in-editor chat, CLI/MCP automation, and the option to use it without installing the UPM package.
 
 *Supports Unity 2021.3 through Unity 6.6 (Mono only, CoreCLR WIP)*
 
@@ -85,7 +85,7 @@ After completing the first step, tell Codex or DotCraft what you want to do in t
 
 1. Open **Tools → DotCraft → AI Assistant**.
 2. Select **DotCraft** or **Custom ACP Agent** in **Project Settings → DotCraft**.
-3. Select **Connect**.
+3. Click **Connect**.
 
 When **DotCraft** is selected, enabled C# automation and custom project tools are available directly in the conversation without MCP setup.
 

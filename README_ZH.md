@@ -67,7 +67,7 @@ https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.uni
 
 > 检查当前场景，列出所有根 GameObject，并找出挂有缺失脚本的对象。
 
-![C# 自动化在 Unity 内部的工作原理](./Documentations/csharp-automation-how-it-works.svg)
+![C# 自动化如何与 Unity Editor 协作](./Documentations/csharp-automation-how-it-works.svg)
 
 ### 通过 MCP 操作 Unity
 
