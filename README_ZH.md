@@ -4,43 +4,72 @@
 
 [English](./README.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](./LICENSE)
 
-面向 Unity Editor 的统一 Agent 集成：支持 Unity 内对话、CLI/MCP 自动化，以及 Windows 上无需安装 UPM 包的 Attach。
+面向 Unity Editor 的统一 Agent 集成：支持 Unity 内对话、CLI/MCP 自动化，不安装 UPM 包也能使用。
+
+*支持 Unity 2021.3 ~ Unity 6.6 (Mono only, CoreCLR WIP)*
 
 </div>
 
 ## 你可以用它做什么
 
-| 工作流 | 适用场景 | 入口 |
-|--------|----------|------|
-| Unity 内 Agent 对话 | 想直接在 Unity 中和 DotCraft 或其他 ACP agent 对话 | **Tools → DotCraft → AI Assistant** |
-| DotCraft 原生插件 | 想直接从 DotCraft 操作 Unity | 从 DotCraft 官方插件市场安装 **Unity** |
-| MCP Gateway | 想让 Claude Code、Codex、Cursor 等外部 MCP client 调用 Unity 工具 | **Tools → DotCraft → MCP Gateway Setup** |
-| CLI 与 Attach | 想从终端自动化 Unity，或在不安装 Unity Package 的情况下连接 Editor | `dotcraft-unity exec` / `dotcraft-unity call` |
-| 自定义工具 | 想暴露项目专属 Unity 工具 | `[AgentTool]` |
+| 工作流 | 适用场景 |
+|--------|----------|
+| AI Assistant | 在 Unity 中和支持 ACP 协议的 Agent 对话 |
+| MCP Gateway | 想让 Claude Code、Codex、Cursor 等外部 MCP client 调用 Unity 工具 |
+| CLI | 想从终端自动化 Unity，或在不安装 Unity Package 的情况下连接 Editor |
+| 自定义工具 | 利用 MCP Gateway 暴露项目专属工具给 Coding Agent |
 
-## 快速开始
+## 安装
 
-### 安装 Unity Package
+### 第一步：安装 Agent 插件或 Skill
 
-Unity 内对话、MCP Gateway 和自定义项目工具需要安装 Unity Package。只使用 Windows x64 Mono Attach 时，可以直接跳到**方式 C**。
+选择适合你的 Agent 的安装方式。
 
-打开 **Window → Package Manager**，添加这个 Git URL：
+#### Codex
+
+1. 打开 **Plugins**，在 **Add** 菜单中选择 **Add a marketplace**。
+2. 在 **Source** 中输入 `DotHarness/dotcraft-unity`，然后添加市场。
+3. 找到并安装 **DotCraft Unity**。
+
+![Codex 中的 DotCraft Unity 插件](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/codex-dotcraft-unity-plugin.png)
+
+#### DotCraft
+
+打开 **Plugins**，找到并安装 **Unity**。安装完成后，可以直接点击 **Try in chat** 开始使用。
+
+![DotCraft 中的 Unity 原生插件](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/dotcraft-unity-plugin.png)
+
+#### 手动安装 Skill
+
+将 [`Plugins/dotcraft-unity/skills/dotcraft-unity`](./Plugins/dotcraft-unity/skills/dotcraft-unity) 复制到 coding agent 的 Skills 目录。
+
+Codex 插件和手动安装的 Skill 通过 CLI 操作 Unity。运行下面的命令安装 CLI：
+
+```powershell
+irm https://github.com/DotHarness/dotcraft-unity/releases/latest/download/install.ps1 | iex
+```
+
+### 第二步（可选）：安装 Unity Package
+
+Unity 内对话、MCP Gateway 和项目自定义工具需要 Unity Package。
+
+打开 **Window → Package Manager**，添加 Git URL：
 
 ```text
 https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.unity
 ```
 
-最低 Unity 版本：**2021.3**。
+## 快速开始
 
-### 方式 A：在 Unity 内聊天
+### 使用 C# 自动化操作 Editor
 
-![assistant](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/assistant.png)
+完成第一步后，直接告诉 Codex 或 DotCraft 要在当前 Unity Editor 中完成什么。例如：
 
-1. 打开 **Tools → DotCraft → AI Assistant**。
-2. 在 **Project Settings → DotCraft** 中选择 **DotCraft** 或 **Custom ACP Agent**。
-3. 点击 **Connect**。
+> 检查当前场景，列出所有根 GameObject，并找出挂有缺失脚本的对象。
 
-### 方式 B：通过 MCP 操作 Unity
+![C# 自动化在 Unity 内部的工作原理](./Documentations/csharp-automation-how-it-works.svg)
+
+### 通过 MCP 操作 Unity
 
 ![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
 
@@ -48,22 +77,19 @@ https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.uni
 
 1. 在 **Project Settings → DotCraft** 中启用 **Unity Tool Gateway**。
 2. 运行 **Tools → DotCraft → MCP Gateway Setup**，选择 Claude Code、Codex 或 Cursor。
-3. 从项目根目录启动你的 coding agent。
+3. 从项目根目录启动 coding agent。
 
-生命周期和传输约定参阅 [Unity Tool Gateway](./Documentations/tool-gateway.md)。
+### 在 Unity 内聊天
 
-### 方式 C：无需 MCP，直接通过 CLI 操作 Unity
+![AI Assistant](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/assistant.png)
 
-Windows x64 用户在 Unity 项目根目录运行：
+1. 打开 **Tools → DotCraft → AI Assistant**。
+2. 在 **Project Settings → DotCraft** 中选择 **DotCraft** 或 **Custom ACP Agent**。
+3. 点击 **Connect**。
 
-```powershell
-irm https://github.com/DotHarness/dotcraft-unity/releases/latest/download/install.ps1 | iex
-dotcraft-unity exec --code 'return Application.unityVersion;' --json
-```
+选择 **DotCraft** 后，启用的 C# 自动化和项目自定义工具可以直接在对话中使用，无需配置 MCP。
 
-脚本执行、自定义项目工具和连接选项参阅 [CLI 使用说明](./Plugins/dotcraft-unity/skills/dotcraft-unity/references/cli.md)。
-
-### 方式 D：添加项目自定义工具
+### 添加项目自定义工具
 
 1. 创建一个带 `[AgentTool]` 的静态 Editor 方法。
 2. 等待 Unity 编译。
@@ -71,27 +97,6 @@ dotcraft-unity exec --code 'return Application.unityVersion;' --json
 4. 从 DotCraft、MCP client 或 `dotcraft-unity call` 使用它。
 
 注册约定和支持的参数类型参阅[自定义项目工具](./Documentations/dynamic-tools.md)。
-
-## C# 自动化
-
-`unity_execute_csharp` 在运行中的 Unity Editor 内执行 C# snippet 或已保存的脚本。它可以检查或修改场景、选中对象、Console 输出、项目元数据和资源。
-
-![C# 自动化在 Unity 内部的工作原理](./Documentations/csharp-automation-how-it-works.svg)
-
-## Agent 集成
-
-### 插件
-
-DotCraft 和外部 coding agent 使用不同的插件：
-
-- **Unity**（`DotCraft.Unity`）是 DotCraft 原生插件，无需向项目添加 Unity Package 即可提供 `unity.*` 工具。
-- **DotCraft Unity**（`dotcraft-unity`）是服务于 MCP 和 CLI 工作流的 Agent skill 插件。在 Codex 中添加 `DotHarness/dotcraft-unity` plugin marketplace，然后安装 **DotCraft Unity**。
-
-在 DotCraft 中打开 **Plugins**，然后安装并启用 **Unity**。
-
-### Unity 内工具
-
-在 Unity 中选择 **DotCraft** 作为 Agent 后，已启用的 C# Automation 和自定义项目工具可直接用于 Unity 内对话，无需配置 MCP。
 
 ## License
 
