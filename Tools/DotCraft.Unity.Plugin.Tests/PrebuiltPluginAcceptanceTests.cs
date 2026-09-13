@@ -12,6 +12,105 @@ namespace DotCraft.Unity.Plugin.Tests;
 public sealed class PrebuiltPluginAcceptanceTests
 {
     [PrebuiltPluginFact]
+    public async Task GeneratedToolsPreserveSchemaPolicyAndModeBehavior()
+    {
+        using var harness = new PluginHostFixture();
+        var source = Environment.GetEnvironmentVariable("DOTCRAFT_PREBUILT_PLUGIN")!;
+        var id = PluginManifestParser.Load(source).Manifest!.Id;
+        var deployer = new BuiltInPluginDeployer(
+            Path.Combine(harness.Workspace, ".craft", "plugins"), [source], harness.Config.Plugins, harness.Root);
+        Assert.DoesNotContain(deployer.DeployPlugin(id), diagnostic =>
+            diagnostic.Severity == PluginDiagnosticSeverity.Error);
+
+        await using var host = harness.CreateHost();
+        await host.StartAsync();
+        await host.Coordinator.TrustAsync(id);
+        AssertState(ObservePlugin(host, id), PluginDotnetRuntimeState.Active);
+
+        var snapshot = await BuildSnapshotAsync(host.ToolSource, 1);
+        var registrations = snapshot.Registrations.Values.ToDictionary(
+            registration => registration.Definition.Name.ToString(), StringComparer.Ordinal);
+        Assert.Equal(
+            ["unity.connect", "unity.disconnect", "unity.execute", "unity.list", "unity.status", "unity.wait"],
+            registrations.Keys.Order(StringComparer.Ordinal));
+        Assert.All(registrations.Values, registration =>
+        {
+            Assert.Equal(ToolSourceKind.PluginNative, registration.Definition.Id.Kind);
+            Assert.Equal(id, registration.Definition.Id.SourceId);
+            Assert.Null(registration.Definition.Presentation);
+            var schema = JsonNode.Parse(registration.Definition.InputSchema.GetRawText())!.AsObject();
+            var properties = schema["properties"]!.AsObject();
+            Assert.False(properties.ContainsKey("context"));
+            Assert.False(properties.ContainsKey("cancellationToken"));
+        });
+
+        Assert.Equal(
+            ["unity.connect", "unity.disconnect", "unity.execute"],
+            registrations.Values
+                .Where(registration => registration.Definition.PolicyHints.RequiresApproval)
+                .Select(registration => registration.Definition.Name.ToString())
+                .Order(StringComparer.Ordinal));
+        Assert.Equal(
+            ["unity.list", "unity.status"],
+            registrations.Values
+                .Where(registration => registration.Definition.PolicyHints.ReadOnly)
+                .Select(registration => registration.Definition.Name.ToString())
+                .Order(StringComparer.Ordinal));
+
+        var executeSchema = JsonNode.Parse(registrations["unity.execute"].Definition.InputSchema.GetRawText())!.AsObject();
+        var executeProperties = executeSchema["properties"]!.AsObject();
+        Assert.Equal(["code", "path", "args", "runInBackground", "yieldTimeMs"], executeProperties.Select(property => property.Key));
+        Assert.Equal(1000, executeProperties["yieldTimeMs"]!["default"]!.GetValue<int>());
+        Assert.Equal(0, executeProperties["yieldTimeMs"]!["minimum"]!.GetValue<int>());
+        Assert.Equal(30000, executeProperties["yieldTimeMs"]!["maximum"]!.GetValue<int>());
+        var waitSchema = JsonNode.Parse(registrations["unity.wait"].Definition.InputSchema.GetRawText())!.AsObject();
+        Assert.Equal("executionId", Assert.Single(waitSchema["required"]!.AsArray())!.GetValue<string>());
+
+        var missingInput = new JsonObject();
+        var missingResult = await new ToolDispatcher(approvalEvaluator: new ScenarioApproval("unity.execute", missingInput))
+            .DispatchAsync(snapshot, registrations["unity.execute"].Definition.Name, missingInput, Request("typed-missing-input"));
+        Assert.Equal(ToolErrorCodes.InputInvalid, missingResult.Error?.Code);
+        var duplicateInput = new JsonObject { ["code"] = "return;", ["path"] = "script.cs" };
+        var duplicateResult = await new ToolDispatcher(approvalEvaluator: new ScenarioApproval("unity.execute", duplicateInput))
+            .DispatchAsync(snapshot, registrations["unity.execute"].Definition.Name, duplicateInput, Request("typed-duplicate-input"));
+        Assert.Equal(ToolErrorCodes.InputInvalid, duplicateResult.Error?.Code);
+
+        var connectArguments = new JsonObject();
+        var connect = await new ToolDispatcher(approvalEvaluator: new ScenarioApproval("unity.connect", connectArguments))
+            .DispatchAsync(snapshot, registrations["unity.connect"].Definition.Name, connectArguments, Request("typed-domain-error"));
+        Assert.Equal("UnityTargetRequired", connect.Error?.Code);
+
+        var planSnapshot = await BuildSnapshotAsync(host.ToolSource, 2, "plan");
+        var planRegistrations = planSnapshot.Registrations.Values.ToDictionary(
+            registration => registration.Definition.Name.ToString(), StringComparer.Ordinal);
+        foreach (var (name, arguments) in new[]
+                 {
+                     ("unity.connect", new JsonObject()),
+                     ("unity.execute", new JsonObject { ["code"] = "return;" }),
+                     ("unity.disconnect", new JsonObject())
+                 })
+        {
+            var result = await new ToolDispatcher(approvalEvaluator: new ScenarioApproval(name, arguments))
+                .DispatchAsync(planSnapshot, planRegistrations[name].Definition.Name, arguments, Request("plan-" + name));
+            Assert.Equal("UnityModeDenied", result.Error?.Code);
+        }
+
+        var terminatingWait = new JsonObject { ["executionId"] = "missing", ["terminate"] = true };
+        var terminatingResult = await new ToolDispatcher().DispatchAsync(
+            planSnapshot, planRegistrations["unity.wait"].Definition.Name, terminatingWait, Request("plan-terminating-wait"));
+        Assert.Equal("UnityModeDenied", terminatingResult.Error?.Code);
+        var observingWait = new JsonObject { ["executionId"] = "missing", ["yieldTimeMs"] = 0 };
+        var observingResult = await new ToolDispatcher().DispatchAsync(
+            planSnapshot, planRegistrations["unity.wait"].Definition.Name, observingWait, Request("plan-observing-wait"));
+        Assert.True(observingResult.Success, observingResult.Content);
+        Assert.Equal("lost", observingResult.StructuredContent!.Value.GetProperty("state").GetString());
+
+        var defaultAfterPlan = await new ToolDispatcher(approvalEvaluator: new ScenarioApproval("unity.connect", connectArguments))
+            .DispatchAsync(snapshot, registrations["unity.connect"].Definition.Name, connectArguments, Request("default-after-plan"));
+        Assert.Equal("UnityTargetRequired", defaultAfterPlan.Error?.Code);
+    }
+
+    [PrebuiltPluginFact]
     public async Task ReplacingBundledVersionPreservesSettingsAndRequiresTrustForNewBinary()
     {
         using var harness = new PluginHostFixture();
@@ -81,7 +180,8 @@ public sealed class PrebuiltPluginAcceptanceTests
         Directory.CreateDirectory(Path.Combine(registry, ".craft", "plugins"));
         File.WriteAllText(Path.Combine(registry, ".craft", "plugins", "marketplace.json"), JsonSerializer.Serialize(new
         {
-            name = "acceptance", plugins = new[] { new { name = id,
+            name = "acceptance",
+            plugins = new[] { new { name = id,
                 source = new { source = "local", path = "./plugins/" + id },
                 policy = new { installation = "AVAILABLE", authentication = "ON_INSTALL" }, category = "Engineering" } }
         }));
