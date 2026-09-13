@@ -23,7 +23,7 @@
   "dotnet": {
     "displayName": "Unity integration",
     "description": "Provides native C# execution tools for Unity Editor.",
-    "minHostVersion": "0.6.4",
+    "minHostVersion": "0.6.6",
     "entryAssembly": "./lib/DotCraft.Unity.dll",
     "entryType": "DotCraft.Unity.Plugin"
   }

@@ -29,6 +29,14 @@ The native DotCraft plugin has the stable source ID `DotCraft.Unity`. It exposes
 attach to an Editor. List, status and non-terminating wait are available in Plan
 mode; connect, execute and disconnect require approval and are unavailable there.
 
+The native plugin implements these tools as generated, strongly typed methods behind
+an `AIFunctionToolSource`. Model arguments are bound from the generated schema, while
+`ToolInvocationContext` and `CancellationToken` are injected by the Host and never
+appear in that schema. Planning mode is frozen with each tool snapshot; live task,
+Turn and call identity always comes from the invocation context. Tool methods return
+`ToolExecutionResult` when they need to preserve Unity error codes, structured state
+or an uncertain execution outcome.
+
 The Agent plugin supplies instructions, reference material and reusable scripts
 for agents using the CLI, MCP or `unity_execute_csharp`. It does not implement a
 transport, inject into Unity or register native DotCraft tools.

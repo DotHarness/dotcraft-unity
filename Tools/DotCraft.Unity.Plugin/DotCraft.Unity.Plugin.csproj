@@ -8,6 +8,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../DotCraft.Unity.Attach/DotCraft.Unity.Attach.csproj" />
-    <PackageReference Include="DotCraft.Harness" Version="*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="DotCraft.Harness" Version="0.6.6" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
 </Project>

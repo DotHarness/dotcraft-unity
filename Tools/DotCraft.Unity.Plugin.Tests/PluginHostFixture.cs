@@ -57,12 +57,15 @@ internal sealed class PluginHostFixture : IDisposable
             $"Expected {expected} for '{plugin.PluginId}', observed {plugin.State}: "
             + string.Join(" | ", plugin.Blockers.Select(blocker => $"{blocker.Code}: {blocker.Message}")));
 
-    public static ToolPlanningContext PlanningContext(long revision) => new(
+    public static ToolPlanningContext PlanningContext(long revision, string mode = "default") => new(
         threadId: "thread-1", turnId: "turn-1", workspacePath: Path.GetTempPath(), dataPath: Path.GetTempPath(),
-        mode: "default", profile: null, providerCapabilities: null, revision: revision);
+        mode: mode, profile: null, providerCapabilities: null, revision: revision);
 
-    public static ValueTask<EffectiveToolSnapshot> BuildSnapshotAsync(IToolSource source, long revision) =>
-        new EffectiveToolSnapshotBuilder().BuildAsync([source], PlanningContext(revision));
+    public static ValueTask<EffectiveToolSnapshot> BuildSnapshotAsync(
+        IToolSource source,
+        long revision,
+        string mode = "default") =>
+        new EffectiveToolSnapshotBuilder().BuildAsync([source], PlanningContext(revision, mode));
 
     public static ToolInvocationRequest Request(string callId) =>
         new("thread-1", "turn-1", callId, ToolInvocationAudience.Model);
