@@ -8,12 +8,12 @@ if (Test-Path $output) { throw 'Use a new output directory to prevent stale rele
 New-Item -ItemType Directory -Path $output -Force | Out-Null
 $version = (Get-Content "$root/Packages/com.dotcraft.unity/package.json" -Raw | ConvertFrom-Json).version
 & "$PSScriptRoot/build-unity-plugin.ps1" -OutputDirectory $output
-$harnessPackage = & "$PSScriptRoot/get-harness-package.ps1" -ProjectDirectory "$root/Tools/DotCraft.Unity.Plugin"
-& dotnet publish "$root/Tools/DotCraft.Unity/src/DotCraft.Unity.Cli.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o "$output/cli"
+$harnessPackage = & "$PSScriptRoot/get-harness-package.ps1" -ProjectDirectory "$root/Tools/src/DotCraft.Unity.Plugin"
+& dotnet publish "$root/Tools/src/DotCraft.Unity.Cli/DotCraft.Unity.Cli.csproj" -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false -o "$output/cli"
 if ($LASTEXITCODE) { throw 'Standalone publish failed.' }
 $bundle = "$output/Unity"
 Copy-Item "$output/cli/dotcraft-unity.exe" "$output/dotcraft-unity.exe"
-Copy-Item "$root/Tools/install.ps1" "$output/install.ps1"
+Copy-Item "$root/Tools/scripts/install.ps1" "$output/install.ps1"
 Copy-Item "$root/Tools/THIRD-PARTY-NOTICES.txt" "$output/THIRD-PARTY-NOTICES.txt"
 @{version=$version;rid='win-x64';fileName='dotcraft-unity.exe';sha256=(Get-FileHash "$output/dotcraft-unity.exe" -Algorithm SHA256).Hash.ToLowerInvariant()} | ConvertTo-Json | Set-Content "$output/gateway-artifact.json" -Encoding utf8
 Compress-Archive -Path "$bundle/*","$bundle/.craft-plugin" -DestinationPath "$output/Unity-$version.zip"

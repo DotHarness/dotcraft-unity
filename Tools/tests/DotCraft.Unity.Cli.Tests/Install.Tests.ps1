@@ -3,7 +3,7 @@ param([Parameter(Mandatory = $true)][string]$ArtifactDirectory)
 
 $ErrorActionPreference = 'Stop'
 $artifactRoot = (Resolve-Path -LiteralPath $ArtifactDirectory).Path
-$installer = Join-Path $PSScriptRoot '../../install.ps1'
+$installer = Join-Path $PSScriptRoot '../../scripts/install.ps1'
 . $installer
 $tempRoot = Join-Path ([IO.Path]::GetTempPath()) ('dotcraft-unity-installer-test-' + [Guid]::NewGuid().ToString('N'))
 $testInstall = Join-Path $tempRoot 'bin with spaces'

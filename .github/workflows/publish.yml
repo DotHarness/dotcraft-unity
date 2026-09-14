@@ -16,18 +16,18 @@ jobs:
           dotnet-version: 10.0.x
       - name: Build all deliverables
         shell: pwsh
-        run: ./Tools/Scripts/build.ps1 -OutputDirectory .artifacts/release
+        run: ./Tools/scripts/build.ps1 -OutputDirectory .artifacts/release
       - name: Verify plugin installation
         shell: pwsh
-        run: ./Tools/Scripts/test-plugin-host.ps1 -PluginRoot .artifacts/release/Unity
+        run: ./Tools/scripts/test-plugin-host.ps1 -PluginRoot .artifacts/release/Unity
       - name: Test Gateway and Attach
         shell: pwsh
         run: |
-          dotnet test Tools/DotCraft.Unity/tests/DotCraft.Unity.Cli.Tests.csproj -c Release
+          dotnet test Tools/tests/DotCraft.Unity.Cli.Tests/DotCraft.Unity.Cli.Tests.csproj -c Release
           if ($LASTEXITCODE) { throw 'Gateway tests failed.' }
-          dotnet test Tools/DotCraft.Unity.Attach/tests/DotCraft.Unity.Attach.Tests.csproj -c Release
+          dotnet test Tools/tests/DotCraft.Unity.Attach.Tests/DotCraft.Unity.Attach.Tests.csproj -c Release
           if ($LASTEXITCODE) { throw 'Attach tests failed.' }
-          ./Tools/DotCraft.Unity/tests/Install.Tests.ps1 -ArtifactDirectory .artifacts/release
+          ./Tools/tests/DotCraft.Unity.Cli.Tests/Install.Tests.ps1 -ArtifactDirectory .artifacts/release
       - uses: actions/upload-artifact@v4
         with:
           name: unity-release-candidate
@@ -53,7 +53,7 @@ jobs:
         id: candidate
         shell: pwsh
         run: |
-          ./Tools/Scripts/verify-package.ps1 -ArtifactDirectory artifacts/release
+          ./Tools/scripts/verify-package.ps1 -ArtifactDirectory artifacts/release
           $manifest = Get-Content artifacts/release/release-manifest.json -Raw | ConvertFrom-Json
           if ($manifest.commit -cne '${{ github.sha }}' -or $manifest.sourceDirty -ne $false) { throw 'Release candidate must be a clean build of this commit.' }
           if ('v' + $manifest.version -cne '${{ github.ref_name }}') { throw 'Release tag must match package.json version.' }
@@ -95,7 +95,7 @@ jobs:
           node-version: 22
       - name: Stage complete official plugin
         shell: pwsh
-        run: ./Tools/Scripts/sync-marketplace.ps1 -ArtifactDirectory artifacts/release -MarketplaceRoot marketplace
+        run: ./Tools/scripts/sync-marketplace.ps1 -ArtifactDirectory artifacts/release -MarketplaceRoot marketplace
       - uses: peter-evans/create-pull-request@v7
         with:
           path: marketplace

@@ -17,6 +17,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\DotCraft.Unity.Cli.csproj" />
+    <ProjectReference Include="../../src/DotCraft.Unity.Cli/DotCraft.Unity.Cli.csproj" />
   </ItemGroup>
 </Project>

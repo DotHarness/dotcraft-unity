@@ -16,7 +16,10 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
     private bool disposed;
     private string? runtimeIdentity;
     private string? extractedNative;
-    private string NativeBootstrapPath => string.IsNullOrEmpty(nativeBootstrapPath) ? extractedNative ??= AttachStorage.ExtractNative(cacheRoot) : nativeBootstrapPath;
+    private string CacheRoot => resolvedCacheRoot ?? cacheRoot;
+    private string? resolvedCacheRoot;
+    private string NativeBootstrapPath => extractedNative ??=
+        string.IsNullOrEmpty(nativeBootstrapPath) ? AttachStorage.ExtractNative(CacheRoot) : nativeBootstrapPath;
     private string RuntimeIdentity => runtimeIdentity ??= AttachStorage.RuntimeIdentity(NativeBootstrapPath);
 
     /// <summary>Creates an Attach client using the shared per-user rendezvous.</summary>
@@ -42,21 +45,31 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
         return targets;
     }
 
-    private string Connection(int pid) => AttachStorage.Connection(cacheRoot, pid);
+    private string Connection(int pid) => AttachStorage.Connection(CacheRoot, pid);
 
     /// <summary>Attaches or restores the bridge without replaying an execution.</summary>
     public async Task<JsonObject> Connect(string threadId, int? requestedPid, CancellationToken cancellationToken = default)
     {
         await gate.WaitAsync(cancellationToken);
+        AttachAttempt? attempt = null;
         try
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             var pid = requestedPid ?? RequireTarget(threadId).Pid;
             using var target = GetUnityProcess(pid);
             var identity = new TargetIdentity(pid, target.StartTime.ToUniversalTime());
+            attempt = new AttachAttempt(pid);
+            attempt.Step("resolve-paths");
+            resolvedCacheRoot ??= AttachStorage.ResolveRoot(cacheRoot, attempt);
             var path = Connection(pid);
+            AttachStorage.ValidateMonoPath(path, "session and temporary state", ".bootstrap".Length + 33);
+            AttachStorage.ValidateMonoPath(Path.Combine(CacheRoot, "cache", "Snippet_" + new string('0', 64) + ".dll"), "compiled assembly");
+            var logicalConnection = AttachStorage.Connection(cacheRoot, pid);
+            AttachStorage.CheckStateAliases(logicalConnection, path, attempt);
             using var processLock = await AttachStorage.Lock(path, cancellationToken);
             var journal = path + ".bootstrap";
+            attempt.SetJournal(journal);
+            attempt.Step("connect");
             if (File.Exists(path))
             {
                 var recordedIdentity = JsonNode.Parse(File.ReadAllText(path))?["runtimeIdentity"]?.GetValue<string>();
@@ -78,12 +91,19 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
                 catch (Exception e) when (e is not UnityTargetException && (e is IOException or InvalidDataException or System.Net.Sockets.SocketException or InvalidOperationException or ArgumentException)) { }
             }
             if (File.Exists(path + ".lifecycle") && JsonNode.Parse(File.ReadAllText(path + ".lifecycle"))?["stage"]?.GetValue<int>() != 200)
+            {
+                attempt.Step("recovery-handshake");
                 return await WaitForHandshake(threadId, identity, target, path, journal, cancellationToken);
+            }
             if (!File.Exists(NativeBootstrapPath)) throw new FileNotFoundException("Native bootstrap is not configured.", NativeBootstrapPath);
             if (File.Exists(journal))
-                throw new InvalidOperationException("Bootstrap outcome is unknown. No new bootstrap was sent; wait for its handshake or restart the isolated test session.");
+            {
+                if (AttachAttempt.CanRetry(JsonNode.Parse(File.ReadAllText(journal)))) File.Delete(journal);
+                else throw new UnityTargetException("UnityAttachOutcomeUnknown", "Bootstrap outcome is unknown. No new bootstrap was sent; wait for its handshake or restart the isolated test session.");
+            }
+            attempt.Step("prepare-payload");
             var data = Path.Combine(Path.GetDirectoryName(target.MainModule!.FileName)!, "Data");
-            var payloadSource = Path.Combine(cacheRoot, "payload", RuntimeIdentity);
+            var payloadSource = Path.Combine(CacheRoot, "payload", RuntimeIdentity);
             Directory.CreateDirectory(payloadSource);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var owner = typeof(UnityAttachService).Assembly;
@@ -99,12 +119,21 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
                 .Concat(new[] { "mscorlib.dll", "System.dll", "System.Core.dll" }.Select(n => Path.Combine(data, "MonoBleedingEdge/lib/mono/unityjit-win32", n)))
                 .Append(Path.Combine(data, "Managed/Newtonsoft.Json.dll"))
                 .Concat(Directory.GetFiles(Path.Combine(data, "MonoBleedingEdge/lib/mono/unityjit-win32/Facades"), "*.dll"));
-            var payload = TargetCompiler.Compile(payloadSource, references, Path.Combine(cacheRoot, "cache"));
+            var payload = TargetCompiler.Compile(payloadSource, references, Path.Combine(CacheRoot, "cache"));
             cancellationToken.ThrowIfCancellationRequested();
-            AttachStorage.Write(journal, new JsonObject { ["state"] = "dispatched", ["operationId"] = Guid.NewGuid().ToString("N"), ["startedUtc"] = DateTime.UtcNow });
-            NativeInjector.Inject(pid, NativeBootstrapPath, payload, path);
+            NativeInjector.Inject(pid, NativeBootstrapPath, payload, path, attempt);
             owned.TryAdd(identity, 0);
-            return await WaitForHandshake(threadId, identity, target, path, journal, cancellationToken);
+            attempt.Step("handshake");
+            var connected = await WaitForHandshake(threadId, identity, target, path, journal, cancellationToken);
+            attempt.Step("connected");
+            return connected;
+        }
+        catch (Exception error)
+        {
+            attempt?.Failed(error);
+            if (attempt != null && error is not OperationCanceledException)
+                throw attempt.DescribeFailure(error);
+            throw;
         }
         finally { gate.Release(); }
     }
@@ -128,7 +157,7 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
         var target = RequireTarget(threadId);
         await Connect(threadId, target.Pid, cancellationToken);
         var connection = Connection(target.Pid);
-        var prepared = await BridgeClient.Prepare(connection, code, cacheRoot);
+        var prepared = await BridgeClient.Prepare(connection, code, CacheRoot, new AttachAttempt(target.Pid));
         var handle = new ExecutionHandle(threadId, target, prepared.Generation, connection);
         PruneExecutions();
         if (executions.Count >= 4096) throw new UnityTargetException("UnityExecutionCapacity", "This client has too many unresolved executions.");

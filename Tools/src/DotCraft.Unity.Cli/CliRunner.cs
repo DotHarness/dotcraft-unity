@@ -12,7 +12,8 @@ internal static class CliRunner
         if (command.Name == "version")
         {
             Write(command.Json, new { version = GatewayConstants.ProductVersion, rid = GatewayConstants.RuntimeIdentifier,
-                protocolVersion = CompilerProtocol.Version, mcpSdkVersion = GatewayConstants.McpSdkVersion },
+                protocolVersion = CompilerProtocol.Version, mcpSdkVersion = GatewayConstants.McpSdkVersion,
+                buildId = DotCraft.Unity.AttachAttempt.BuildId },
                 $"dotcraft-unity {GatewayConstants.ProductVersion} ({GatewayConstants.RuntimeIdentifier})");
             return 0;
         }

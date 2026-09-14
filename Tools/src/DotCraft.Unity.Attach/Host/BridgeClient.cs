@@ -75,7 +75,7 @@ internal static class BridgeClient
         }
     }
 
-    public static async Task<PreparedExecution> Prepare(string connectionPath, string code, string cacheRoot)
+    public static async Task<PreparedExecution> Prepare(string connectionPath, string code, string cacheRoot, AttachAttempt? attempt = null)
     {
         var metadata = await Call(connectionPath, "metadata");
         if (metadata["state"]!.GetValue<string>() != "completed")
@@ -97,6 +97,8 @@ internal static class BridgeClient
         {
             var generation = metadata["generation"]!.GetValue<string>();
             var assembly = TargetCompiler.Compile(source, references, Path.Combine(cacheRoot, "cache"), "Snippet_", generation);
+            assembly = AttachStorage.ResolveFile(assembly, "snippet", attempt);
+            AttachStorage.ValidateMonoPath(assembly, "snippet");
             return new PreparedExecution(
                 "unity_" + Guid.NewGuid().ToString("N"),
                 Path.GetFullPath(assembly),

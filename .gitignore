@@ -78,12 +78,6 @@ crashlytics-build.properties
 !/.craft/plugins/
 /.craft/plugins/*
 !/.craft/plugins/marketplace.json
-Tools/DotCraft.Unity/src/bin/
-Tools/DotCraft.Unity/src/obj/
-Tools/DotCraft.Unity/tests/bin/
-Tools/DotCraft.Unity/tests/obj/
-!Tools/DotCraft.Unity/src/DotCraft.Unity.Cli.csproj
-!Tools/DotCraft.Unity/tests/DotCraft.Unity.Cli.Tests.csproj
 /.artifacts/
 /artifacts/
 Tools/**/bin/

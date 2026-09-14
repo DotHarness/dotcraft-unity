@@ -4,7 +4,7 @@ param(
     [string]$LogFileName = 'marketplace.trx'
 )
 $ErrorActionPreference = 'Stop'
-$projectDirectory = [IO.Path]::GetFullPath("$PSScriptRoot/../DotCraft.Unity.Plugin.Tests")
+$projectDirectory = [IO.Path]::GetFullPath("$PSScriptRoot/../tests/DotCraft.Unity.Plugin.Tests")
 $project = "$projectDirectory/DotCraft.Unity.Plugin.Tests.csproj"
 & dotnet restore $project
 if ($LASTEXITCODE) { throw 'Host package restore failed.' }
