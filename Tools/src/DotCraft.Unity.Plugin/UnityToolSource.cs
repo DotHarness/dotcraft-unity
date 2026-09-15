@@ -40,6 +40,7 @@ internal sealed class UnityToolSource(UnityAttachService service, string workspa
 internal sealed class UnityTools(UnityAttachService service, string workspace, bool planMode)
 {
     [GeneratedTool(Name = "list")]
+    [ToolRpc]
     [Description("List local Unity Editors without attaching.")]
     public ValueTask<ToolExecutionResult> List(CancellationToken cancellationToken = default) => ExecuteAsync(
         () => Task.FromResult(new JsonObject
@@ -49,6 +50,7 @@ internal sealed class UnityTools(UnityAttachService service, string workspace, b
         }), cancellationToken);
 
     [GeneratedTool(Name = "connect")]
+    [ToolRpc]
     [Description("Connect this task to a Unity Editor by PID, or omit PID to reconnect its selected Editor after script reload.")]
     public ValueTask<ToolExecutionResult> Connect(
         ToolInvocationContext context,
@@ -60,6 +62,7 @@ internal sealed class UnityTools(UnityAttachService service, string workspace, b
             : ExecuteAsync(() => service.Connect(context.ThreadId, pid, cancellationToken), cancellationToken);
 
     [GeneratedTool(Name = "status")]
+    [ToolRpc]
     [Description("Read the selected Editor state without reconnecting.")]
     public ValueTask<ToolExecutionResult> Status(
         ToolInvocationContext context,
@@ -67,6 +70,7 @@ internal sealed class UnityTools(UnityAttachService service, string workspace, b
         ExecuteAsync(() => service.Status(context.ThreadId), cancellationToken);
 
     [GeneratedTool(Name = "execute")]
+    [ToolRpc]
     [Description("Execute C# method-body statements on the selected Editor's main thread. Supports cross-frame await and optional background execution.")]
     public ValueTask<ToolExecutionResult> Execute(
         ToolInvocationContext context,
@@ -93,6 +97,7 @@ internal sealed class UnityTools(UnityAttachService service, string workspace, b
     }
 
     [GeneratedTool(Name = "wait")]
+    [ToolRpc]
     [Description("Wait for, inspect, or cooperatively cancel a background Unity execution.")]
     public ValueTask<ToolExecutionResult> Wait(
         ToolInvocationContext context,
@@ -108,6 +113,7 @@ internal sealed class UnityTools(UnityAttachService service, string workspace, b
                 cancellationToken);
 
     [GeneratedTool(Name = "disconnect")]
+    [ToolRpc]
     [Description("Disconnect this task from its selected Unity Editor.")]
     public ValueTask<ToolExecutionResult> Disconnect(
         ToolInvocationContext context,

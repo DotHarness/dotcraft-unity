@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using DotCraft.Configuration;
@@ -37,11 +38,17 @@ public sealed class PrebuiltPluginAcceptanceTests
         {
             Assert.Equal(ToolSourceKind.PluginNative, registration.Definition.Id.Kind);
             Assert.Equal(id, registration.Definition.Id.SourceId);
+            Assert.True(RemoteToolMetadata.IsRpcEligible(registration));
             Assert.Null(registration.Definition.Presentation);
             var schema = JsonNode.Parse(registration.Definition.InputSchema.GetRawText())!.AsObject();
             var properties = schema["properties"]!.AsObject();
             Assert.False(properties.ContainsKey("context"));
             Assert.False(properties.ContainsKey("cancellationToken"));
+
+            var projected = ProjectRemoteSchema(registration.Definition);
+            var projectedSchema = JsonNode.Parse(projected.InputSchema.GetRawText())!.AsObject();
+            var target = projectedSchema["properties"]!["target"]!;
+            Assert.Equal(["local", "remote"], target["enum"]!.AsArray().Select(value => value!.GetValue<string>()));
         });
 
         Assert.Equal(
@@ -108,6 +115,13 @@ public sealed class PrebuiltPluginAcceptanceTests
         var defaultAfterPlan = await new ToolDispatcher(approvalEvaluator: new ScenarioApproval("unity.connect", connectArguments))
             .DispatchAsync(snapshot, registrations["unity.connect"].Definition.Name, connectArguments, Request("default-after-plan"));
         Assert.Equal("UnityTargetRequired", defaultAfterPlan.Error?.Code);
+    }
+
+    private static ToolDefinition ProjectRemoteSchema(ToolDefinition definition)
+    {
+        var processor = typeof(RemoteToolMetadata).Assembly.GetType("DotCraft.Tools.RpcToolSchemaPostProcessor");
+        var process = processor?.GetMethod("Process", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+        return Assert.IsType<ToolDefinition>(process?.Invoke(null, [definition, null]));
     }
 
     [PrebuiltPluginFact]
