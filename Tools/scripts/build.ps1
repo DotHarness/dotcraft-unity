@@ -14,8 +14,7 @@ if ($LASTEXITCODE) { throw 'Standalone publish failed.' }
 $bundle = "$output/Unity"
 Copy-Item "$output/cli/dotcraft-unity.exe" "$output/dotcraft-unity.exe"
 Copy-Item "$root/Tools/scripts/install.ps1" "$output/install.ps1"
-Copy-Item "$root/Tools/THIRD-PARTY-NOTICES.txt" "$output/THIRD-PARTY-NOTICES.txt"
-@{version=$version;rid='win-x64';fileName='dotcraft-unity.exe';sha256=(Get-FileHash "$output/dotcraft-unity.exe" -Algorithm SHA256).Hash.ToLowerInvariant()} | ConvertTo-Json | Set-Content "$output/gateway-artifact.json" -Encoding utf8
+@{version=$version;rid='win-x64';fileName='dotcraft-unity.exe';sha256=(Get-FileHash "$output/dotcraft-unity.exe" -Algorithm SHA256).Hash.ToLowerInvariant()} | ConvertTo-Json | Set-Content "$output/artifact.json" -Encoding utf8
 Compress-Archive -Path "$bundle/*","$bundle/.craft-plugin" -DestinationPath "$output/Unity-$version.zip"
 & "$PSScriptRoot/package-upm.ps1" -OutputDirectory $output -Version $version
 $pluginFiles = @(Get-ChildItem $bundle -Recurse -File -Force | ForEach-Object { @{path=[IO.Path]::GetRelativePath($bundle,$_.FullName).Replace('\','/');sha256=(Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()} })

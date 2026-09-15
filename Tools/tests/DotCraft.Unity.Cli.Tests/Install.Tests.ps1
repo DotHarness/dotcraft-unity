@@ -29,7 +29,7 @@ function Set-DcuUserPath([string]$Value) { $script:mockUserPath = $Value; $scrip
 function Invoke-RestMethod($Uri, $Headers) {
     if ($script:failure -eq 'bootstrap') { throw 'BootstrapReachedDownload' }
     if ($Uri.EndsWith('/latest')) { return [pscustomobject]@{ tag_name = "v$script:releaseVersion" } }
-    Assert-True ($Uri.EndsWith('/gateway-artifact.json')) 'Unexpected manifest request'
+    Assert-True ($Uri.EndsWith('/artifact.json')) 'Unexpected manifest request'
     if ($script:failure -eq 'wrongVersion') {
         return [pscustomobject]@{ version = '0.0.0'; rid = 'win-x64'; fileName = 'dotcraft-unity.exe'; sha256 = $script:manifest.sha256 }
     }
@@ -40,9 +40,6 @@ function Invoke-WebRequest($Uri, $OutFile, $Headers) {
     if ($Uri.EndsWith('/dotcraft-unity.exe')) {
         Copy-Item -LiteralPath $exeFixture -Destination $OutFile
         if ($script:failure -eq 'corruptDownload') { [IO.File]::AppendAllText($OutFile, 'corruption') }
-    }
-    elseif ($Uri.EndsWith('/THIRD-PARTY-NOTICES.txt')) {
-        [IO.File]::WriteAllText($OutFile, 'fixture notices')
     }
     else { throw "Unexpected download: $Uri" }
 }

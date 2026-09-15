@@ -60,7 +60,7 @@ function Install-DotCraftUnity([string]$RequestedVersion, [string]$Destination) 
     if ($tag -notmatch '^v?\d+\.\d+\.\d+$') { throw 'Invalid release version. Expected latest or vX.Y.Z.' }
     $versionNumber = $tag -replace '^v', ''
     $baseUrl = "$repoUrl/releases/download/v$versionNumber"
-    $artifact = Invoke-RestMethod -Uri "$baseUrl/gateway-artifact.json" -Headers $headers
+    $artifact = Invoke-RestMethod -Uri "$baseUrl/artifact.json" -Headers $headers
     if ($artifact.version -cne $versionNumber -or $artifact.rid -cne 'win-x64' -or
         $artifact.fileName -cne 'dotcraft-unity.exe' -or $artifact.sha256 -notmatch '^[a-fA-F0-9]{64}$') {
         throw 'Release manifest does not match the requested dotcraft-unity Windows x64 release.'
@@ -82,14 +82,9 @@ function Install-DotCraftUnity([string]$RequestedVersion, [string]$Destination) 
             $metadata.protocolVersion -ne 1 -or $metadata.mcpSdkVersion -cne '2.2.0') {
             throw 'Executable version metadata does not match the release. Existing installation was preserved.'
         }
-        $stagedNotices = Join-Path $stagePath 'dotcraft-unity.NOTICES.txt'
-        Invoke-WebRequest -Uri "$baseUrl/THIRD-PARTY-NOTICES.txt" -OutFile $stagedNotices -Headers $headers
-        foreach ($file in @('dotcraft-unity.NOTICES.txt', 'dotcraft-unity.exe')) {
-            $source = Join-Path $stagePath $file
-            $target = Join-Path $destinationPath $file
-            if ([IO.File]::Exists($target)) { [IO.File]::Replace($source, $target, [NullString]::Value) }
-            else { [IO.File]::Move($source, $target) }
-        }
+        $target = Join-Path $destinationPath 'dotcraft-unity.exe'
+        if ([IO.File]::Exists($target)) { [IO.File]::Replace($stagedExe, $target, [NullString]::Value) }
+        else { [IO.File]::Move($stagedExe, $target) }
         Add-DcuUserPath $destinationPath
         Write-Host "Installed dotcraft-unity $versionNumber to $destinationPath"
         Write-Host 'User PATH is configured. Open a new terminal if another running app cannot find the command.'

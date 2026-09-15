@@ -54,9 +54,7 @@ namespace DotCraft.Editor.McpSetup
     internal static class McpGatewayInstaller
     {
         private const string GatewayFileName = "dotcraft-unity.exe";
-        private const string ArtifactManifestFileName = "gateway-artifact.json";
-        private const string ThirdPartyNoticesFileName = "THIRD-PARTY-NOTICES.txt";
-        private const string InstalledNoticesFileName = "dotcraft-unity.NOTICES.txt";
+        private const string ArtifactManifestFileName = "artifact.json";
         private const string ReleaseBaseUrl = "https://github.com/DotHarness/dotcraft-unity/releases/latest/download/";
         private static readonly HttpClient HttpClient = new() { Timeout = TimeSpan.FromMinutes(10) };
 
@@ -111,8 +109,6 @@ namespace DotCraft.Editor.McpSetup
 
             Directory.CreateDirectory(RootDirectory);
             var executableTemporaryPath = InstalledExecutablePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            var noticesPath = Path.Combine(RootDirectory, InstalledNoticesFileName);
-            var noticesTemporaryPath = noticesPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
             try
             {
                 var manifestJson = await HttpClient.GetStringAsync(GetReleaseAssetUri(ArtifactManifestFileName));
@@ -125,8 +121,6 @@ namespace DotCraft.Editor.McpSetup
                 if (!ValidateExecutable(executableTemporaryPath, artifact.Version, out _, out var versionError))
                     throw new InvalidDataException(versionError);
 
-                await DownloadFileAsync(GetReleaseAssetUri(ThirdPartyNoticesFileName), noticesTemporaryPath);
-                ReplaceFile(noticesTemporaryPath, noticesPath);
                 ReplaceFile(executableTemporaryPath, InstalledExecutablePath);
                 AddToUserPath(RootDirectory);
 
@@ -139,7 +133,6 @@ namespace DotCraft.Editor.McpSetup
             finally
             {
                 DeleteIfExists(executableTemporaryPath);
-                DeleteIfExists(noticesTemporaryPath);
             }
         }
 

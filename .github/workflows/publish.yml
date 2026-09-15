@@ -73,11 +73,9 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            artifacts/release/*.exe
-            artifacts/release/*.zip
-            artifacts/release/*.json
+            artifacts/release/dotcraft-unity.exe
+            artifacts/release/artifact.json
             artifacts/release/install.ps1
-            artifacts/release/THIRD-PARTY-NOTICES.txt
       - uses: actions/create-github-app-token@v2
         id: app
         with:
