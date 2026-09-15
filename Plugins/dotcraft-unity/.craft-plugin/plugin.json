@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "dotcraft-unity",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "displayName": "DotCraft Unity",
   "description": "Guide agents to inspect and automate Unity Editor through DotCraft Unity tools.",
   "capabilities": ["skill"],

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "DotCraft.Unity",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "displayName": "Unity",
   "description": "Inspect and automate a running Unity Editor.",
   "capabilities": ["dotnet", "skill"],
