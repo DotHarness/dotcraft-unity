@@ -98,10 +98,10 @@ jobs:
         with:
           path: marketplace
           token: ${{ steps.app.outputs.token }}
-          branch: updates/dotcraft-unity-${{ steps.candidate.outputs.version }}
-          commit-message: Update DotCraft.Unity to ${{ steps.candidate.outputs.version }}
-          title: Update DotCraft.Unity to ${{ steps.candidate.outputs.version }}
+          branch: updates/unity-${{ steps.candidate.outputs.version }}
+          commit-message: Update unity to ${{ steps.candidate.outputs.version }}
+          title: Update unity to ${{ steps.candidate.outputs.version }}
           body: Complete Unity plugin binaries, skill and release provenance from the verified dotcraft-unity release. Maintainer review and merge are required.
           add-paths: |
-            plugins/DotCraft.Unity/**
+            plugins/unity/**
             .craft/plugins/marketplace.json
