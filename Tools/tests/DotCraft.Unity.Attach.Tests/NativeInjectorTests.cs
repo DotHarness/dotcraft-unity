@@ -39,6 +39,21 @@ public sealed class NativeInjectorTests : IDisposable
     }
 
     [Fact]
+    public void CompletedBootstrapLeavesJournalRetryableAfterHandshakeTimeout()
+    {
+        var journal = Path.Combine(root, "bootstrapped.json");
+        var attempt = new AttachAttempt(1, journal);
+        attempt.Dispatch("bootstrap");
+        Assert.False(AttachAttempt.CanRetry(JsonNode.Parse(File.ReadAllText(journal))));
+
+        attempt.Bootstrapped();
+        Assert.True(AttachAttempt.CanRetry(JsonNode.Parse(File.ReadAllText(journal))));
+
+        attempt.Failed(new UnityTargetException("UnityAttachHandshakeTimeout", "Handshake timed out."));
+        Assert.True(AttachAttempt.CanRetry(JsonNode.Parse(File.ReadAllText(journal))));
+    }
+
+    [Fact]
     public void RemoteLoaderReturnsFullModuleHandleAndTargetError()
     {
         using var child = StartChild();

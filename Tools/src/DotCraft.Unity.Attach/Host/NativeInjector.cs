@@ -59,6 +59,7 @@ internal static class NativeInjector
                 attempt.Step("bootstrap-result", new { code });
                 if (code == 9) throw new UnityTargetException("UnityAutomaticRecoveryUnsupported", "This Mono runtime does not export the required domain lifecycle observer capabilities.");
                 if (code != 0) throw new UnityTargetException("UnityAttachBootstrapFailed", $"Native Bootstrap returned stage {code}.");
+                attempt.Bootstrapped();
             }
             finally { NativeLibrary.Free(local); }
         }
