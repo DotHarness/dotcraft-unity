@@ -74,21 +74,26 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
             {
                 var recordedIdentity = JsonNode.Parse(File.ReadAllText(path))?["runtimeIdentity"]?.GetValue<string>();
                 if (recordedIdentity != RuntimeIdentity) throw new UnityTargetException("UnityRuntimeVersionMismatch", "The selected Editor has a different Attach runtime. Restart the Editor to upgrade; no injection or shutdown was sent.");
-                try
+                var probe = await BridgeClient.ProbeMetadata(path, cancellationToken);
+                if (probe.State == BridgeState.Ready)
                 {
-                    var current = await BridgeClient.Call(path, "metadata");
-                    if (current["state"]?.GetValue<string>() != "completed")
-                        throw new IOException("The bridge has not completed its main-thread metadata handshake.");
-                    if (current["result"]?["asyncExecution"]?.GetValue<bool>() == true)
-                    {
-                        ValidateRuntime(current);
-                        if (File.Exists(journal)) File.Delete(journal);
-                        await RecordSelection(threadId, identity, current);
-                        return current;
-                    }
-                    throw new UnityTargetException("UnityRuntimeVersionMismatch", "The existing Unity bridge does not support this runtime. Restart the Editor to upgrade; no bridge was stopped or injected.");
+                    var current = probe.Metadata!;
+                    if (current["result"]?["asyncExecution"]?.GetValue<bool>() != true)
+                        throw new UnityTargetException("UnityRuntimeVersionMismatch", "The existing Unity bridge does not support this runtime. Restart the Editor to upgrade; no bridge was stopped or injected.");
+                    ValidateRuntime(current);
+                    if (File.Exists(journal)) File.Delete(journal);
+                    await RecordSelection(threadId, identity, current);
+                    return current;
                 }
-                catch (Exception e) when (e is not UnityTargetException && (e is IOException or InvalidDataException or System.Net.Sockets.SocketException or InvalidOperationException or ArgumentException)) { }
+                if (probe.State == BridgeState.Busy)
+                {
+                    attempt.Step("busy-handshake");
+                    try { return await WaitForHandshake(threadId, identity, target, path, journal, cancellationToken); }
+                    catch (UnityTargetException e) when (e.Code == "UnityAttachHandshakeTimeout")
+                    {
+                        throw new UnityTargetException("UnityEditorBusy", "The Unity bridge is running, but the Editor main thread stayed busy for 60 seconds. No bootstrap was sent; retry when the Editor is idle.");
+                    }
+                }
             }
             if (File.Exists(path + ".lifecycle") && JsonNode.Parse(File.ReadAllText(path + ".lifecycle"))?["stage"]?.GetValue<int>() != 200)
             {

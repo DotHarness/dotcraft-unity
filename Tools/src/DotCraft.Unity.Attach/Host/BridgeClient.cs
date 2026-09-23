@@ -7,8 +7,31 @@ namespace DotCraft.Unity;
 
 internal sealed record PreparedExecution(string ExecutionId, string AssemblyPath, string EntryType, string Generation);
 
+internal enum BridgeState { Absent, Busy, Ready }
+
+internal readonly record struct BridgeProbe(BridgeState State, JsonObject? Metadata);
+
 internal static class BridgeClient
 {
+    public static async Task<BridgeProbe> ProbeMetadata(string connectionPath, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var metadata = await Call(connectionPath, "metadata", cancellationToken: cancellationToken);
+            return metadata["state"]?.GetValue<string>() switch
+            {
+                "completed" => new BridgeProbe(BridgeState.Ready, metadata),
+                "cancelled" or "unknown" => new BridgeProbe(BridgeState.Busy, metadata),
+                _ => new BridgeProbe(BridgeState.Absent, metadata)
+            };
+        }
+        catch (TimeoutException) { return new BridgeProbe(BridgeState.Busy, null); }
+        catch (Exception e) when (e is IOException or InvalidDataException or SocketException or InvalidOperationException or ArgumentException)
+        {
+            return new BridgeProbe(BridgeState.Absent, null);
+        }
+    }
+
     public static async Task<JsonObject> Call(
         string connectionPath,
         string command,

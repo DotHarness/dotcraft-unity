@@ -33,6 +33,12 @@ internal sealed class AttachAttempt(int pid, string? journal = null, string? dia
         RetrySafe = true;
         WriteJournal("failed", true);
     }
+    internal void Bootstrapped()
+    {
+        Step("bootstrapped");
+        RetrySafe = true;
+        WriteJournal("bootstrapped", true);
+    }
     internal void Failed(Exception error)
     {
         Log("failure", new { errorType = error.GetType().FullName,
@@ -87,6 +93,6 @@ internal sealed class AttachAttempt(int pid, string? journal = null, string? dia
         journalOwned = true;
     }
     internal static bool CanRetry(JsonNode? record) => record?["schema"]?.GetValue<int>() == 2
-        && record?["state"]?.GetValue<string>() == "failed"
+        && record?["state"]?.GetValue<string>() is "failed" or "bootstrapped"
         && record?["retrySafe"]?.GetValue<bool>() == true;
 }

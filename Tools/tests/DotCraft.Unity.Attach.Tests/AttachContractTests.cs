@@ -158,6 +158,35 @@ public sealed class AttachContractTests : IDisposable
         Assert.Equal(execution.EntryType, request["entryType"]!.GetValue<string>());
     }
 
+    [Theory]
+    [InlineData("cancelled")]
+    [InlineData("unknown")]
+    public async Task UnpumpedMetadataMarksALiveBusyBridge(string state)
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var path = WriteConnection(listener);
+        var server = Respond(listener, $"{{\"state\":\"{state}\",\"generation\":\"current\"}}");
+
+        var probe = await BridgeClient.ProbeMetadata(path, TestContext.Current.CancellationToken);
+
+        Assert.Equal("metadata", (await server)["command"]!.GetValue<string>());
+        Assert.Equal(BridgeState.Busy, probe.State);
+    }
+
+    [Fact]
+    public async Task ClosedBridgePortIsAbsent()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        var path = WriteConnection(listener);
+        listener.Stop();
+
+        var probe = await BridgeClient.ProbeMetadata(path, TestContext.Current.CancellationToken);
+
+        Assert.Equal(BridgeState.Absent, probe.State);
+    }
+
     [Fact]
     public async Task HandshakeWaitsForADelayedProbe()
     {

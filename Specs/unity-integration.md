@@ -110,9 +110,17 @@ Bootstrap dispatch is serialized across clients and recorded in a dispatch journ
 before injection. If dispatch has no proven outcome, clients observe the existing
 journal and wait for a valid handshake for up to 60 seconds; cancellation and
 target exit end that wait earlier. A timeout leaves the journal intact, and no
-wait path injects again. Each execution also carries an ID and domain generation.
-Duplicate starts return the existing record, while missing or expired records
-return `lost` rather than replaying work.
+wait path injects again. A bootstrap thread that returns success is a proven
+outcome: its only remaining effect is a queued main-thread bridge start, which is
+idempotent within a domain, so its journal permits a later dispatch.
+
+A bridge that answers from the current generation without completing metadata has
+a busy Editor main thread. Clients wait up to 60 seconds for its handshake and then
+report the Editor as busy; they never dispatch a bootstrap to a live bridge.
+
+Each execution also carries an ID and domain generation. Duplicate starts return
+the existing record, while missing or expired records return `lost` rather than
+replaying work.
 
 Each Attach service instance owns an independent client lease. Connecting adds or
 refreshes that lease; disconnecting or disposing releases only that client after
