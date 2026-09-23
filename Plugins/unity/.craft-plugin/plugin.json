@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "unity",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "displayName": "Unity",
   "description": "Inspect and automate a running Unity Editor.",
   "capabilities": ["dotnet", "skill"],

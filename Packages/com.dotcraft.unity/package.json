@@ -1,6 +1,6 @@
 {
     "name": "com.dotcraft.unity",
-    "version": "0.4.3",
+    "version": "0.4.4",
     "displayName": "DotCraft Unity",
     "description": "Unified agent integration for Unity Editor with in-editor chat, CLI/MCP automation, and custom project tools.",
     "unity": "2021.3",

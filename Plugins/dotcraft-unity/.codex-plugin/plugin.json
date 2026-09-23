@@ -1,6 +1,6 @@
 {
   "name": "dotcraft-unity",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Guide agents to inspect and automate Unity Editor through DotCraft Unity tools.",
   "author": {
     "name": "DotHarness",
