@@ -71,7 +71,7 @@ https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.uni
 
 ### 通过 MCP 操作 Unity
 
-![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
+![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.webp)
 
 ![MCP Gateway 设置](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
 

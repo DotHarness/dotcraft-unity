@@ -71,7 +71,7 @@ After completing the first step, tell Codex or DotCraft what you want to do in t
 
 ### Operate Unity through MCP
 
-![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.gif)
+![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.webp)
 
 ![MCP Gateway setup](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
 
