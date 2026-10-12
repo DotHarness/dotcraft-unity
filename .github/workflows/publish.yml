@@ -14,6 +14,9 @@ jobs:
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - name: Build all deliverables
         shell: pwsh
         run: ./Tools/scripts/build.ps1 -OutputDirectory .artifacts/release

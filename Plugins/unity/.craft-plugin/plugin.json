@@ -1,18 +1,24 @@
 {
   "schemaVersion": 1,
   "id": "unity",
-  "version": "0.4.4",
+  "version": "0.5.0",
   "displayName": "Unity",
   "description": "Inspect and automate a running Unity Editor.",
-  "capabilities": ["dotnet", "skill"],
+  "capabilities": ["dotnet", "skill", "desktop"],
   "skills": "./skills/",
+  "settings": "./settings.schema.json",
+  "desktop": {
+    "description": "Adds a Unity page for your projects and a button that opens a conversation's project in Unity.",
+    "entry": "./desktop/dist/index.mjs",
+    "styles": ["./desktop/dist/index.css"]
+  },
   "interface": {
     "displayName": "Unity",
     "shortDescription": "Automate Unity Editor",
-    "longDescription": "Inspect and automate a running Unity Editor through DotCraft's native Unity tools.",
+    "longDescription": "Keep your Unity projects in DotCraft, open them in the Unity Editor with one click, and inspect and automate a running Editor through DotCraft's native Unity tools.",
     "developerName": "DotHarness",
     "category": "Engineering",
-    "capabilities": ["Skill", "Unity", "Read", "Write"],
+    "capabilities": ["Skill", "Desktop", "Unity", "Read", "Write"],
     "defaultPrompt": "Inspect or automate the connected Unity Editor.",
     "composerIcon": "./assets/unity.svg",
     "logo": "./assets/unity.svg",
@@ -23,7 +29,7 @@
   "dotnet": {
     "displayName": "Unity integration",
     "description": "Provides native C# execution tools for Unity Editor.",
-    "minHostVersion": "0.6.7",
+    "minHostVersion": "0.8.5",
     "entryAssembly": "./lib/DotCraft.Unity.dll",
     "entryType": "DotCraft.Unity.Plugin"
   }

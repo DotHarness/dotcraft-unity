@@ -154,7 +154,7 @@ public sealed class PrebuiltPluginAcceptanceTests
         harness.Config.Plugins.DisabledPlugins.Add(id);
         var settings = harness.SettingsPath;
         Directory.CreateDirectory(Path.GetDirectoryName(settings)!);
-        var savedSettings = JsonSerializer.Serialize(new Dictionary<string, object> { [id] = new { retained = true } });
+        var savedSettings = JsonSerializer.Serialize(new Dictionary<string, object> { [id] = new { projects = new[] { new { path = "retained", favorite = true, addedAt = 1 } } } });
         File.WriteAllText(settings, savedSettings);
 
         var sourceRemoved = new BuiltInPluginDeployer(pluginsRoot, [], harness.Config.Plugins, harness.Root);

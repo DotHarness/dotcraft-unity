@@ -87,3 +87,5 @@ Tools/**/Native/*.dll
 !Tools/**/*.sln
 Plugins/unity/lib/
 Plugins/unity/native/
+Plugins/unity/desktop/dist/
+Plugins/unity/desktop/node_modules/

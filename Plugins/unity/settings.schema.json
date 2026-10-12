@@ -1,0 +1,5 @@
+{
+  "fields": [
+    { "key": "projects", "type": "json", "defaultValue": [] }
+  ]
+}

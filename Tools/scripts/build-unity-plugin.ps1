@@ -14,10 +14,17 @@ if ($LASTEXITCODE) { throw 'DotCraft adapter restore failed.' }
 & dotnet build $pluginProject -c Release --no-restore
 if ($LASTEXITCODE) { throw 'DotCraft adapter build failed.' }
 
-New-Item -ItemType Directory -Path "$bundle/lib" -Force | Out-Null
-foreach ($name in @('.craft-plugin','assets','skills')) {
+$desktop = "$root/Plugins/unity/desktop"
+& npm ci --prefix $desktop
+if ($LASTEXITCODE) { throw 'Desktop module restore failed.' }
+& npm run build --prefix $desktop
+if ($LASTEXITCODE) { throw 'Desktop module build failed.' }
+
+New-Item -ItemType Directory -Path "$bundle/lib","$bundle/desktop" -Force | Out-Null
+foreach ($name in @('.craft-plugin','assets','skills','settings.schema.json')) {
     Copy-Item -LiteralPath "$root/Plugins/unity/$name" -Destination $bundle -Recurse
 }
+Copy-Item -LiteralPath "$desktop/dist" -Destination "$bundle/desktop" -Recurse
 New-Item -ItemType Directory -Path "$bundle/skills/unity/scripts" -Force | Out-Null
 Copy-Item -LiteralPath "$root/Plugins/dotcraft-unity/skills/dotcraft-unity/scripts/console-read.cs" -Destination "$bundle/skills/unity/scripts/console-read.cs"
 $manifestPath = "$bundle/.craft-plugin/plugin.json"

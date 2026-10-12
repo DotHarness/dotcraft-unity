@@ -1,0 +1,346 @@
+.unity-projects {
+  container-type: inline-size;
+  color: var(--text-primary);
+}
+
+.unity-table,
+.unity-table-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.unity-table-head,
+.unity-table-row {
+  display: grid;
+  grid-template-columns: 28px 16px minmax(0, 1fr) 120px 72px 104px 84px 60px;
+  column-gap: 12px;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.unity-table-head {
+  height: 24px;
+}
+
+.unity-table-row {
+  min-height: 58px;
+}
+
+.unity-table-head,
+.unity-cell-branch,
+.unity-cell-platform,
+.unity-cell-editor,
+.unity-cell-modified {
+  color: var(--text-secondary);
+  font-size: var(--type-secondary-size);
+  line-height: var(--type-secondary-line-height);
+}
+
+.unity-cell {
+  min-width: 0;
+}
+
+.unity-cell-vcs {
+  display: inline-flex;
+}
+
+.unity-cell-branch,
+.unity-cell-platform,
+.unity-cell-modified {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unity-cell-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.unity-row {
+  position: relative;
+  border-radius: 8px;
+  transition: background-color 120ms ease;
+}
+
+.unity-row:is(:hover, :focus-within, :has([aria-expanded='true'])) {
+  background: var(--bg-tertiary);
+}
+
+.unity-open {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.unity-open::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.unity-open:disabled {
+  cursor: default;
+}
+
+.unity-open:focus-visible {
+  outline: none;
+}
+
+.unity-row:has(.unity-open:focus-visible) {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.unity-star,
+.unity-vcs,
+.unity-action,
+.unity-editor-missing {
+  position: relative;
+  z-index: 1;
+}
+
+.unity-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.unity-identity-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.unity-identity-title strong {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--type-ui-size);
+  font-weight: 700;
+  line-height: var(--type-ui-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unity-identity-path {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--type-secondary-size);
+  line-height: var(--type-secondary-line-height);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unity-row[data-missing] :is(.unity-identity strong, .unity-identity-path) {
+  opacity: 0.55;
+}
+
+.unity-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  box-sizing: border-box;
+  min-height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: var(--type-secondary-size);
+  line-height: var(--type-secondary-line-height);
+  white-space: nowrap;
+}
+
+.unity-row:is(:hover, :focus-within, :has([aria-expanded='true'])) .unity-badge {
+  background: color-mix(in srgb, var(--text-primary) 10%, transparent);
+}
+
+.unity-vcs {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  color: var(--text-secondary);
+}
+
+.unity-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.unity-branch svg {
+  flex: 0 0 auto;
+}
+
+.unity-branch span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unity-editor {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.unity-editor-version {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.unity-editor-missing {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  color: var(--warning-text);
+  cursor: default;
+}
+
+.unity-editor-missing:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 2px;
+}
+
+.unity-star,
+.unity-action {
+  display: inline-flex;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+
+.unity-star[data-on] {
+  color: var(--text-primary);
+}
+
+.unity-star:not([data-on]),
+.unity-action {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.unity-row:is(:hover, :focus-within, :has([aria-expanded='true'])) :is(.unity-star, .unity-action),
+.unity-action[data-pending] {
+  opacity: 1;
+}
+
+.unity-skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+@container (max-width: 700px) {
+  .unity-table-head,
+  .unity-table-row {
+    grid-template-columns: 28px 16px minmax(0, 1fr) 72px 104px 84px 60px;
+  }
+
+  .unity-cell-branch {
+    display: none;
+  }
+}
+
+@container (max-width: 560px) {
+  .unity-table-head,
+  .unity-table-row {
+    grid-template-columns: 28px 16px minmax(0, 1fr) 104px 84px 60px;
+  }
+
+  .unity-cell-platform {
+    display: none;
+  }
+}
+
+.unity-no-matches {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.unity-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 8px;
+  text-align: center;
+}
+
+.unity-empty-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 60px;
+  height: 60px;
+  border: 1px solid var(--identity-mark-hero-border);
+  border-radius: var(--identity-mark-radius-hero);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.unity-empty h2 {
+  margin: 16px 0 6px;
+  font-size: var(--type-heading-size);
+  font-weight: var(--type-heading-weight);
+  line-height: var(--type-heading-line-height);
+}
+
+.unity-empty p {
+  max-width: 420px;
+  margin: 0 0 20px;
+  color: var(--text-secondary);
+  font-size: var(--type-ui-size);
+  line-height: var(--type-ui-line-height);
+}
+
+.unity-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.unity-host-too-old {
+  margin: 48px 16px 0;
+  color: var(--text-secondary);
+  font-size: var(--type-ui-size);
+  text-align: center;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .unity-star:not([data-on]),
+  .unity-action {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unity-row,
+  .unity-star,
+  .unity-action {
+    transition: none;
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "dotcraft-unity-desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "dotcraft-plugin build .",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test src/model.test.ts"
+  },
+  "devDependencies": {
+    "@dotcraft/plugin": "0.8.5",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.7",
+    "lucide-react": "1.8.0",
+    "typescript": "^5.7.3"
+  }
+}
