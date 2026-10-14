@@ -40,7 +40,7 @@ Non-goals:
   of the page keeps working.
 - The page uses DotCraft's catalog page frame, so it looks and behaves like DotCraft's
   own Plugins and Automations pages.
-- The plugin requires DotCraft 0.8.5 or later. If its Desktop module runs on an older
+- The plugin requires DotCraft 0.8.6 or later. If its Desktop module runs on an older
   DotCraft, the page shows "Update DotCraft to use this" instead of the project list.
 
 ## Project list

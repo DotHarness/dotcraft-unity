@@ -31,8 +31,6 @@ internal sealed class UnityToolSource(UnityAttachService service, string workspa
         RequiresApproval: function.Name is "connect" or "execute" or "disconnect",
         ReadOnly: function.Name is "list" or "status");
 
-    protected override ToolPresentationDescriptor? GetPresentation(AIFunction function, ToolPlanningContext context) => null;
-
     private static bool IsPlanMode(ToolPlanningContext context) =>
         context.Mode.Equals("plan", StringComparison.OrdinalIgnoreCase);
 }
