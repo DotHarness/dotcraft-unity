@@ -24,10 +24,12 @@ either Gateway or Attach before dispatch. Gateway exposes the UPM integration's
 enabled tool registry; Attach exposes only `unity_execute_csharp`.
 
 The native DotCraft plugin has the stable source ID `DotCraft.Unity`. It exposes
-`unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.wait` and
-`unity.disconnect` through Attach. Activation only registers tools and must not
-attach to an Editor. List, status and non-terminating wait are available in Plan
-mode; connect, execute and disconnect require approval and are unavailable there.
+`unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.recompile`,
+`unity.wait` and `unity.disconnect` through Attach, and contributes the Editor
+world-state section described below. Activation only registers these contributions
+and must not attach to an Editor. List, status and non-terminating wait are
+available in Plan mode; connect, execute, recompile and disconnect require approval
+and are unavailable there.
 
 The native plugin implements these tools as generated, strongly typed methods behind
 an `AIFunctionToolSource`. Model arguments are bound from the generated schema, while
@@ -135,6 +137,41 @@ callbacks. Recovery is complete only after a fresh main-thread handshake returns
 matching metadata. A disconnect, log silence or fixed delay is not evidence of a
 new domain, and a compilation failure without reload is not a recovery event.
 Neither recovery path replays user operations.
+
+## Editor state and notifications
+
+The Attach bridge publishes the Editor state the agent needs between calls in a
+state record next to its rendezvous: bridge generation, domain epoch, play mode
+(edit, playing or paused), whether scripts are compiling, whether a Domain Reload
+has begun, and the latest script compilation. The bridge rewrites the record from
+the Editor main thread when one of those values changes, and only while it is
+active, so the record never claims more than the bridge observed. A compilation
+carries a sequence number, its outcome and a bounded list of compiler errors. A
+fresh bridge carries the previous compilation forward, because the compilation
+that triggered a reload finished in the domain that reload discarded.
+
+The native plugin turns that record into one world-state section for each task
+that has selected an Editor. The section names the project, Editor version and
+PID, the connection (ready, reloading scripts, or no longer running), play mode,
+compilation state and the errors of a failed compilation. It is read from the
+record and never contacts the Editor, so it is cheap at every sampling boundary
+and silent while nothing changes. When a task disconnects or its Editor exits,
+the section says so once and then stays silent.
+
+`unity.recompile` imports changed assets and requests one script compilation, then
+waits for that request's compilation, identified by its sequence number, rather
+than one that was already running. A failed compilation returns its errors. A
+successful one waits for the resulting Domain Reload to finish recovery, or for
+the Editor to settle without a reload. The request is sent once; a wait that ends
+before the outcome returns the current state and leaves the outcome to the
+world-state section.
+
+A background execution that finishes after its initial wait notifies its task once,
+unless the task already observed the terminal state through `unity.wait`. A running
+Turn receives the result as guidance; an idle task receives it as queued input from
+the Unity app, which starts a Turn. Consecutive Unity-started Turns are bounded so
+that executions which keep finishing cannot keep a task running on their own.
+Notifications report outcomes only; they never replay or resume work.
 
 ## Compatibility and safety invariants
 

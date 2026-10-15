@@ -5,21 +5,23 @@ description: Inspect, automate, and debug a running Unity Editor. Use for Unity 
 
 # Unity
 
-Use `unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.wait`, and `unity.disconnect` to work with a running Unity Editor. These DotCraft-native tools use Attach on a Windows x64 Mono Editor without requiring the UPM package. They execute Editor C# on Unity's main thread and do not replace normal source-file editing. Other agents can use the standalone MCP/CLI with `--backend auto|gateway|attach`; Gateway additionally exposes enabled custom project tools.
+Use `unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.recompile`, `unity.wait`, and `unity.disconnect` to work with a running Unity Editor. These DotCraft-native tools use Attach on a Windows x64 Mono Editor without requiring the UPM package. They execute Editor C# on Unity's main thread and do not replace normal source-file editing. Other agents can use the standalone MCP/CLI with `--backend auto|gateway|attach`; Gateway additionally exposes enabled custom project tools.
 
 Load only the reference needed for the task:
 
 - For loaded-type lookup and reflection helpers, read [references/api.md](references/api.md).
 - For Console logs, read [references/console-reading.md](references/console-reading.md) and use the bundled script.
 - For Editor, GameView, or SceneView images, read [references/editor-screenshot.md](references/editor-screenshot.md).
-- For compilation or Domain Reload, read [references/compilation-and-reload.md](references/compilation-and-reload.md).
-- For compilation errors, timeouts, or unexpected results, read [references/snippet-craft.md](references/snippet-craft.md).
+- For script compilation or Domain Reload, read [references/compilation-and-reload.md](references/compilation-and-reload.md).
+- For snippet compilation errors, timeouts, or unexpected results, read [references/snippet-craft.md](references/snippet-craft.md).
 
 ## Connect
 
 `unity.list` and `unity.status` are read-only and never inject or reconnect. Call `unity.list` when the target process is not already known. If several Editors are running, identify the intended one from its process information instead of guessing. Pass its `pid` to `unity.connect`; the result includes the Unity version, project path, Play Mode state, compilation state, and connection generation. That Editor remains selected for the current task.
 
-Call `unity.status`, `unity.execute`, and `unity.disconnect` without a PID. After managed Domain Reload, the native observer coordinates bridge recovery. Call `unity.connect` without a PID to establish a fresh handshake for the selected Editor; old executions and compiled contexts remain invalid. Do not replay the call that caused a reload. A new task must select its own Editor with `unity.connect(pid)`.
+Call `unity.status`, `unity.execute`, `unity.recompile`, and `unity.disconnect` without a PID. After managed Domain Reload, the native observer coordinates bridge recovery, and `unity.execute` and `unity.recompile` reconnect the selected Editor themselves; old executions and compiled contexts remain invalid. Do not replay the call that caused a reload. A new task must select its own Editor with `unity.connect(pid)`.
+
+While the task has an Editor selected, your context includes a `## Unity Editor` block with the project, Editor version and PID, connection (ready, reloading scripts, recovering, or no longer running), Play Mode, and the latest script compilation with its errors. It is updated only when that state changes, so read it instead of polling `unity.status`. When the task disconnects or the Editor exits, the block says so once.
 
 Use `unity.disconnect` to release this task's connection. It does not disconnect other clients or unload assemblies already loaded in the Editor.
 
@@ -59,7 +61,7 @@ Available helpers are `WaitFrame()`, `WaitFrames(int)`, `WaitSeconds(float)`, `W
 
 ### Run in the background
 
-Pass `runInBackground: true` to let a long execution outlive the tool call. If it is still active after `yieldTimeMs`, `unity.execute` returns an `executionId`. Poll it with `unity.wait`; use `terminate: true` only when the execution should be cancelled.
+Pass `runInBackground: true` to let a long execution outlive the tool call. If it is still active after `yieldTimeMs`, `unity.execute` returns an `executionId`. When it finishes, DotCraft notifies the task once with its result, so continue with other work instead of polling. Use `unity.wait` only to check it sooner or, with `terminate: true`, to cancel it.
 
 Cancellation is cooperative. Waiting helpers observe it automatically, and longer synchronous loops should call `ctx.ThrowIfCancellationRequested()` or check `cancellationToken`. A running result with `cancellationRequested: true` means the code has not stopped yet. Do not replay an execution whose result is `unknown`.
 
@@ -71,10 +73,14 @@ Keep work in the background unless the user asks for visible interaction. Avoid 
 
 Do not block the Unity main thread with `Thread.Sleep` or long synchronous waits. Use the context helpers and background execution for work that spans Editor updates.
 
+## Compile scripts
+
+After editing project scripts, call `unity.recompile` once. It imports changed assets, compiles, and waits for the resulting Domain Reload to recover, returning the compiler errors when compilation fails. Do not request compilation through `unity.execute`. See [references/compilation-and-reload.md](references/compilation-and-reload.md).
+
 ## Failures and reloads
 
 A timeout can mean the code started but the result was not received. Inspect Editor state before deciding what happened and never replay the operation automatically.
 
-Compilation errors report the failing C# diagnostics. Resolve ambiguous Unity and System type names with fully qualified names. Internal Unity APIs vary by version; inspect their members with reflection instead of repeatedly guessing signatures.
+Snippet compilation errors report the failing C# diagnostics. Resolve ambiguous Unity and System type names with fully qualified names. Internal Unity APIs vary by version; inspect their members with reflection instead of repeatedly guessing signatures.
 
-If an operation triggers Domain Reload, the old execution becomes `lost`. Native recovery establishes a new bridge; it never replays or resumes that execution. Follow [references/compilation-and-reload.md](references/compilation-and-reload.md), reconnect with `unity.connect` without a PID, and verify the intended result with a fresh read-only call and Console inspection. If recovery cannot establish a fresh handshake, report the failure instead of repeatedly attaching.
+If an operation triggers Domain Reload, the old execution becomes `lost`. Native recovery establishes a new bridge; it never replays or resumes that execution. Wait for the `## Unity Editor` block to report the connection as ready, then verify the intended result with a fresh read-only call. If it reports that recovery failed, report the failure instead of repeatedly attaching.

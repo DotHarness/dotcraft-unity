@@ -20,6 +20,7 @@ internal sealed class UnityToolSource(UnityAttachService service, string workspa
             DotCraft.GeneratedTools.Unity.GeneratedToolFunctions.UnityTools_Connect(tools),
             DotCraft.GeneratedTools.Unity.GeneratedToolFunctions.UnityTools_Status(tools),
             DotCraft.GeneratedTools.Unity.GeneratedToolFunctions.UnityTools_Execute(tools),
+            DotCraft.GeneratedTools.Unity.GeneratedToolFunctions.UnityTools_Recompile(tools),
             DotCraft.GeneratedTools.Unity.GeneratedToolFunctions.UnityTools_Wait(tools),
             DotCraft.GeneratedTools.Unity.GeneratedToolFunctions.UnityTools_Disconnect(tools)
         ];
@@ -28,7 +29,7 @@ internal sealed class UnityToolSource(UnityAttachService service, string workspa
     protected override string? GetNamespace(AIFunction function, ToolPlanningContext context) => "unity";
 
     protected override ToolPolicyHints GetPolicyHints(AIFunction function, ToolPlanningContext context) => new(
-        RequiresApproval: function.Name is "connect" or "execute" or "disconnect",
+        RequiresApproval: function.Name is "connect" or "execute" or "recompile" or "disconnect",
         ReadOnly: function.Name is "list" or "status");
 
     private static bool IsPlanMode(ToolPlanningContext context) =>
@@ -75,7 +76,7 @@ internal sealed class UnityTools(UnityAttachService service, string workspace, b
         [Description("Inline C# method-body statements. Specify exactly one of code or path.")] string? code = null,
         [Description("Host-side C# script path. Specify exactly one of code or path.")] string? path = null,
         [Description("Optional JSON values available to the snippet as Args.")] JsonObject? args = null,
-        [Description("Return an execution ID when the code is still running after the initial wait.")] bool runInBackground = false,
+        [Description("Return an execution ID when the code is still running after the initial wait. The task is notified when it finishes.")] bool runInBackground = false,
         [Range(0, 30000)]
         [Description("Milliseconds to wait for a background execution before returning its current state.")] int yieldTimeMs = 1000,
         CancellationToken cancellationToken = default)
@@ -93,6 +94,18 @@ internal sealed class UnityTools(UnityAttachService service, string workspace, b
                 context.ThreadId, code!, args, runInBackground, yieldTimeMs, cancellationToken);
         }, cancellationToken);
     }
+
+    [GeneratedTool(Name = "recompile")]
+    [ToolRpc]
+    [Description("Import changed assets and compile scripts once, then wait for that compilation and the Domain Reload it triggers. Returns compiler errors when compilation fails.")]
+    public ValueTask<ToolExecutionResult> Recompile(
+        ToolInvocationContext context,
+        [Range(0, 120000)]
+        [Description("Milliseconds to wait for compilation and reload before returning the current state.")] int yieldTimeMs = 60000,
+        CancellationToken cancellationToken = default) =>
+        planMode
+            ? ValueTask.FromResult(ModeDenied())
+            : ExecuteAsync(() => service.Recompile(context.ThreadId, yieldTimeMs, cancellationToken), cancellationToken);
 
     [GeneratedTool(Name = "wait")]
     [ToolRpc]

@@ -9,5 +9,6 @@
   <ItemGroup>
     <ProjectReference Include="../DotCraft.Unity.Attach/DotCraft.Unity.Attach.csproj" />
     <PackageReference Include="DotCraft.Harness" Version="0.8.6" PrivateAssets="all" ExcludeAssets="runtime" />
+    <InternalsVisibleTo Include="DotCraft.Unity.Plugin.Tests" />
   </ItemGroup>
 </Project>

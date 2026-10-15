@@ -1,4 +1,5 @@
 using System.Runtime.Loader;
+using DotCraft.Context.WorldState;
 using DotCraft.Plugins;
 using DotCraft.Tools;
 
@@ -18,6 +19,8 @@ public sealed class Plugin : IDotCraftPlugin
         var service = UnityAttachService.CreateDefault();
         context.Lifetime.OwnAsync(service);
         context.Contributions.Add<IToolSource>(new UnityToolSource(service, context.WorkspaceRoot));
+        context.Contributions.Add<IWorldStateSection>(new UnityEditorSection(service.GetEditorState));
+        context.Lifetime.Run(new UnityExecutionNotifier(service, context.Services).RunAsync);
         return ValueTask.CompletedTask;
     }
 }
