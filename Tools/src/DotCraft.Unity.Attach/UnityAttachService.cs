@@ -12,6 +12,7 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
     private readonly ConcurrentDictionary<TargetIdentity, byte> owned = new();
     private readonly ConcurrentDictionary<string, TargetIdentity> selected = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, ExecutionHandle> executions = new(StringComparer.Ordinal);
+    private readonly EditorStateFiles stateFiles = new();
     private readonly string clientId = Guid.NewGuid().ToString("N");
     private bool disposed;
     private string? runtimeIdentity;
@@ -150,6 +151,48 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
         return BridgeClient.Call(Connection(target.Pid), "metadata");
     }
 
+    /// <summary>Reads the selected Editor's published state from local files without contacting it.</summary>
+    public UnityEditorState? GetEditorState(string threadId) =>
+        selected.TryGetValue(threadId, out var target) ? ReadState(target) : null;
+
+    /// <summary>Imports changed assets and requests one script compilation, then waits for its outcome without replaying it.</summary>
+    public async Task<JsonObject> Recompile(string threadId, int yieldTimeMs, CancellationToken cancellationToken = default)
+    {
+        var target = RequireTarget(threadId);
+        await Connect(threadId, target.Pid, cancellationToken);
+        var connection = Connection(target.Pid);
+        var before = ReadState(target).Bridge;
+        JsonObject response;
+        try { response = await BridgeClient.Call(connection, "recompile", cancellationToken: cancellationToken); }
+        catch (Exception e) when (e is IOException or System.Net.Sockets.SocketException or TimeoutException)
+        {
+            return new JsonObject { ["state"] = "unknown" };
+        }
+
+        int sequence;
+        ulong domainEpoch;
+        switch (response["state"]?.GetValue<string>())
+        {
+            case "completed":
+                sequence = response["result"]!["sequence"]!.GetValue<int>();
+                domainEpoch = response["result"]!["domainEpoch"]!.GetValue<ulong>();
+                break;
+            case "unknown":
+                sequence = before?.Compile?.Sequence ?? 0;
+                domainEpoch = before?.DomainEpoch ?? 0;
+                break;
+            default:
+                return response;
+        }
+        var wait = new RecompileWait(
+            () => ReadState(target),
+            async token => (await BridgeClient.ProbeMetadata(connection, token)).State == BridgeState.Ready,
+            TimeSpan.FromMilliseconds(200),
+            TimeSpan.FromSeconds(2));
+        return await wait.WaitAsync(sequence, domainEpoch,
+            TimeSpan.FromMilliseconds(Math.Clamp(yieldTimeMs, 0, 120_000)), cancellationToken);
+    }
+
     /// <summary>Compiles for the target and starts one execution; failures are never replayed.</summary>
     public async Task<JsonObject> Execute(
         string threadId,
@@ -173,15 +216,18 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
             if (IsTerminal(started)) return RecordResult(prepared.ExecutionId, started);
             if (runInBackground)
             {
+                JsonObject initial;
                 try
                 {
-                    return RecordResult(prepared.ExecutionId, await BridgeClient.Wait(connection, prepared.ExecutionId, prepared.Generation,
-                        NormalizeWait(yieldTimeMs), terminate: false, cancellationToken: CancellationToken.None));
+                    initial = await BridgeClient.Wait(connection, prepared.ExecutionId, prepared.Generation,
+                        NormalizeWait(yieldTimeMs), terminate: false, cancellationToken: CancellationToken.None);
                 }
                 catch (Exception e) when (e is IOException or System.Net.Sockets.SocketException or TimeoutException)
                 {
-                    return Unknown(prepared.ExecutionId, prepared.Generation);
+                    initial = Unknown(prepared.ExecutionId, prepared.Generation);
                 }
+                if (!IsTerminal(initial)) handle.AwaitNotice();
+                return RecordResult(prepared.ExecutionId, initial);
             }
 
             while (true)
@@ -216,6 +262,36 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
         if (!string.Equals(handle.ThreadId, threadId, StringComparison.Ordinal))
             throw new UnityTargetException("UnityExecutionUnavailable", "The Unity execution does not belong to this task or is no longer available.");
 
+        var result = await Observe(executionId, handle, NormalizeWait(yieldTimeMs), terminate, cancellationToken);
+        if (IsTerminal(result)) handle.ClaimNotice();
+        return result;
+    }
+
+    public bool HasPendingNotices => executions.Values.Any(handle => handle.AwaitingNotice);
+
+    /// <summary>Returns, once each, background executions that finished without their task observing it.</summary>
+    public async Task<IReadOnlyList<UnityExecutionNotice>> CollectFinishedExecutions(CancellationToken cancellationToken = default)
+    {
+        var finished = new List<UnityExecutionNotice>();
+        foreach (var (executionId, handle) in executions)
+        {
+            if (!handle.AwaitingNotice) continue;
+            JsonObject result;
+            try { result = await Observe(executionId, handle, 0, terminate: false, cancellationToken); }
+            catch (Exception e) when (e is not OperationCanceledException) { continue; }
+            if (IsTerminal(result) && handle.ClaimNotice())
+                finished.Add(new UnityExecutionNotice(handle.ThreadId, executionId, result));
+        }
+        return finished;
+    }
+
+    private async Task<JsonObject> Observe(
+        string executionId,
+        ExecutionHandle handle,
+        int waitMs,
+        bool terminate,
+        CancellationToken cancellationToken)
+    {
         try
         {
             using var process = GetUnityProcess(handle.Target.Pid);
@@ -225,7 +301,7 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
                 || !string.Equals(BridgeClient.ReadGeneration(handle.ConnectionPath), handle.Generation, StringComparison.Ordinal))
                 return RecordResult(executionId, Lost(executionId, handle.Generation));
             return RecordResult(executionId, await BridgeClient.Wait(handle.ConnectionPath, executionId, handle.Generation,
-                NormalizeWait(yieldTimeMs), terminate, cancellationToken));
+                waitMs, terminate, cancellationToken));
         }
         catch (UnityTargetException) { return RecordResult(executionId, Lost(executionId, handle.Generation)); }
         catch (Exception e) when (e is IOException or System.Net.Sockets.SocketException or InvalidDataException or TimeoutException)
@@ -347,7 +423,27 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
     private readonly record struct TargetIdentity(int Pid, DateTime StartedUtc);
     private sealed record ExecutionHandle(string ThreadId, TargetIdentity Target, string Generation, string ConnectionPath)
     {
+        private int awaitingNotice;
         public DateTime? TerminalUtc { get; set; }
+        public bool AwaitingNotice => Volatile.Read(ref awaitingNotice) == 1;
+        public void AwaitNotice() => Volatile.Write(ref awaitingNotice, 1);
+        public bool ClaimNotice() => Interlocked.Exchange(ref awaitingNotice, 0) == 1;
+    }
+
+    private UnityEditorState ReadState(TargetIdentity target) => stateFiles.Read(
+        AttachStorage.Connection(CacheRoot, target.Pid, target.StartedUtc), target.Pid, target.StartedUtc, IsRunning(target));
+
+    private static bool IsRunning(TargetIdentity target)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(target.Pid);
+            return !process.HasExited && process.StartTime.ToUniversalTime() == target.StartedUtc;
+        }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
     }
 
     private JsonObject RecordResult(string executionId, JsonObject result)
@@ -382,6 +478,8 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
         ["generation"] = generation
     };
 }
+
+public sealed record UnityExecutionNotice(string ThreadId, string ExecutionId, JsonObject Result);
 
 /// <summary>A stable target or execution selection error.</summary>
 public sealed class UnityTargetException(string code, string message) : InvalidOperationException(message)

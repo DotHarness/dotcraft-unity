@@ -32,7 +32,7 @@ public sealed class PrebuiltPluginAcceptanceTests
         var registrations = snapshot.Registrations.Values.ToDictionary(
             registration => registration.Definition.Name.ToString(), StringComparer.Ordinal);
         Assert.Equal(
-            ["unity.connect", "unity.disconnect", "unity.execute", "unity.list", "unity.status", "unity.wait"],
+            ["unity.connect", "unity.disconnect", "unity.execute", "unity.list", "unity.recompile", "unity.status", "unity.wait"],
             registrations.Keys.Order(StringComparer.Ordinal));
         Assert.All(registrations.Values, registration =>
         {
@@ -52,7 +52,7 @@ public sealed class PrebuiltPluginAcceptanceTests
         });
 
         Assert.Equal(
-            ["unity.connect", "unity.disconnect", "unity.execute"],
+            ["unity.connect", "unity.disconnect", "unity.execute", "unity.recompile"],
             registrations.Values
                 .Where(registration => registration.Definition.PolicyHints.RequiresApproval)
                 .Select(registration => registration.Definition.Name.ToString())
@@ -72,6 +72,10 @@ public sealed class PrebuiltPluginAcceptanceTests
         Assert.Equal(30000, executeProperties["yieldTimeMs"]!["maximum"]!.GetValue<int>());
         var waitSchema = JsonNode.Parse(registrations["unity.wait"].Definition.InputSchema.GetRawText())!.AsObject();
         Assert.Equal("executionId", Assert.Single(waitSchema["required"]!.AsArray())!.GetValue<string>());
+        var recompileProperties = JsonNode.Parse(registrations["unity.recompile"].Definition.InputSchema.GetRawText())!["properties"]!.AsObject();
+        Assert.Equal(["yieldTimeMs"], recompileProperties.Select(property => property.Key));
+        Assert.Equal(60000, recompileProperties["yieldTimeMs"]!["default"]!.GetValue<int>());
+        Assert.Equal(120000, recompileProperties["yieldTimeMs"]!["maximum"]!.GetValue<int>());
 
         var missingInput = new JsonObject();
         var missingResult = await new ToolDispatcher(approvalEvaluator: new ScenarioApproval("unity.execute", missingInput))
@@ -94,6 +98,7 @@ public sealed class PrebuiltPluginAcceptanceTests
                  {
                      ("unity.connect", new JsonObject()),
                      ("unity.execute", new JsonObject { ["code"] = "return;" }),
+                     ("unity.recompile", new JsonObject()),
                      ("unity.disconnect", new JsonObject())
                  })
         {

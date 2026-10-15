@@ -12,6 +12,9 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using UnityEditor;
+using CompilationPipeline = UnityEditor.Compilation.CompilationPipeline;
+using CompilerMessage = UnityEditor.Compilation.CompilerMessage;
+using CompilerMessageType = UnityEditor.Compilation.CompilerMessageType;
 using UnityEngine;
 
 namespace DotCraft.Unity
@@ -61,6 +64,9 @@ namespace DotCraft.Unity
         static int mainThread, activeExecutionCount;
         static long updateTick;
         static bool savedRunInBackground;
+        static string statePath, writtenState;
+        static JObject compile;
+        static bool compiling, reloading, statePending;
         static readonly JsonSerializerSettings ResponseJson = new JsonSerializerSettings
         {
             Converters = { new UnityJsonConverter() }
@@ -80,6 +86,12 @@ namespace DotCraft.Unity
             leasePath = path + ".leases";
             Clients.Clear();
             if (File.Exists(leasePath)) { try { foreach (var pair in JsonConvert.DeserializeObject<Dictionary<string, ClientLease>>(File.ReadAllText(leasePath))) Clients[pair.Key] = pair.Value; } catch { } }
+            statePath = path + ".state";
+            writtenState = null;
+            compile = null;
+            compiling = reloading = statePending = false;
+            if (File.Exists(statePath)) { try { compile = JObject.Parse(File.ReadAllText(statePath))["compile"] as JObject; } catch { } }
+            if (EditorApplication.isCompiling) BeginCompile();
             mainThread = Thread.CurrentThread.ManagedThreadId;
             token = Guid.NewGuid().ToString("N");
             generation = Guid.NewGuid().ToString("N");
@@ -87,8 +99,13 @@ namespace DotCraft.Unity
             listener.Start();
             active = true;
             EditorApplication.update += Pump;
-            AssemblyReloadEvents.beforeAssemblyReload += Stop;
+            AssemblyReloadEvents.beforeAssemblyReload += BeforeReload;
             EditorApplication.quitting += Stop;
+            EditorApplication.playModeStateChanged += OnPlayModeChanged;
+            EditorApplication.pauseStateChanged += OnPauseChanged;
+            CompilationPipeline.compilationStarted += OnCompilationStarted;
+            CompilationPipeline.assemblyCompilationFinished += OnAssemblyCompiled;
+            CompilationPipeline.compilationFinished += OnCompilationFinished;
             var temporaryPath = path + ".tmp";
             File.WriteAllText(temporaryPath, JsonConvert.SerializeObject(new {
                 protocol = AttachProtocol.Version, pid = System.Diagnostics.Process.GetCurrentProcess().Id,
@@ -101,7 +118,91 @@ namespace DotCraft.Unity
             }));
             if (File.Exists(path)) File.Delete(path);
             File.Move(temporaryPath, path);
+            PublishState();
             new Thread(Accept) { IsBackground = true }.Start();
+        }
+
+        static string PlayMode()
+        {
+            return !EditorApplication.isPlaying ? "edit" : EditorApplication.isPaused ? "paused" : "playing";
+        }
+
+        static int CompileSequence()
+        {
+            return compile == null ? 0 : (int?)compile["sequence"] ?? 0;
+        }
+
+        static void BeginCompile()
+        {
+            compiling = true;
+            compile = new JObject
+            {
+                ["sequence"] = CompileSequence() + 1,
+                ["startedUtc"] = DateTime.UtcNow,
+                ["finishedUtc"] = null,
+                ["succeeded"] = null,
+                ["errorCount"] = 0,
+                ["warningCount"] = 0,
+                ["errors"] = new JArray()
+            };
+        }
+
+        static void OnPlayModeChanged(PlayModeStateChange change) { PublishState(); }
+
+        static void OnPauseChanged(PauseState state) { PublishState(); }
+
+        static void OnCompilationStarted(object context)
+        {
+            BeginCompile();
+            PublishState();
+        }
+
+        static void OnAssemblyCompiled(string assembly, CompilerMessage[] messages)
+        {
+            if (!compiling) BeginCompile();
+            var errors = (JArray)compile["errors"];
+            foreach (var message in messages)
+            {
+                if (message.type == CompilerMessageType.Warning) compile["warningCount"] = (int)compile["warningCount"] + 1;
+                if (message.type != CompilerMessageType.Error) continue;
+                compile["errorCount"] = (int)compile["errorCount"] + 1;
+                if (errors.Count < 20)
+                    errors.Add(new JObject { ["file"] = message.file, ["line"] = message.line, ["column"] = message.column,
+                        ["message"] = message.message != null && message.message.Length > 2000 ? message.message.Substring(0, 2000) : message.message });
+            }
+        }
+
+        static void OnCompilationFinished(object context)
+        {
+            if (!compiling) BeginCompile();
+            compiling = false;
+            compile["finishedUtc"] = DateTime.UtcNow;
+            compile["succeeded"] = (int)compile["errorCount"] == 0;
+            PublishState();
+        }
+
+        static void BeforeReload()
+        {
+            reloading = true;
+            PublishState();
+            Stop();
+        }
+
+        static void PublishState()
+        {
+            if (!active) return;
+            var state = JsonConvert.SerializeObject(new { generation, domainEpoch = GetDomainEpoch(), playMode = PlayMode(), compiling, reloading, compile });
+            if (state == writtenState) { statePending = false; return; }
+            try
+            {
+                var temporary = statePath + ".tmp";
+                File.WriteAllText(temporary, state);
+                if (File.Exists(statePath)) File.Replace(temporary, statePath, null);
+                else File.Move(temporary, statePath);
+                writtenState = state;
+                statePending = false;
+            }
+            catch (Exception e) when (e is IOException || e is UnauthorizedAccessException) { statePending = true; }
         }
 
         static void Accept()
@@ -234,6 +335,7 @@ namespace DotCraft.Unity
         {
             if (!active) return;
             updateTick++;
+            if (statePending) PublishState();
             if (EditorApplication.timeSinceStartup >= nextLeaseCheck) { PruneClients(); nextLeaseCheck = EditorApplication.timeSinceStartup + 5; }
             Scheduler.Pump();
 
@@ -279,7 +381,7 @@ namespace DotCraft.Unity
                 {
                     case "metadata":
                         result = new { version = Application.unityVersion, project = Path.GetDirectoryName(Application.dataPath),
-                            playing = EditorApplication.isPlaying, compiling = EditorApplication.isCompiling,
+                            playing = EditorApplication.isPlaying, playMode = PlayMode(), compiling = EditorApplication.isCompiling,
                             updating = EditorApplication.isUpdating, debug = UnityEditor.Compilation.CompilationPipeline.codeOptimization.ToString(),
                             mainThread, generation, bridgeSession = generation, domainEpoch = GetDomainEpoch(), runtimeIdentity = RuntimeIdentity.Value, runtimeVersion = RuntimeIdentity.Version, asyncExecution = true, bridge = typeof(Bridge).Assembly.Location,
                             references = AppDomain.CurrentDomain.GetAssemblies().Select(a => {
@@ -288,6 +390,11 @@ namespace DotCraft.Unity
                         break;
                     case "lease": Clients[(string)work.Request["clientId"]] = new ClientLease { Pid = (int)work.Request["hostPid"], StartUtc = (DateTime)work.Request["hostStartUtc"] }; SaveClients(); result = new { attached = true }; break;
                     case "detach": Clients.Remove((string)work.Request["clientId"]); SaveClients(); result = new { detached = true }; break;
+                    case "recompile":
+                        result = new { sequence = CompileSequence(), domainEpoch = GetDomainEpoch() };
+                        AssetDatabase.Refresh();
+                        CompilationPipeline.RequestScriptCompilation();
+                        break;
                     case "stop": result = "stopped"; Stop(); break;
                     default: throw new InvalidOperationException("Unknown command.");
                 }
@@ -478,8 +585,13 @@ namespace DotCraft.Unity
         {
             active = false;
             EditorApplication.update -= Pump;
-            AssemblyReloadEvents.beforeAssemblyReload -= Stop;
+            AssemblyReloadEvents.beforeAssemblyReload -= BeforeReload;
             EditorApplication.quitting -= Stop;
+            EditorApplication.playModeStateChanged -= OnPlayModeChanged;
+            EditorApplication.pauseStateChanged -= OnPauseChanged;
+            CompilationPipeline.compilationStarted -= OnCompilationStarted;
+            CompilationPipeline.assemblyCompilationFinished -= OnAssemblyCompiled;
+            CompilationPipeline.compilationFinished -= OnCompilationFinished;
             if (listener != null) listener.Stop();
             lock (Sync)
             {

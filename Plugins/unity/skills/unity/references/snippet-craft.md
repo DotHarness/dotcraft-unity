@@ -15,7 +15,7 @@ return type == null ? null : Dcu.Members(type, "Save", true, 40);
 
 Use `await ctx.WaitFrame()`, `WaitFrames`, `WaitSeconds`, or `WaitUntil` when Unity must advance before the result can be read. These helpers resume the snippet on the Editor main thread. Do not block that thread with `Thread.Sleep` or a busy loop.
 
-Use background execution when the work can outlive the initial tool call. Keep the returned execution ID and query it with `unity.wait`. Cancellation is cooperative; a synchronous loop must call `ctx.ThrowIfCancellationRequested()`.
+Use background execution when the work can outlive the initial tool call. The task is notified once when it finishes; use `unity.wait` with the returned execution ID only to check it sooner or cancel it. Cancellation is cooperative; a synchronous loop must call `ctx.ThrowIfCancellationRequested()`.
 
 ## Unknown and lost results
 

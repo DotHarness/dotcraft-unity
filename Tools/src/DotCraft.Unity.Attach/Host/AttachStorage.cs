@@ -133,8 +133,11 @@ internal static class AttachStorage
     internal static string Connection(string root, int pid)
     {
         using var process = Process.GetProcessById(pid);
-        return Path.Combine(root, "sessions", $"{pid}-{process.StartTime.ToUniversalTime().Ticks}.json");
+        return Connection(root, pid, process.StartTime.ToUniversalTime());
     }
+
+    internal static string Connection(string root, int pid, DateTime startedUtc) =>
+        Path.Combine(root, "sessions", $"{pid}-{startedUtc.Ticks}.json");
 
     internal static async Task<FileStream> Lock(string path, CancellationToken cancellationToken)
     {
