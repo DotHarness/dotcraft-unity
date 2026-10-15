@@ -2,101 +2,57 @@
 
 ![intro](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/banner.png)
 
-[中文](./README_ZH.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [ACP](https://agentclientprotocol.com/) · [License](./LICENSE)
+[中文](./README_ZH.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [License](./LICENSE)
 
 Unified AI agent integration for Unity Editor—in-editor chat, CLI/MCP automation, and the option to use it without installing the UPM package.
 
-*Supports Unity 2021.3 through Unity 6.6 (Mono only, CoreCLR WIP)*
-
 </div>
 
-## What you can do
+## What it does
 
-| Workflow | Use this when |
-|----------|---------------|
-| AI Assistant | Chat with an ACP-compatible Agent inside Unity |
-| MCP Gateway | Let external MCP clients such as Claude Code, Codex, or Cursor call Unity tools |
-| CLI | Automate Unity from a terminal or connect to the Editor without installing the Unity package |
-| Custom tools | Expose project-specific tools to coding agents through MCP Gateway |
+Your agent can run C# in a running Unity Editor, compile scripts and read the errors, and keep track of play mode and reloads, all without installing anything into your project. The optional Unity package adds chat inside the Editor, an MCP Gateway for other coding agents, and your own project-specific tools.
+
+Requires Unity 2021.3 to 6.6 on the Mono runtime. CoreCLR is not supported yet.
 
 ## Install
 
-### Step 1: Install an Agent plugin or a Skill
+### DotCraft
 
-Choose the installation method for your Agent.
-
-#### Codex
-
-1. Open **Plugins**, then select **Add a marketplace** from the **Add** menu.
-2. Enter `DotHarness/dotcraft-unity` under **Source**, then add the marketplace.
-3. Find and install **DotCraft Unity**.
-
-![DotCraft Unity plugin in Codex](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/codex-dotcraft-unity-plugin.png)
-
-#### DotCraft
-
-Open **Plugins**, then find and install **Unity**. Once installed, select **Try in chat** to start using it.
+Open **Plugins**, install **Unity**, then select **Try in chat**.
 
 ![Native Unity plugin in DotCraft](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/dotcraft-unity-plugin.png)
 
-#### Install the Skill manually
+### Codex
 
-Copy [`Plugins/dotcraft-unity/skills/dotcraft-unity`](./Plugins/dotcraft-unity/skills/dotcraft-unity) into your coding agent's Skills directory.
+In **Plugins**, choose **Add a marketplace**, enter `DotHarness/dotcraft-unity`, then install **DotCraft Unity**.
 
-The Codex plugin and manually installed Skill use the CLI to operate Unity. Install the CLI with:
+![DotCraft Unity plugin in Codex](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/codex-dotcraft-unity-plugin.png)
+
+### Other agents
+
+Copy [`Plugins/dotcraft-unity/skills/dotcraft-unity`](./Plugins/dotcraft-unity/skills/dotcraft-unity) into your agent's Skills directory, then install the CLI:
 
 ```powershell
 irm https://github.com/DotHarness/dotcraft-unity/releases/latest/download/install.ps1 | iex
 ```
 
-### Step 2 (optional): Install the Unity package
+### Unity package (optional)
 
-In-Editor chat, MCP Gateway, and custom project tools require the Unity package.
-
-Open **Window → Package Manager** and add this Git URL:
+Chat inside the Editor, the MCP Gateway and custom project tools need the Unity package. Open **Window → Package Manager** and add this Git URL:
 
 ```text
 https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.unity
 ```
 
-## Quick start
+See [Using the Unity package](./Documentations/unity-package.md) to set them up.
 
-### Automate the Editor with C#
+## Use it
 
-After completing the first step, tell Codex or DotCraft what you want to do in the current Unity Editor. For example:
+Open your project in Unity, then tell your agent what you want, for example:
 
 > Inspect the current scene, list every root GameObject, and find any objects with missing scripts.
 
 ![How C# automation works with Unity Editor](./Documentations/csharp-automation-how-it-works.svg)
-
-### Operate Unity through MCP
-
-![app-binding](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/app-binding.webp)
-
-![MCP Gateway setup](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/mcp.png)
-
-1. Enable **Unity Tool Gateway** in **Project Settings → DotCraft**.
-2. Run **Tools → DotCraft → MCP Gateway Setup** and choose Claude Code, Codex, or Cursor.
-3. Start your coding agent from the project root.
-
-### Chat inside Unity
-
-![AI Assistant](https://github.com/DotHarness/resources/raw/master/dotcraft-unity/assistant.png)
-
-1. Open **Tools → DotCraft → AI Assistant**.
-2. Select **DotCraft** or **Custom ACP Agent** in **Project Settings → DotCraft**.
-3. Click **Connect**.
-
-When **DotCraft** is selected, enabled C# automation and custom project tools are available directly in the conversation without MCP setup.
-
-### Add project-specific tools
-
-1. Create a static Editor method marked with `[AgentTool]`.
-2. Let Unity compile.
-3. Enable the tool in **Project Settings → DotCraft → Unity Tools**.
-4. Use it from DotCraft, an MCP client, or `dotcraft-unity call`.
-
-See [Custom project tools](./Documentations/dynamic-tools.md) for the registration contract and supported parameter types.
 
 ## License
 
