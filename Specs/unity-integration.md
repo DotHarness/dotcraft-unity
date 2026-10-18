@@ -70,6 +70,12 @@ and continuation helpers resume on that thread across frames, elapsed time or a
 bounded predicate wait. Callers must not block the main thread while awaiting a
 continuation.
 
+Attach treats `EditorApplication.isCompiling` and `EditorApplication.isUpdating`
+as diagnostic state, not admission conditions for C# execution. A pending script
+compilation can wait for Play Mode to end, so queries and snippets that exit Play
+Mode must remain executable through the main-thread queue. Individual Unity APIs
+may still reject an operation; execution returns their actual errors.
+
 The UPM integration invokes the Windows x64 CLI from the stable per-user location
 `~/.craft/bin/dotcraft-unity.exe`. Compilation uses a versioned request/response
 protocol over standard input and output. The CLI compiles against the Editor's

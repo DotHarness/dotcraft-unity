@@ -128,6 +128,7 @@ try
     {
         await client.Execute("acceptance", "EditorApplication.isPlaying = false; EditorSettings.enterPlayModeOptionsEnabled = (bool)Args[\"enabled\"]; EditorSettings.enterPlayModeOptions = (EnterPlayModeOptions)(int)Args[\"options\"]; return true;", settings["result"]!.AsObject(), false, 1000);
     }
+    await BusyExecutionAcceptance.Run(client, pid, evidence);
     evidence["passed"] = true;
 }
 catch (Exception error)
