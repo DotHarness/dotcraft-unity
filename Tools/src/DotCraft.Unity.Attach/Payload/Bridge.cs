@@ -425,7 +425,6 @@ namespace DotCraft.Unity
             try
             {
                 if (Thread.CurrentThread.ManagedThreadId != mainThread) throw new InvalidOperationException("Main thread changed.");
-                if (EditorApplication.isCompiling || EditorApplication.isUpdating) throw new InvalidOperationException("Editor is busy.");
                 var assembly = Assembly.LoadFrom(execution.AssemblyPath);
                 var type = assembly.GetType(execution.EntryType, false);
                 if (type == null) throw new ExecutionEntryPointException("The compiled Unity entry type was not found.");
