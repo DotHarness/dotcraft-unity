@@ -3,6 +3,7 @@ using DotCraft.Context.WorldState;
 using DotCraft.Plugins;
 using DotCraft.Sessions;
 using DotCraft.Tools;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DotCraft.Unity;
 
@@ -20,8 +21,10 @@ public sealed class Plugin : IDotCraftPlugin
         var service = UnityAttachService.CreateDefault();
         context.Lifetime.OwnAsync(service);
         context.Contributions.Add<IToolSource>(new UnityToolSource(service, context.WorkspaceRoot));
-        // A host without sessions, such as a lent computer, accepts only tools.
-        if (context.Services.GetService(typeof(ISessionService)) is null)
+        // A host without sessions, such as a lent computer, accepts only tools. Asked rather than resolved:
+        // a workspace host builds its session service only after its plugins have activated.
+        if (context.Services.GetService(typeof(IServiceProviderIsService)) is not IServiceProviderIsService registered
+            || !registered.IsService(typeof(ISessionService)))
             return ValueTask.CompletedTask;
         context.Contributions.Add<IWorldStateSection>(new UnityEditorSection(service.GetEditorState));
         context.Lifetime.Run(new UnityExecutionNotifier(service, context.Services).RunAsync);
