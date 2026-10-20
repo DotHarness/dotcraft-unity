@@ -27,7 +27,9 @@ The native DotCraft plugin has the stable source ID `DotCraft.Unity`. It exposes
 `unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.recompile`,
 `unity.wait` and `unity.disconnect` through Attach, and contributes the Editor
 world-state section described below. Activation only registers these contributions
-and must not attach to an Editor. List, status and non-terminating wait are
+and must not attach to an Editor. A host without sessions, such as a computer lent to
+run another host's tools, accepts only tools, so there activation registers the tools
+without the section or execution notifications. List, status and non-terminating wait are
 available in Plan mode; connect, execute, recompile and disconnect require approval
 and are unavailable there.
 

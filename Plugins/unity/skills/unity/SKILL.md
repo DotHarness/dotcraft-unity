@@ -21,7 +21,7 @@ Load only the reference needed for the task:
 
 Call `unity.status`, `unity.execute`, `unity.recompile`, and `unity.disconnect` without a PID. After managed Domain Reload, the native observer coordinates bridge recovery, and `unity.execute` and `unity.recompile` reconnect the selected Editor themselves; old executions and compiled contexts remain invalid. Do not replay the call that caused a reload. A new task must select its own Editor with `unity.connect(pid)`.
 
-While the task has an Editor selected, your context includes a `## Unity Editor` block with the project, Editor version and PID, connection (ready, reloading scripts, recovering, or no longer running), Play Mode, and the latest script compilation with its errors. It is updated only when that state changes, so read it instead of polling `unity.status`. When the task disconnects or the Editor exits, the block says so once.
+While the task has an Editor selected, your context includes a `## Unity Editor` block with the project, Editor version and PID, connection (ready, reloading scripts, recovering, or no longer running), Play Mode, and the latest script compilation with its errors. It is updated only when that state changes, so read it instead of polling `unity.status`. When the task disconnects or the Editor exits, the block says so once. When these tools run on a computer lent to your task, there is no such block; call `unity.status` when you need the state.
 
 Use `unity.disconnect` to release this task's connection. It does not disconnect other clients or unload assemblies already loaded in the Editor.
 
@@ -80,6 +80,8 @@ After editing project scripts, call `unity.recompile` once. It imports changed a
 ## Failures and reloads
 
 A timeout can mean the code started but the result was not received. Inspect Editor state before deciding what happened and never replay the operation automatically.
+
+`UnityAttachHandshakeTimeout` means the Editor's main thread did not answer: a long import, scene load, or hang is holding it. Attach cannot succeed until that ends, so do not retry it in a loop; measure the blocked Editor from outside it, or wait until it responds.
 
 Snippet compilation errors report the failing C# diagnostics. Resolve ambiguous Unity and System type names with fully qualified names. Internal Unity APIs vary by version; inspect their members with reflection instead of repeatedly guessing signatures.
 
