@@ -45,7 +45,6 @@ jobs:
     permissions:
       contents: write
     runs-on: windows-latest
-    environment: unity-release
     steps:
       - uses: actions/checkout@v6
       - uses: actions/download-artifact@v4
@@ -53,14 +52,12 @@ jobs:
           name: unity-release-candidate
           path: artifacts/release
       - name: Verify release candidate
-        id: candidate
         shell: pwsh
         run: |
           ./Tools/scripts/verify-package.ps1 -ArtifactDirectory artifacts/release
           $manifest = Get-Content artifacts/release/release-manifest.json -Raw | ConvertFrom-Json
           if ($manifest.commit -cne '${{ github.sha }}' -or $manifest.sourceDirty -ne $false) { throw 'Release candidate must be a clean build of this commit.' }
           if ('v' + $manifest.version -cne '${{ github.ref_name }}') { throw 'Release tag must match package.json version.' }
-          "version=$($manifest.version)" >> $env:GITHUB_OUTPUT
       - name: Prepare release notes
         shell: pwsh
         run: |
@@ -79,32 +76,13 @@ jobs:
             artifacts/release/dotcraft-unity.exe
             artifacts/release/artifact.json
             artifacts/release/install.ps1
-      - uses: actions/create-github-app-token@v2
-        id: app
-        with:
-          app-id: ${{ vars.MARKETPLACE_APP_ID }}
-          private-key: ${{ secrets.MARKETPLACE_APP_PRIVATE_KEY }}
-          owner: DotHarness
-          repositories: dotcraft-plugins
-      - uses: actions/checkout@v6
-        with:
-          repository: DotHarness/dotcraft-plugins
-          token: ${{ steps.app.outputs.token }}
-          path: marketplace
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Stage complete official plugin
-        shell: pwsh
-        run: ./Tools/scripts/sync-marketplace.ps1 -ArtifactDirectory artifacts/release -MarketplaceRoot marketplace
-      - uses: peter-evans/create-pull-request@v7
-        with:
-          path: marketplace
-          token: ${{ steps.app.outputs.token }}
-          branch: updates/unity-${{ steps.candidate.outputs.version }}
-          commit-message: Update unity to ${{ steps.candidate.outputs.version }}
-          title: Update unity to ${{ steps.candidate.outputs.version }}
-          body: Complete Unity plugin binaries, skill and release provenance from the verified dotcraft-unity release. Maintainer review and merge are required.
-          add-paths: |
-            plugins/unity/**
-            .craft/plugins/marketplace.json
+
+  publish:
+    needs: release
+    uses: DotHarness/dotcraft-plugins/.github/workflows/publish-plugin.yml@main
+    with:
+      artifact: unity-release-candidate
+      category: Engineering
+      plugin-path: Unity
+      provenance: release-manifest.json
+    secrets: inherit
