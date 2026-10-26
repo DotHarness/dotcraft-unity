@@ -116,6 +116,6 @@ dotcraft-unity recompile --backend attach --pid 12345 --project-root $projectRoo
 It sends one request, then waits up to `--wait-ms` (default 60000, at most 120000) for that
 compilation and the bridge recovery after its Domain Reload. Success reports whether a reload
 happened. `CompilationFailed` carries the compiler errors in `result.errors`.
-`RecompileStillRunning` means the wait ended first: do not run it again; read `status` until its
-compilation sequence is greater than the one reported. After success, make a new read-only probe
-and inspect the Console.
+`RecompileStillRunning` means the wait ended first: do not run it again. Follow
+[compilation-and-reload.md](compilation-and-reload.md) to wait for it. After success, make a new
+read-only probe and inspect the Console.

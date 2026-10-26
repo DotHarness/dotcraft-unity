@@ -177,8 +177,9 @@ by its sequence number, rather than one that was already running. A failed
 compilation returns its errors. A successful one waits for the resulting Domain
 Reload to finish recovery, or for the Editor to settle without a reload. The request
 is sent once; a wait that ends before the outcome returns the current state and the
-sequence to watch, and leaves the outcome to the world-state section or, for the
-standalone tool, to status.
+baseline sequence, and leaves the outcome to the world-state section or, for the
+standalone tool, to status. A compilation publishes its sequence when it starts, so only
+a newer finished record is an outcome.
 
 A background execution that finishes after its initial wait notifies its task once,
 unless the task already observed the terminal state through `unity.wait`. A running

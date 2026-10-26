@@ -127,8 +127,9 @@ internal sealed class AttachToolClient(string projectRoot, int? pid, IAttachConn
                     $"Compilation failed with {result["errorCount"]} error(s).\n" + string.Join("\n", errors), element, watch);
             case "running":
                 return Failure(name, "RecompileStillRunning",
-                    $"Compilation {result["sequence"]} is still {result["phase"]}. Do not request it again; " +
-                    "watch status until the latest compilation sequence is greater than this one.", element, watch);
+                    $"Recompilation is still {result["phase"]} (baseline sequence {result["sequence"]}). Do not request it again; " +
+                    "watch status for a newer finished compilation and check whether it succeeded. If its connection is not " +
+                    "Ready, run one read-only exec probe to reattach before continuing.", element, watch);
             case "unknown":
                 return Failure(name, "UnityOutcomeUnknown",
                     "The recompile request may or may not have reached Unity. Read status instead of requesting it again.", element, watch);

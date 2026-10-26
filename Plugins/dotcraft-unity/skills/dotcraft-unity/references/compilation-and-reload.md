@@ -18,8 +18,10 @@ running:
 - Success with `domainReloaded: true` means the new scripts are loaded and the bridge recovered;
   `domainReloaded: false` means the Editor settled without a reload.
 - `CompilationFailed` returns the compiler errors. Fix them and recompile again.
-- `RecompileStillRunning` means the wait ended first. Do not request it again; read Attach
-  `status` until its compilation sequence is greater than the reported one.
+- `RecompileStillRunning` means the wait ended first. Do not request it again. A compilation
+  publishes its new sequence when it starts, so a newer sequence alone does not mean it finished.
+  Read Attach `status` until `compile` has a sequence newer than the reported baseline with
+  `finished: true`, then check `succeeded`.
 - `UnityOutcomeUnknown` means the request may or may not have reached Unity. Read `status` instead
   of requesting it again.
 
