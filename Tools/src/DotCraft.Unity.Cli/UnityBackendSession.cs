@@ -33,12 +33,14 @@ internal sealed class UnityBackendSession : IUnityToolClient, IAsyncDisposable
     {
         if (Backend == "gateway") return _store.ReadManifestOrDefault(out source);
         source = "attach";
-        var manifest = DefaultManifest.Create();
+        var manifest = DefaultManifest.CreateAttach();
         manifest.Revision = "attach:" + GatewayConstants.ProductVersion;
         return manifest;
     }
 
     public IReadOnlyList<AttachTarget> ListAttachTargets() => _attach.ListTargets();
+
+    public UnityEditorState? PeekAttachState(int pid) => _attach.PeekState(pid);
 
     public async Task<UnityToolGatewayResult> CallAsync(string name, IDictionary<string, JsonElement>? arguments,
         CancellationToken cancellationToken, string? sessionId = null)
@@ -60,8 +62,8 @@ internal sealed class UnityBackendSession : IUnityToolClient, IAsyncDisposable
                 }
                 else
                 {
-                    if (name != GatewayConstants.ExecuteCSharpToolName)
-                        return Failure(name, "ToolNotFound", "Attach supports unity_execute_csharp; project tools require the Gateway backend.");
+                    if (name is not (GatewayConstants.ExecuteCSharpToolName or GatewayConstants.RecompileToolName))
+                        return Failure(name, "ToolNotFound", "Attach supports unity_execute_csharp and unity_recompile; project tools require the Gateway backend.");
                     var error = _attach.ValidateTarget();
                     if (error != null) return Failure(name, "UnityUnavailable", error);
                 }

@@ -28,6 +28,11 @@ wait is not proof that Unity stopped; inspect state after an uncertain transport
 replay automatically. On Gateway, use a durable operation file for work that must survive Domain Reload. Attach-only
 Editors require a persistent project integration or an external workflow for that purpose.
 
+Project work that finishes after the snippet returns, such as loading a scene, is best awaited in
+the same call with a bounded `ctx.WaitUntil`. If it must outlive the call, return an operation ID
+and a status probe with one explicit terminal field, such as `settled: true`, and poll on that
+field. A poll that waits for a guessed state name keeps running after the work has finished.
+
 ## Logs Return With Full Stack Traces
 
 Gateway attaches logs emitted **while the snippet runs**, with stack traces. Attach
@@ -51,36 +56,22 @@ account for most of them.
 `Object` fails. Write `UnityEngine.Object.DestroyImmediate(...)`. The same applies to `Random`
 and `Debug`.
 
+**Project types without their namespace.** Snippets import only System, Unity, Newtonsoft and
+DotCraft namespaces, so qualify project types fully; short names such as `Singleton<T>` often
+match several types.
+
 **A type or overload absent on this Editor.** Internal API carries no compatibility guarantee and
 differs between Unity versions. A direct reference to a missing method fails at compile time and
 takes the whole snippet with it, including the diagnostics you wrote to find out what happened.
 
-Two habits avoid this. Use `Dcu.Type(name, throwIfMissing:false)` and branch on `null` rather
-than letting a lookup throw mid-diagnosis. And when a call fails to compile, enumerate the type
-instead of guessing:
+Use `Dcu.Type(name, throwIfMissing:false)` and branch on `null` rather than letting a lookup throw
+mid-diagnosis. When a call fails to compile, enumerate the type instead of guessing:
 
 ```csharp
-using System.Linq;
-using System.Reflection;
-
-const string TYPE = "UnityEditor.SceneManagement.EditorSceneManager";  // the type you are about to call
-const string NEEDLE = "Save";                                          // part of the method name
-
-var t = Dcu.Type(TYPE, throwIfMissing:false);
-if (t == null) return TYPE + " is not present on this Editor.";
-var found = t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic
-        | BindingFlags.Static | BindingFlags.Instance)
-    .Where(m => m.Name.Contains(NEEDLE))
-    .Select(m => m.Name + "(" + string.Join(", ", m.GetParameters()
-        .Select(p => p.ParameterType.Name + " " + p.Name)) + ") -> " + m.ReturnType.Name)
-    .ToArray();
-return found.Length == 0
-    ? "no method matching '" + NEEDLE + "' on " + TYPE
-    : string.Join("\n", found);
+return Dcu.Members("UnityEditor.SceneManagement.EditorSceneManager", "Save", true, 40);
 ```
 
-This is usually faster than reading engine source, and it gives a definite answer: a documented
-API that enumerates to an empty list is genuinely absent on this Editor, not being called wrongly.
+An empty list is a definite answer: the member is absent on this Editor, not being called wrongly.
 
 ## Reaching Internal API
 

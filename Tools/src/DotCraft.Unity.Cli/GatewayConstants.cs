@@ -16,6 +16,9 @@ internal static class GatewayConstants
     public const string ToolGatewaySessionHeader = "X-DotCraft-Unity-Session";
     public const string ToolGatewayCallPath = "/dotcraft-unity/call";
     public const string ExecuteCSharpToolName = "unity_execute_csharp";
+    public const string RecompileToolName = "unity_recompile";
+    public const int DefaultRecompileYieldMs = 60_000;
+    public const int MaxRecompileYieldMs = 120_000;
     public const string DiscoveryRelativePath = "UserSettings/DotCraft/dotcraft-unity.json";
     public const string ManifestRelativePath = "UserSettings/DotCraft/tools.json";
 

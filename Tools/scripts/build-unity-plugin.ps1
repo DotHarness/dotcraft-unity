@@ -26,7 +26,9 @@ foreach ($name in @('.craft-plugin','assets','skills','settings.schema.json')) {
 }
 Copy-Item -LiteralPath "$desktop/dist" -Destination "$bundle/desktop" -Recurse
 New-Item -ItemType Directory -Path "$bundle/skills/unity/scripts" -Force | Out-Null
-Copy-Item -LiteralPath "$root/Plugins/dotcraft-unity/skills/dotcraft-unity/scripts/console-read.cs" -Destination "$bundle/skills/unity/scripts/console-read.cs"
+foreach ($script in @('console-read.cs','camera-render.cs','editor-window-rect.cs','Capture-EditorWindow.ps1')) {
+    Copy-Item -LiteralPath "$root/Plugins/dotcraft-unity/skills/dotcraft-unity/scripts/$script" -Destination "$bundle/skills/unity/scripts/$script"
+}
 $manifestPath = "$bundle/.craft-plugin/plugin.json"
 $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
 $manifest.version = $version

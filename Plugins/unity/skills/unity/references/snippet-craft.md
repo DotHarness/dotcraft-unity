@@ -4,7 +4,7 @@ Use this reference when `unity.execute` fails to compile, times out, or returns 
 
 ## Compilation errors
 
-Read the Roslyn diagnostics before changing the snippet. `System.Object`, `Random`, and `Debug` can conflict with Unity types; qualify the intended type when needed. Internal Unity APIs vary by Editor version, so inspect a type with `Dcu.Members` instead of guessing members repeatedly:
+Read the Roslyn diagnostics before changing the snippet. `System.Object`, `Random`, and `Debug` can conflict with Unity types; qualify the intended type when needed. Snippets import only System, Unity, Newtonsoft and DotCraft namespaces, so qualify project types fully; short names such as `Singleton<T>` often match several types. Internal Unity APIs vary by Editor version, so inspect a type with `Dcu.Members` instead of guessing members repeatedly:
 
 ```csharp
 var type = Dcu.Type("UnityEditor.SceneManagement.EditorSceneManager", false);
@@ -16,6 +16,8 @@ return type == null ? null : Dcu.Members(type, "Save", true, 40);
 Use `await ctx.WaitFrame()`, `WaitFrames`, `WaitSeconds`, or `WaitUntil` when Unity must advance before the result can be read. These helpers resume the snippet on the Editor main thread. Do not block that thread with `Thread.Sleep` or a busy loop.
 
 Use background execution when the work can outlive the initial tool call. The task is notified once when it finishes; use `unity.wait` with the returned execution ID only to check it sooner or cancel it. Cancellation is cooperative; a synchronous loop must call `ctx.ThrowIfCancellationRequested()`.
+
+Project work that finishes after the snippet returns, such as loading a scene, is best awaited in the same call with a bounded `ctx.WaitUntil`. If it must outlive the call, return an operation ID and a status probe with one explicit terminal field, such as `settled: true`, and poll on that field. A poll that waits for a guessed state name keeps running after the work has finished.
 
 ## Unknown and lost results
 

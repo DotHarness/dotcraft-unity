@@ -25,8 +25,9 @@ public sealed class McpProtocolTests : IDisposable
         await using var client = await CreateClientAsync();
 
         var initialTools = await client.ListToolsAsync(cancellationToken: TestContext.Current.CancellationToken);
-        var execute = Assert.Single(initialTools);
-        Assert.Equal(GatewayConstants.ExecuteCSharpToolName, execute.Name);
+        Assert.Equal([GatewayConstants.ExecuteCSharpToolName, GatewayConstants.RecompileToolName],
+            initialTools.Select(tool => tool.Name));
+        var execute = initialTools[0];
 
         var unavailable = await client.CallToolAsync(
             execute.Name,

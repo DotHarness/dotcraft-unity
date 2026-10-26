@@ -13,7 +13,8 @@ public sealed class BackendSelectionTests
         await using var session = new UnityBackendSession(new(fixture.Root), "attach", attach: attach);
         var manifest = session.ReadManifest(out var source);
         Assert.Equal("attach", source);
-        Assert.Equal(GatewayConstants.ExecuteCSharpToolName, Assert.Single(manifest.Tools).Name);
+        Assert.Equal([GatewayConstants.ExecuteCSharpToolName, GatewayConstants.RecompileToolName],
+            manifest.Tools.Select(tool => tool.Name));
         Assert.Single(session.ListAttachTargets());
         Assert.Equal(0, attach.ConnectCount);
         var result = await session.CallAsync("project_custom", null, TestContext.Current.CancellationToken);
@@ -171,6 +172,46 @@ public sealed class BackendSelectionTests
         Assert.Equal("return 123;", attach.LastCode);
     }
 
+    [Fact]
+    public async Task RecompileSendsOneRequestAndReportsCompilerErrors()
+    {
+        using var fixture = new CliFixture();
+        var attach = new FakeAttach(fixture.Root)
+        {
+            Recompile = (_, _) => Task.FromResult(new JsonObject
+            {
+                ["state"] = "completed", ["succeeded"] = false, ["sequence"] = 4, ["errorCount"] = 1, ["warningCount"] = 0,
+                ["errors"] = new JsonArray(new JsonObject { ["file"] = "A.cs", ["line"] = 3, ["column"] = 5, ["message"] = "CS1002" })
+            })
+        };
+        await using var session = new UnityBackendSession(new(fixture.Root), "attach", attach: attach);
+        var result = await session.CallAsync(GatewayConstants.RecompileToolName,
+            new Dictionary<string, JsonElement> { ["yieldTimeMs"] = JsonSerializer.SerializeToElement(500) },
+            TestContext.Current.CancellationToken);
+        Assert.False(result.Success);
+        Assert.Equal("CompilationFailed", result.ErrorCode);
+        Assert.Contains("A.cs(3,5): CS1002", result.ErrorMessage);
+        Assert.Equal(1, attach.RecompileCount);
+        Assert.Equal(500, attach.LastYieldTimeMs);
+        Assert.Equal(0, attach.ExecuteCount);
+    }
+
+    [Fact]
+    public async Task RecompileStillRunningIsNotSuccessAndIsNotRequestedAgain()
+    {
+        using var fixture = new CliFixture();
+        var attach = new FakeAttach(fixture.Root)
+        {
+            Recompile = (_, _) => Task.FromResult(new JsonObject { ["state"] = "running", ["phase"] = "reloading", ["sequence"] = 7 })
+        };
+        await using var session = new UnityBackendSession(new(fixture.Root), "attach", attach: attach);
+        var result = await session.CallAsync(GatewayConstants.RecompileToolName, null, TestContext.Current.CancellationToken);
+        Assert.False(result.Success);
+        Assert.Equal("RecompileStillRunning", result.ErrorCode);
+        Assert.Equal(GatewayConstants.DefaultRecompileYieldMs, attach.LastYieldTimeMs);
+        Assert.Equal(1, attach.RecompileCount);
+    }
+
     private static Dictionary<string, JsonElement> Code() => new() { ["code"] = JsonSerializer.SerializeToElement("return 42;") };
 
     private sealed class FakeAttach(string project) : IAttachConnection
@@ -181,6 +222,9 @@ public sealed class BackendSelectionTests
         public int LastPid { get; private set; }
         public string? LastCode { get; private set; }
         public Func<CancellationToken, Task<JsonObject>>? Execute { get; init; }
+        public Func<int, CancellationToken, Task<JsonObject>>? Recompile { get; init; }
+        public int RecompileCount { get; private set; }
+        public int LastYieldTimeMs { get; private set; }
         public IReadOnlyList<AttachTarget> List() => Targets;
         public Task<JsonObject> ConnectAsync(int pid, CancellationToken cancellationToken)
         {
@@ -192,6 +236,15 @@ public sealed class BackendSelectionTests
             ExecuteCount++; LastCode = code;
             return Execute?.Invoke(cancellationToken) ?? Task.FromResult(new JsonObject { ["state"] = "completed", ["result"] = 42 });
         }
+        public Task<JsonObject> RecompileAsync(int yieldTimeMs, CancellationToken cancellationToken)
+        {
+            RecompileCount++; LastYieldTimeMs = yieldTimeMs;
+            return Recompile?.Invoke(yieldTimeMs, cancellationToken) ?? Task.FromResult(new JsonObject
+            {
+                ["state"] = "completed", ["succeeded"] = true, ["sequence"] = 1, ["warningCount"] = 0, ["domainReloaded"] = true
+            });
+        }
+        public UnityEditorState? PeekState(int pid) => null;
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }
