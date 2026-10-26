@@ -179,4 +179,31 @@ internal static class DefaultManifest
             ]
         };
     }
+
+    public static ToolManifest CreateAttach()
+    {
+        using var schema = JsonDocument.Parse($$"""
+        {
+          "type": "object",
+          "properties": {
+            "yieldTimeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": {{GatewayConstants.MaxRecompileYieldMs}},
+              "description": "Milliseconds to wait for compilation and reload before returning the current state. Defaults to {{GatewayConstants.DefaultRecompileYieldMs}}."
+            }
+          },
+          "additionalProperties": false
+        }
+        """);
+
+        var manifest = Create();
+        manifest.Tools.Add(new ToolManifestEntry
+        {
+            Name = GatewayConstants.RecompileToolName,
+            Description = "Import changed assets and compile scripts once, then wait for that compilation and the Domain Reload it triggers. Returns compiler errors when compilation fails. Never call it again for a compilation that is still running.",
+            InputSchema = schema.RootElement.Clone()
+        });
+        return manifest;
+    }
 }

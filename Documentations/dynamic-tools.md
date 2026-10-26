@@ -6,7 +6,7 @@ This document defines how Unity Editor code exposes Custom Project Tools through
 
 - Custom Project Tools are declared to in-editor ACP sessions only when **Project Settings > DotCraft > Agent** is `DotCraft`.
 - `Custom ACP` agents connected through the in-editor chat do not receive these tools, even if they support ACP extension methods.
-- Enabled Custom Project Tools are also available through the standalone MCP/CLI with `--backend gateway`. Attach exposes only C# execution and does not discover or dispatch custom project tools.
+- Enabled Custom Project Tools are also available through the standalone MCP/CLI with `--backend gateway`. Attach exposes C# execution and recompilation and does not discover or dispatch custom project tools.
 - Tools are discovered from loaded Editor assemblies that reference `DotCraft.Editor`.
 - A tool method must be `static`, non-generic, and must not use `ref` or `out` parameters.
 - Newly discovered custom tools default to disabled. Users enable them in **Project Settings > DotCraft > Unity Tools > Custom Project Tools**.

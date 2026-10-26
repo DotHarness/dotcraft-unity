@@ -10,6 +10,8 @@ internal interface IAttachConnection : IAsyncDisposable
     IReadOnlyList<AttachTarget> List();
     Task<JsonObject> ConnectAsync(int pid, CancellationToken cancellationToken);
     Task<JsonObject> ExecuteAsync(string code, JsonObject? args, CancellationToken cancellationToken);
+    Task<JsonObject> RecompileAsync(int yieldTimeMs, CancellationToken cancellationToken);
+    UnityEditorState? PeekState(int pid);
 }
 
 internal sealed class AttachConnection : IAttachConnection
@@ -32,6 +34,11 @@ internal sealed class AttachConnection : IAttachConnection
 
     public Task<JsonObject> ExecuteAsync(string code, JsonObject? args, CancellationToken cancellationToken) =>
         Service.Execute(_owner, code, args, false, 1000, cancellationToken);
+
+    public Task<JsonObject> RecompileAsync(int yieldTimeMs, CancellationToken cancellationToken) =>
+        Service.Recompile(_owner, yieldTimeMs, cancellationToken);
+
+    public UnityEditorState? PeekState(int pid) => Service.PeekState(pid);
 
     public async ValueTask DisposeAsync()
     {

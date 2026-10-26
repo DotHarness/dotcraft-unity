@@ -10,18 +10,28 @@ The old execution/context is invalid and may report lost or unknown. Recovery re
 connection, not the execution or its result. If recovery is unavailable or no fresh handshake
 arrives, report that failure instead of repeatedly injecting or resending the mutation.
 
-Request compilation or reload only once, after authorized source changes:
+After authorized source changes, call `unity_recompile` once, or `dotcraft-unity recompile` from
+the CLI (see [cli.md](cli.md)). It imports changed assets, requests one script compilation and
+waits for that compilation, identified by its sequence number, rather than one that was already
+running:
 
-```csharp
-UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
-return "compilation requested";
-```
+- Success with `domainReloaded: true` means the new scripts are loaded and the bridge recovered;
+  `domainReloaded: false` means the Editor settled without a reload.
+- `CompilationFailed` returns the compiler errors. Fix them and recompile again.
+- `RecompileStillRunning` means the wait ended first. Do not request it again. A compilation
+  publishes its new sequence when it starts, so a newer sequence alone does not mean it finished.
+  Read Attach `status` until `compile` has a sequence newer than the reported baseline with
+  `finished: true`, then check `succeeded`.
+- `UnityOutcomeUnknown` means the request may or may not have reached Unity. Read `status` instead
+  of requesting it again.
 
-For reload without compilation, use `UnityEditor.EditorUtility.RequestScriptReload()` instead.
-Afterward, issue a new bounded read-only probe through the same backend and selected project/PID.
-The host can reconnect to the recovered bridge before this independent call. Verify that the
-Editor is not compiling or importing, then inspect the Console. Compilation can fail without a
-Domain Reload, so a connection or unchanged generation alone does not establish success.
+Do not request compilation from a snippet and then poll `EditorApplication.isCompiling`: it is
+still false before the requested compilation starts, so the first probe can pass before anything
+compiled. If the installed CLI has no `recompile` command, update it first.
+
+For reload without compilation, call `UnityEditor.EditorUtility.RequestScriptReload()` once from a
+snippet. Afterward, issue a new bounded read-only probe through the same backend and selected
+project/PID. Verify that the Editor is not compiling or importing, then inspect the Console.
 
 `DcuLongRunningOperation`, `unity-operation.cs`, and `Wait-DotCraftUnityOperation.ps1` belong to
 UPM/Gateway. Do not call them on Attach-only Editors. Work that must resume after reload needs a

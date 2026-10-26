@@ -6,67 +6,32 @@ window looks like — GameView, SceneView, or the Editor as a whole.
 ## Capture from outside the process
 
 Capture the Editor window at the OS level so the operation does not focus, show, or lay out Unity
-windows or force another render.
-
-This captures the whole Editor window, not a single pane. See
-[Cropping to one pane](#cropping-to-one-pane) if a single pane is required.
-
-`PrintWindow` with `PW_RENDERFULLCONTENT` (flag `2`) — the flag is required for
-hardware-accelerated windows, which the Editor is.
+windows or force another render. Run the bundled `scripts/Capture-EditorWindow.ps1`:
 
 ```powershell
-param([int]$TargetPid, [string]$Out)
-Add-Type -AssemblyName System.Drawing
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
-public class WinCap {
-    [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr dc, uint flags);
-    [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
-    [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
-    [StructLayout(LayoutKind.Sequential)] public struct RECT { public int L, T, R, B; }
-}
-"@
-$h = (Get-Process -Id $TargetPid).MainWindowHandle
-if ($h -eq [IntPtr]::Zero) { throw "no main window" }
-if ([WinCap]::IsIconic($h)) { throw "window is minimised - capture would be blank" }
-
-$r = New-Object WinCap+RECT
-[void][WinCap]::GetWindowRect($h, [ref]$r)
-$w = $r.R - $r.L; $ht = $r.B - $r.T
-$bmp = New-Object System.Drawing.Bitmap $w, $ht
-$gfx = [System.Drawing.Graphics]::FromImage($bmp)
-$hdc = $gfx.GetHdc()
-try { $ok = [WinCap]::PrintWindow($h, $hdc, 2) } finally { $gfx.ReleaseHdc($hdc) }
-if (-not $ok) { $gfx.CopyFromScreen($r.L, $r.T, 0, 0, (New-Object System.Drawing.Size $w, $ht)) }
-$bmp.Save($Out, [System.Drawing.Imaging.ImageFormat]::Png)
-$gfx.Dispose(); $bmp.Dispose()
-"saved $Out (${w}x${ht}, PrintWindow=$ok)"
+pwsh -File <skill-directory>/scripts/Capture-EditorWindow.ps1 -TargetPid <pid> -Out <absolute .png>
 ```
 
 Use the PID selected through `unity.list` and `unity.connect` so the right instance is captured
-when several Editors are running.
-
-The `CopyFromScreen` fallback only produces a correct image if the window is unoccluded, so treat
-a `PrintWindow=False` result as lower-confidence evidence.
+when several Editors are running. The result reports `PrintWindow=False` when it fell back to
+copying the screen, which is only correct for an unoccluded window; treat that image as
+lower-confidence evidence.
 
 ## Crop to one pane
 
-When a single pane is genuinely needed, read its rectangle from the Editor and crop the full-window
-capture to it. `EditorWindow.position` is public API:
+When a single pane is genuinely needed, run `scripts/editor-window-rect.cs` with `unity.execute`
+(`windowType`, default `UnityEditor.GameView`) to read its rectangle, then pass
+`-Crop "x,y,width,height"` to the capture script. The rectangle is in the Editor's coordinate
+space; window decoration, docking and display scaling offset it on the bitmap. Calibrate the offset
+once by capturing, cropping and checking the result; it then stays stable for that layout.
 
-```csharp
-using System.Linq;
-var t = Dcu.Type("UnityEditor.SceneView", throwIfMissing:false);   // or the window type you want
-if (t == null) return "window type not present";
-var win = Resources.FindObjectsOfTypeAll(t).OfType<EditorWindow>().FirstOrDefault();
-return win == null ? "not open" : win.position.ToString();
-```
+## Render a camera viewpoint
 
-Verify the coordinate mapping once on the target setup before relying on it: the rect is reported
-in the Editor's own coordinate space, and how that maps onto the captured bitmap depends on window
-decoration, docking and display scaling. Capture once, crop, and eyeball the result — after that
-the offset is stable for that layout.
+When the user needs a specific viewpoint rather than what the window shows, run
+`scripts/camera-render.cs` with `out` (absolute `.png` path) and optionally `camera`, `width`,
+`height` and `frames`. It renders at the Game view size, waits out temporal history, disables
+asynchronous shader compilation while rendering, and restores the camera afterwards. It forces
+extra renders, so do not use it as evidence for a performance or memory measurement.
 
 ## Read the result
 
@@ -74,6 +39,6 @@ Check the image rather than assuming success. A blank or black capture is a sign
 on, not something to retry: a minimised or long-backgrounded Editor may not be redrawing at all,
 which also invalidates any measurement taken at that moment.
 
-The output should show the Editor window as it appears on screen. If the user asked specifically
-about GameView content and no camera is rendering, the capture will faithfully show that — check
-`Camera.allCamerasCount` before concluding the capture failed.
+A uniform or unexpected image can be the real view: compare it with a window capture before
+concluding that the render failed. If no camera is rendering, the capture faithfully shows that;
+check `Camera.allCamerasCount`.

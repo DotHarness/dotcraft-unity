@@ -155,6 +155,21 @@ public sealed class UnityAttachService(string cacheRoot, string nativeBootstrapP
     public UnityEditorState? GetEditorState(string threadId) =>
         selected.TryGetValue(threadId, out var target) ? ReadState(target) : null;
 
+    /// <summary>Reads an Editor's published state from local files without selecting or contacting it.</summary>
+    public UnityEditorState? PeekState(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            var startedUtc = process.StartTime.ToUniversalTime();
+            return stateFiles.Read(AttachStorage.Connection(CacheRoot, pid, startedUtc), pid, startedUtc, !process.HasExited);
+        }
+        catch (Exception e) when (e is ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+
     /// <summary>Imports changed assets and requests one script compilation, then waits for its outcome without replaying it.</summary>
     public async Task<JsonObject> Recompile(string threadId, int yieldTimeMs, CancellationToken cancellationToken = default)
     {

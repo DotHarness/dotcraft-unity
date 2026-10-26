@@ -11,7 +11,7 @@ Load only the reference needed for the task:
 
 - For loaded-type lookup and reflection helpers, read [references/api.md](references/api.md).
 - For Console logs, read [references/console-reading.md](references/console-reading.md) and use the bundled script.
-- For Editor, GameView, or SceneView images, read [references/editor-screenshot.md](references/editor-screenshot.md).
+- For Editor, GameView, or SceneView images, or a specific camera viewpoint, read [references/editor-screenshot.md](references/editor-screenshot.md).
 - For script compilation or Domain Reload, read [references/compilation-and-reload.md](references/compilation-and-reload.md).
 - For snippet compilation errors, timeouts, or unexpected results, read [references/snippet-craft.md](references/snippet-craft.md).
 

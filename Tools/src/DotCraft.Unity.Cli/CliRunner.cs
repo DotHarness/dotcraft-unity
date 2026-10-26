@@ -25,11 +25,18 @@ internal static class CliRunner
             var targets = client.ListAttachTargets().Where(t => !command.ProcessId.HasValue || t.Pid == command.ProcessId)
                 .Where(t => t.Project != null && Path.TrimEndingDirectorySeparator(Path.GetFullPath(t.Project))
                     .Equals(Path.TrimEndingDirectorySeparator(store.ProjectRoot), StringComparison.OrdinalIgnoreCase)).ToArray();
+            var described = targets.Select(t => new { t.Pid, t.Project, t.Editor,
+                editorState = DescribeState(client.PeekAttachState(t.Pid)) }).ToArray();
             Write(command.Json, new { success = targets.Length == 1, backend = "attach", projectRoot = store.ProjectRoot,
-                targets, message = "Discovery only; no injection was performed and Editor readiness is not established." },
-                "Attach candidates: " + string.Join(", ", targets.Select(t => $"{t.Pid}: {t.Project}")));
+                targets = described, message = "Discovery only; no injection was performed. editorState is what the bridge last " +
+                    "published and is absent until this Editor has been attached; it does not establish readiness on its own." },
+                "Attach candidates:\n" + string.Join("\n",
+                    described.Select(t => $"{t.Pid}: {t.Project}\n  {StateText(t.editorState)}")));
             return targets.Length == 1 ? 0 : 1;
         }
+        if (command.Name == "recompile" && client.Backend == "gateway")
+            return WriteError(command.Json, "ToolNotFound",
+                "recompile uses Attach. With the Gateway, follow the durable compile operation in the skill's compilation reference.", 1);
         if (command.Name.StartsWith("tools ", StringComparison.Ordinal))
         {
             var manifest = client.ReadManifest(out var source);
@@ -44,10 +51,20 @@ internal static class CliRunner
                     : $"{t.Name}: {t.Description}\n{t.InputSchema}")));
             return 0;
         }
-        var arguments = command.Name == "call"
-            ? await ReadObjectAsync(command.Get("--arguments"), command.Get("--arguments-file"), cancellationToken)
-            : await BuildScriptArgumentsAsync(command, cancellationToken);
-        var name = command.Name == "call" ? command.ToolName! : GatewayConstants.ExecuteCSharpToolName;
+        var arguments = command.Name switch
+        {
+            "call" => await ReadObjectAsync(command.Get("--arguments"), command.Get("--arguments-file"), cancellationToken),
+            "recompile" => command.Get("--wait-ms") is { } waitMs
+                ? new Dictionary<string, JsonElement> { ["yieldTimeMs"] = JsonSerializer.SerializeToElement(int.Parse(waitMs)) }
+                : new Dictionary<string, JsonElement>(),
+            _ => await BuildScriptArgumentsAsync(command, cancellationToken)
+        };
+        var name = command.Name switch
+        {
+            "call" => command.ToolName!,
+            "recompile" => GatewayConstants.RecompileToolName,
+            _ => GatewayConstants.ExecuteCSharpToolName
+        };
         var result = await client.CallAsync(name, arguments, cancellationToken);
         Write(command.Json, result, result.Text ?? result.ErrorMessage ?? JsonSerializer.Serialize(result.Result, JsonOptions));
         return result.Success ? 0 : 1;
@@ -109,6 +126,27 @@ internal static class CliRunner
             $"Project: {store.ProjectRoot}\nProtocol: {GatewayConstants.ProtocolVersion}\n{message}");
         return success ? 0 : 1;
     }
+
+    private static object? DescribeState(UnityEditorState? state)
+    {
+        if (state?.Bridge is not { } bridge) return null;
+        return new
+        {
+            connection = state.Connection.ToString(),
+            bridge.PlayMode,
+            bridge.Compiling,
+            bridge.Reloading,
+            bridge.DomainEpoch,
+            compile = bridge.Compile is { } compile
+                ? new { compile.Sequence, finished = compile.FinishedUtc != null, compile.Succeeded, compile.ErrorCount,
+                    compile.WarningCount, compile.FinishedUtc }
+                : null
+        };
+    }
+
+    private static string StateText(object? state) => state == null
+        ? "no published Editor state (not attached since the Editor started)"
+        : JsonSerializer.Serialize(state, JsonOptions);
 
     public static int WriteError(bool json, string code, string message, int exitCode)
     {

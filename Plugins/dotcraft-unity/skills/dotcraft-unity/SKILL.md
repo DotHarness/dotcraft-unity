@@ -15,7 +15,7 @@ This skill governs Unity tool calls, especially `unity_execute_csharp`. It does 
 
 Prefer the available dotcraft-unity MCP tools. When MCP is not configured or not exposed in the current session, use `dotcraft-unity.exe` from PATH. Read `references/cli.md` for installation, project selection, command syntax, and result handling. CLI needs no MCP configuration. `--backend auto` selects Gateway when discovery or manifest state exists and Attach otherwise; explicit `gateway` and `attach` are available. Gateway requires the UPM integration; Attach requires a Windows x64 Mono Editor and can execute C# without UPM.
 
-Choose the transport before issuing the call. If a dispatched MCP or CLI call fails, times out, or disconnects, do not switch transports and replay it automatically: Unity may already have executed it. Gateway exposes its enabled tool registry. Attach exposes only `unity_execute_csharp`, not custom project tools. `status` and tool listing are read-only and never attach; `--pid` selects an Editor when needed.
+Choose the transport before issuing the call. If a dispatched MCP or CLI call fails, times out, or disconnects, do not switch transports and replay it automatically: Unity may already have executed it. Gateway exposes its enabled tool registry. Attach exposes `unity_execute_csharp` and `unity_recompile`, not custom project tools. `status` and tool listing are read-only and never attach; `--pid` selects an Editor when needed.
 
 ## Inline code or a saved script
 
@@ -39,7 +39,7 @@ Write project-specific scripts to `.craft/scripts/`. Before writing one, check w
 
 Load only the reference needed for the current task:
 
-- **Editor window screenshots**: Read `references/gameview-screenshot.md` when the user asks to capture, compare, inspect, or save what a Unity Editor window looks like — GameView, SceneView, or the whole Editor.
+- **Editor window screenshots**: Read `references/gameview-screenshot.md` when the user asks to capture, compare, inspect, or save what a Unity Editor window looks like — GameView, SceneView, or the whole Editor — or to render a specific camera viewpoint.
 - **Console reading**: Read `references/console-reading.md` when the user asks to inspect, summarize, search, or diagnose Unity Console logs.
 - **API helpers**: Read `references/api.md` when a `unity_execute_csharp` snippet needs loaded-type lookup or third-party component reflection.
 - **Snippet failure modes**: Read `references/snippet-craft.md` when a snippet times out, returns a wall of stack traces, fails to compile, or when the effect of a call is not visible in the same call.
@@ -51,7 +51,7 @@ Keep Unity in the background: prefer read-only inspection first, then make the s
 
 ## Waiting for Editor readiness
 
-For script compilation and Domain Reload, choose the backend-specific workflow in `references/compilation-and-reload.md`: Gateway durable operations or Attach native lifecycle recovery. Gateway uses its external PowerShell waiter; Attach verifies a fresh bridge handshake through the selected backend. Then issue a fresh bounded read-only call. Do not infer readiness from window focus, progress bars, Editor log silence, or a fixed delay.
+For script compilation and Domain Reload, choose the backend-specific workflow in `references/compilation-and-reload.md`: Gateway durable operations or Attach `unity_recompile` (CLI `recompile`). Gateway uses its external PowerShell waiter; Attach's recompile waits for its own compilation and the bridge recovery after it. Then issue a fresh bounded read-only call. Do not infer readiness from window focus, progress bars, Editor log silence, a fixed delay, or `EditorApplication.isCompiling` read right after a request: it is still false before the requested compilation starts. Any wait loop stops on a field the tool or script reports as terminal, never on a guessed state name, file name or time of day.
 
 For asset import or asynchronous Shader compilation that does not reload managed assemblies, use bounded external readiness probes. Require `EditorApplication.isUpdating` and `ShaderUtil.anythingCompiling` to be false in two consecutive successful probes before reporting readiness.
 

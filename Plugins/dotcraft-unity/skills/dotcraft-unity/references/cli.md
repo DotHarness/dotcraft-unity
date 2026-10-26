@@ -28,9 +28,9 @@ that same Windows x64 executable for external compilation. Gateway also exposes 
 project tools.
 
 Attach executes C# without installing the UPM package or enabling its Gateway. Pass `--pid` when
-multiple Editors match the project. Attach exposes only `unity_execute_csharp`; use Gateway for
-custom project tools, in-editor chat, and UPM durable-operation helpers. Calls do not install
-packages or download another executable.
+multiple Editors match the project. Attach exposes `unity_execute_csharp` and `unity_recompile`;
+use Gateway for custom project tools, in-editor chat, and UPM durable-operation helpers. Calls do
+not install packages or download another executable.
 
 ## Project and readiness
 
@@ -46,8 +46,11 @@ dotcraft-unity exec --code 'return Application.unityVersion;' --project-root $pr
 Pass the intended project explicitly when the agent is working outside that Unity project. Otherwise, CLI commands walk upward from the current directory to the nearest directory containing both `Assets` and `ProjectSettings`. MCP always requires `--project-root`.
 
 `status` and `tools list` / `tools describe` never inject. Gateway status validates discovery and
-checks TCP reachability with a two-second limit. Attach status lists matching project/PID candidates.
-Neither establishes Editor readiness. An `exec` version probe performs a real call and can attach
+checks TCP reachability with a two-second limit. Attach status lists matching project/PID candidates
+with `editorState`, the record each bridge last published: connection, play mode, compiling and
+reloading flags, and the latest compilation's sequence and outcome. It is absent until the Editor
+has been attached, and a `connection` other than `Ready` means it stopped at the last Domain
+Reload. Neither status establishes Editor readiness. An `exec` version probe performs a real call and can attach
 when Attach is selected. Do not print discovery files: they contain private authentication tokens.
 
 ## Execute C#
@@ -104,7 +107,15 @@ can report `UnityExecutionLost` or `UnityOutcomeUnknown` when a dispatched execu
 be recovered. Never automatically replay a dispatched request.
 
 For compilation or Domain Reload, follow [compilation-and-reload.md](compilation-and-reload.md).
-Gateway uses the UPM durable operation script and external waiter. Attach uses native lifecycle
-recovery to establish a fresh bridge; its old execution is still lost and must not be replayed.
-After recovery, make a new read-only probe and inspect the Console. A connection alone does not
-prove that compilation succeeded.
+Gateway uses the UPM durable operation script and external waiter. Attach uses `recompile`:
+
+```powershell
+dotcraft-unity recompile --backend attach --pid 12345 --project-root $projectRoot --json
+```
+
+It sends one request, then waits up to `--wait-ms` (default 60000, at most 120000) for that
+compilation and the bridge recovery after its Domain Reload. Success reports whether a reload
+happened. `CompilationFailed` carries the compiler errors in `result.errors`.
+`RecompileStillRunning` means the wait ended first: do not run it again. Follow
+[compilation-and-reload.md](compilation-and-reload.md) to wait for it. After success, make a new
+read-only probe and inspect the Console.

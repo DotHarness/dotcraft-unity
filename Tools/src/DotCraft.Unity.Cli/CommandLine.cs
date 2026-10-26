@@ -6,12 +6,13 @@ internal sealed class CommandLine
         Usage: dotcraft-unity <command> [options]
 
           mcp --project-root <path>               Run the stdio MCP server
-          status                                 Inspect discovery and TCP reachability
+          status                                 Inspect discovery, reachability and published Editor state
           tools list                             List cached tool definitions
           tools describe <name>                  Show a cached tool schema
           call <name> [--arguments <json> | --arguments-file <file|->]
           exec (--code <code> | --path <script> | --stdin)
                [--args <json> | --args-file <file|->] [--mode editor|playmode]
+          recompile [--wait-ms <ms>]             Compile scripts once and wait for that compilation (Attach)
           version                                Print build metadata
 
         CLI options: --project-root <path>, --backend auto|gateway|attach, --pid <id>, --json
@@ -56,6 +57,7 @@ internal sealed class CommandLine
             "status" or "tools list" or "tools describe" => ["--project-root", "--json", "--backend", "--pid"],
             "call" => ["--project-root", "--json", "--arguments", "--arguments-file", "--backend", "--pid"],
             "exec" => ["--project-root", "--json", "--code", "--path", "--stdin", "--args", "--args-file", "--mode", "--backend", "--pid"],
+            "recompile" => ["--project-root", "--json", "--wait-ms", "--backend", "--pid"],
             _ => throw new ArgumentException($"Unknown command '{command.Name}'. Run dotcraft-unity --help.")
         };
         if (index < args.Length && args[index] is "--help" or "-h")
@@ -94,6 +96,9 @@ internal sealed class CommandLine
             throw new ArgumentException("--pid must be a positive process ID.");
         if (command.Name == "mcp" && !command.Has("--project-root"))
             throw new ArgumentException("mcp requires --project-root <path>.");
+        if (command.Get("--wait-ms") is { } waitMs && (!int.TryParse(waitMs, out var wait) || wait < 0
+            || wait > GatewayConstants.MaxRecompileYieldMs))
+            throw new ArgumentException($"--wait-ms must be an integer from 0 to {GatewayConstants.MaxRecompileYieldMs}.");
         if (command.Name == "exec")
         {
             if (new[] { "--code", "--path", "--stdin" }.Count(command.Has) != 1)

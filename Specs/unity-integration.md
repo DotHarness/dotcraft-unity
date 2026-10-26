@@ -21,7 +21,10 @@ UPM integration.
 
 The standalone CLI and MCP server provide the external tool interface. They select
 either Gateway or Attach before dispatch. Gateway exposes the UPM integration's
-enabled tool registry; Attach exposes only `unity_execute_csharp`.
+enabled tool registry; Attach exposes `unity_execute_csharp` and `unity_recompile`,
+which has the same request-once semantics as the native `unity.recompile` described
+below. Attach status lists candidates and, without injecting, reports the Editor
+state record each candidate's bridge last published.
 
 The native DotCraft plugin has the stable source ID `DotCraft.Unity`. It exposes
 `unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.recompile`,
@@ -153,7 +156,9 @@ state record next to its rendezvous: bridge generation, domain epoch, play mode
 (edit, playing or paused), whether scripts are compiling, whether a Domain Reload
 has begun, and the latest script compilation. The bridge rewrites the record from
 the Editor main thread when one of those values changes, and only while it is
-active, so the record never claims more than the bridge observed. A compilation
+active, so the record never claims more than the bridge observed. A record whose
+connection is not ready describes the Editor as of its last reload, not its current
+state. A compilation
 carries a sequence number, its outcome and a bounded list of compiler errors. A
 fresh bridge carries the previous compilation forward, because the compilation
 that triggered a reload finished in the domain that reload discarded.
@@ -166,13 +171,15 @@ record and never contacts the Editor, so it is cheap at every sampling boundary
 and silent while nothing changes. When a task disconnects or its Editor exits,
 the section says so once and then stays silent.
 
-`unity.recompile` imports changed assets and requests one script compilation, then
-waits for that request's compilation, identified by its sequence number, rather
-than one that was already running. A failed compilation returns its errors. A
-successful one waits for the resulting Domain Reload to finish recovery, or for
-the Editor to settle without a reload. The request is sent once; a wait that ends
-before the outcome returns the current state and leaves the outcome to the
-world-state section.
+`unity.recompile` and the standalone `unity_recompile` import changed assets and
+request one script compilation, then wait for that request's compilation, identified
+by its sequence number, rather than one that was already running. A failed
+compilation returns its errors. A successful one waits for the resulting Domain
+Reload to finish recovery, or for the Editor to settle without a reload. The request
+is sent once; a wait that ends before the outcome returns the current state and the
+baseline sequence, and leaves the outcome to the world-state section or, for the
+standalone tool, to status. A compilation publishes its sequence when it starts, so only
+a newer finished record is an outcome.
 
 A background execution that finishes after its initial wait notifies its task once,
 unless the task already observed the terminal state through `unity.wait`. A running
