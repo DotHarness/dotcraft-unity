@@ -18,12 +18,19 @@ internal static class EditorDiscovery
             {
                 if (NtQueryInformationProcess(process.Handle, 60, buffer, length, out _) != 0) return null;
                 var text = Marshal.PtrToStringUni(Marshal.ReadIntPtr(buffer, IntPtr.Size), Marshal.ReadInt16(buffer) / 2);
-                var match = Regex.Match(text ?? "", "(?:^|\\s)-projectPath\\s+(?:\"(?<path>[^\"]+)\"|(?<path>\\S+))", RegexOptions.IgnoreCase);
-                return match.Success ? Path.GetFullPath(match.Groups["path"].Value) : null;
+                return ParseProjectPath(text);
             }
             finally { Marshal.FreeHGlobal(buffer); }
         }
         catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or ArgumentException) { return null; }
+    }
+
+    internal static string? ParseProjectPath(string? commandLine)
+    {
+        if (string.IsNullOrWhiteSpace(commandLine)) return null;
+        if (Regex.IsMatch(commandLine, "(?:^|\\s)\"?-adb2\"?(?:\\s|$)", RegexOptions.IgnoreCase)) return null;
+        var match = Regex.Match(commandLine, "(?:^|\\s)\"?-projectPath\"?\\s+(?:\"(?<path>[^\"]+)\"|(?<path>\\S+))", RegexOptions.IgnoreCase);
+        return match.Success ? Path.GetFullPath(match.Groups["path"].Value) : null;
     }
 
     [DllImport("ntdll.dll")]
