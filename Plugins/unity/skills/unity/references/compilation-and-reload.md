@@ -41,6 +41,3 @@ recovery strategy. Never infer readiness from a fixed delay or window focus.
 
 An attached snippet and its background execution cannot survive the domain containing them.
 Persist checkpoints outside that domain or put resumable behavior in project source.
-`DcuLongRunningOperation` and the `unity-operation.cs` / PowerShell waiter workflow are provided by
-the UPM Gateway integration, not by Attach. If using that integration through the standalone
-MCP/CLI, select `--backend gateway` and its Gateway skill's durable-operation workflow.

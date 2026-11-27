@@ -8,12 +8,12 @@ namespace DotCraft.Unity.Cli;
 
 internal static class McpHost
 {
-    public static async Task<int> RunAsync(string projectRoot, string backend = "auto", int? pid = null)
+    public static async Task<int> RunAsync(string projectRoot, int? pid)
     {
-        var stateStore = new ProjectStateStore(projectRoot);
-        await using var toolGatewayClient = new UnityBackendSession(stateStore, backend, pid);
-        var presence = new ClientPresenceState();
+        await using var client = new AttachToolClient(projectRoot, pid);
         var tools = new McpServerPrimitiveCollection<McpServerTool>(StringComparer.Ordinal);
+        foreach (var definition in UnityTools.All)
+            tools.Add(new AttachMcpTool(definition, client));
 
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
         {
@@ -23,15 +23,6 @@ internal static class McpHost
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
 
-        builder.Services.AddSingleton(stateStore);
-        builder.Services.AddSingleton(toolGatewayClient);
-        builder.Services.AddSingleton<IUnityToolClient>(toolGatewayClient);
-        builder.Services.AddSingleton(presence);
-        builder.Services.AddSingleton(tools);
-        builder.Services.AddSingleton<ToolManifestMonitor>();
-        builder.Services.AddHostedService(provider => provider.GetRequiredService<ToolManifestMonitor>());
-        builder.Services.AddHostedService<ClientPresenceMonitor>();
-
         builder.Services
             .AddMcpServer(options =>
             {
@@ -39,7 +30,7 @@ internal static class McpHost
                 {
                     Name = "dotcraft-unity",
                     Title = "DotCraft Unity",
-                    Version = GatewayConstants.ProductVersion
+                    Version = UnityTools.ProductVersion
                 };
                 options.ServerInstructions =
                     "Use the available tools to inspect or modify the Unity project. Unity may be temporarily unavailable while the Editor restarts or reloads.";
@@ -48,7 +39,6 @@ internal static class McpHost
             .WithStdioServerTransport();
 
         using var host = builder.Build();
-        host.Services.GetRequiredService<ToolManifestMonitor>().LoadInitialManifest();
         await host.RunAsync().ConfigureAwait(false);
         return 0;
     }

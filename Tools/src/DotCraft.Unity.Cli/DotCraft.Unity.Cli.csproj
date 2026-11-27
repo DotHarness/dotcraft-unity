@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <Target Name="ValidatePackageVersion" BeforeTargets="BeforeBuild">
-    <Error Condition="'$(PackageVersion)' == ''" Text="Could not read the Gateway version from package.json." />
+    <Error Condition="'$(PackageVersion)' == ''" Text="Could not read the product version from package.json." />
   </Target>
 
   <ItemGroup>

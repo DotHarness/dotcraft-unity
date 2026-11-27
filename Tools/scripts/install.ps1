@@ -79,7 +79,7 @@ function Install-DotCraftUnity([string]$RequestedVersion, [string]$Destination) 
         }
         $metadata = Get-DcuExecutableVersion $stagedExe
         if ($metadata.version -cne $versionNumber -or $metadata.rid -cne 'win-x64' -or
-            $metadata.protocolVersion -ne 1 -or $metadata.mcpSdkVersion -cne '2.2.0') {
+            $metadata.mcpSdkVersion -cne '2.2.0') {
             throw 'Executable version metadata does not match the release. Existing installation was preserved.'
         }
         $target = Join-Path $destinationPath 'dotcraft-unity.exe'
@@ -88,7 +88,7 @@ function Install-DotCraftUnity([string]$RequestedVersion, [string]$Destination) 
         Add-DcuUserPath $destinationPath
         Write-Host "Installed dotcraft-unity $versionNumber to $destinationPath"
         Write-Host 'User PATH is configured. Open a new terminal if another running app cannot find the command.'
-        Write-Host 'Open the Unity project, then use status or exec with --project-root. The default auto backend uses Gateway when configured, or Attach without UPM. MCP configuration is optional for CLI use.'
+        Write-Host 'Open the Unity project, then use status or exec with --project-root. MCP configuration is optional for CLI use.'
     }
     finally {
         $resolvedStage = [IO.Path]::GetFullPath($stagePath)

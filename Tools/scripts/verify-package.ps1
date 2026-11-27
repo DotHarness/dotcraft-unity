@@ -7,7 +7,7 @@ foreach ($entry in $manifest.files) {
     if ($entry.path -match '[/\\]' -or (Get-FileHash "$ArtifactDirectory/$($entry.path)" -Algorithm SHA256).Hash -ine $entry.sha256) { throw 'Release artifact hash mismatch.' }
 }
 $metadata = & "$ArtifactDirectory/dotcraft-unity.exe" version --json | ConvertFrom-Json
-if ($LASTEXITCODE -or $metadata.version -cne $manifest.version -or $metadata.rid -cne 'win-x64' -or $metadata.protocolVersion -ne 1) { throw 'Executable metadata mismatch.' }
+if ($LASTEXITCODE -or $metadata.version -cne $manifest.version -or $metadata.rid -cne 'win-x64') { throw 'Executable metadata mismatch.' }
 $plugin = "$ArtifactDirectory/Unity"
 foreach ($entry in $manifest.pluginFiles) {
     $root = [IO.Path]::GetFullPath($plugin)

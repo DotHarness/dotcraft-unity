@@ -1,6 +1,6 @@
 # Unity API helpers
 
-Use these helpers inside `unity.execute` when they replace long reflection boilerplate. Attach supplies them in `DotCraft.Unity`, already imported by snippets. UPM/Gateway exposes the same helpers in `DotCraft.Editor`. Use unqualified `Dcu` for scripts shared across backends.
+Use these helpers inside `unity.execute` when they replace long reflection boilerplate. Attach supplies them in `DotCraft.Unity`, already imported by snippets.
 
 Do not use these helpers for simple Unity calls such as `GameObject.Find`, `AssetDatabase.GetAssetPath`, or one-off property reads.
 

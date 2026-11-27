@@ -1,6 +1,6 @@
 # Unity API helpers
 
-Use these helpers inside `unity_execute_csharp` when they replace long boilerplate. Gateway snippets import `DotCraft.Editor`; Attach snippets import `DotCraft.Unity`. Both expose the same `Dcu` helpers.
+Use these helpers inside `unity_execute_csharp` when they replace long boilerplate. Snippets already import `DotCraft.Unity`, which provides the `Dcu` helpers.
 
 Do not use these helpers for simple Unity calls such as `GameObject.Find`, `AssetDatabase.GetAssetPath`, or one-off property reads.
 

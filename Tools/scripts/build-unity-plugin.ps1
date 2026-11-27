@@ -7,7 +7,7 @@ if (!(Test-Path $output -PathType Container)) { throw 'Plugin output parent does
 if (Test-Path $bundle) { throw 'Plugin output already exists.' }
 
 & "$root/Tools/scripts/build-native.ps1"
-$version = (Get-Content "$root/Packages/com.dotcraft.unity/package.json" -Raw | ConvertFrom-Json).version
+$version = (Get-Content "$root/Plugins/unity/.craft-plugin/plugin.json" -Raw | ConvertFrom-Json).version
 $pluginProject = "$root/Tools/src/DotCraft.Unity.Plugin/DotCraft.Unity.Plugin.csproj"
 & dotnet restore $pluginProject --force-evaluate --no-http-cache
 if ($LASTEXITCODE) { throw 'DotCraft adapter restore failed.' }
@@ -21,7 +21,7 @@ if ($LASTEXITCODE) { throw 'Desktop module restore failed.' }
 if ($LASTEXITCODE) { throw 'Desktop module build failed.' }
 
 New-Item -ItemType Directory -Path "$bundle/lib","$bundle/desktop" -Force | Out-Null
-foreach ($name in @('.craft-plugin','assets','skills','settings.schema.json')) {
+foreach ($name in @('.craft-plugin','assets','skills')) {
     Copy-Item -LiteralPath "$root/Plugins/unity/$name" -Destination $bundle -Recurse
 }
 Copy-Item -LiteralPath "$desktop/dist" -Destination "$bundle/desktop" -Recurse

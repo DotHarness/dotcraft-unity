@@ -4,13 +4,13 @@
 
 [English](./README.md) · [DotCraft](https://github.com/DotHarness/dotcraft) · [License](./LICENSE)
 
-面向 Unity Editor 的统一 Agent 集成：支持 Unity 内对话、CLI/MCP 自动化，不安装 UPM 包也能使用。
+面向 Unity Editor 的统一 Agent 集成与自动化。
 
 </div>
 
 ## 它能做什么
 
-Agent 可以在运行中的 Unity Editor 里执行 C#，编译脚本并读取错误，随时掌握 Play Mode 和脚本重载状态，而且不需要往项目里安装任何东西。可选的 Unity Package 还提供 Editor 内聊天、给其他 coding agent 用的 MCP Gateway，以及项目自定义工具。
+Agent 可以在运行中的 Unity Editor 里执行 C#，编译脚本并读取错误，随时掌握 Play Mode 和脚本重载状态，而且不需要往项目里安装任何东西。如需在 Editor 内聊天，请安装 [Unity ACP](https://github.com/DotHarness/unity-acp)。
 
 需要 Unity 2021.3 ~ 6.6，并使用 Mono 运行时，暂不支持 CoreCLR。
 
@@ -35,16 +35,6 @@ Agent 可以在运行中的 Unity Editor 里执行 C#，编译脚本并读取错
 ```powershell
 irm https://github.com/DotHarness/dotcraft-unity/releases/latest/download/install.ps1 | iex
 ```
-
-### Unity Package（可选）
-
-Editor 内聊天、MCP Gateway 和项目自定义工具需要 Unity Package。打开 **Window → Package Manager**，添加 Git URL：
-
-```text
-https://github.com/DotHarness/dotcraft-unity.git?path=/Packages/com.dotcraft.unity
-```
-
-设置方法参阅[使用 Unity Package](./Documentations/unity-package.md)。
 
 ## 开始使用
 

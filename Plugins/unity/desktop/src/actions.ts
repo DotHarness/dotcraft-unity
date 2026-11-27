@@ -2,14 +2,11 @@ import type { DesktopPluginHost } from '@dotcraft/plugin'
 import { fill, type UnityStrings } from './i18n'
 import { HostTooOldError, UnityHubMissingError, isEditorOpen, openInUnity } from './unity'
 
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message.trim() : ''
-}
-
-export function unityRequirementMessage(error: unknown, strings: UnityStrings): string | null {
+function failureMessage(error: unknown, strings: UnityStrings): string {
   if (error instanceof UnityHubMissingError) return strings.hubRequired
   if (error instanceof HostTooOldError) return strings.hostTooOld
-  return null
+  const detail = error instanceof Error ? error.message.trim() : ''
+  return detail ? fill(strings.openFailedDetail, { detail }) : strings.openFailed
 }
 
 export async function launchEditor(host: DesktopPluginHost, strings: UnityStrings, path: string): Promise<void> {
@@ -20,9 +17,6 @@ export async function launchEditor(host: DesktopPluginHost, strings: UnityString
   try {
     await openInUnity(host, path)
   } catch (error) {
-    const detail = errorText(error)
-    const message = unityRequirementMessage(error, strings)
-      ?? (detail ? fill(strings.openFailedDetail, { detail }) : strings.openFailed)
-    host.ui.showToast({ message, tone: 'error' })
+    host.ui.showToast({ message: failureMessage(error, strings), tone: 'error' })
   }
 }

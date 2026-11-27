@@ -6,16 +6,14 @@
   "description": "Inspect and automate a running Unity Editor.",
   "capabilities": ["dotnet", "skill", "desktop"],
   "skills": "./skills/",
-  "settings": "./settings.schema.json",
   "desktop": {
-    "description": "Adds a Unity page for your projects and a button that opens a conversation's project in Unity.",
-    "entry": "./desktop/dist/index.mjs",
-    "styles": ["./desktop/dist/index.css"]
+    "description": "Adds a button that opens a conversation's project in Unity.",
+    "entry": "./desktop/dist/index.mjs"
   },
   "interface": {
     "displayName": "Unity",
     "shortDescription": "Automate Unity Editor",
-    "longDescription": "Keep your Unity projects in DotCraft, open them in the Unity Editor with one click, and inspect and automate a running Editor through DotCraft's native Unity tools.",
+    "longDescription": "Open a conversation's project in the Unity Editor with one click, and inspect and automate a running Editor through DotCraft's native Unity tools.",
     "developerName": "DotHarness",
     "category": "Engineering",
     "capabilities": ["Skill", "Desktop", "Unity", "Read", "Write"],

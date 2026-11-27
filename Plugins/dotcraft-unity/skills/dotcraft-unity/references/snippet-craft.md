@@ -1,18 +1,16 @@
 # Snippet Failure Modes
 
 `references/api.md` covers the `Dcu.*` helpers. This file covers the ways a snippet fails in
-practice: it times out, it buries the answer in stack traces, or it fails to compile. These are ordered by how often they bite.
+practice: it times out, its effect is not visible yet, or it fails to compile. These are ordered by how often they bite.
 
 ## Long Operations Outlive The Call
 
-Long synchronous work blocks Unity's main thread and can exceed the caller's deadline. Gateway
-uses a 65-second HTTP deadline; Attach does not apply that same overall execution deadline. A
+Long synchronous work blocks Unity's main thread and can exceed the caller's deadline. A
 timeout or disconnect can leave work running or already completed, so inspect state before
 choosing the next action. Never replay an uncertain mutation automatically.
 
-For script compilation, Domain Reload, or any workflow that must survive a Tool Gateway restart,
-use the backend-specific workflow in `references/compilation-and-reload.md`. Gateway durable
-operation files survive the managed domain; Attach recovers its bridge without resuming the snippet.
+For script compilation or Domain Reload, use the workflow in
+`references/compilation-and-reload.md`. Attach recovers its bridge without resuming the snippet.
 
 For bounded asynchronous work that cannot reload assemblies, await the next editor frame or a
 readiness condition. These awaits resume on Unity's main thread:
@@ -25,25 +23,17 @@ return EditorApplication.isUpdating;
 
 A synchronous loop must call `ctx.ThrowIfCancellationRequested()` explicitly. Stopping the caller's
 wait is not proof that Unity stopped; inspect state after an uncertain transport outcome and do not
-replay automatically. On Gateway, use a durable operation file for work that must survive Domain Reload. Attach-only
-Editors require a persistent project integration or an external workflow for that purpose.
+replay automatically. Work that must survive Domain Reload needs an external workflow.
 
 Project work that finishes after the snippet returns, such as loading a scene, is best awaited in
 the same call with a bounded `ctx.WaitUntil`. If it must outlive the call, return an operation ID
 and a status probe with one explicit terminal field, such as `settled: true`, and poll on that
 field. A poll that waits for a guessed state name keeps running after the work has finished.
 
-## Logs Return With Full Stack Traces
+## Logs Are Not Returned
 
-Gateway attaches logs emitted **while the snippet runs**, with stack traces. Attach
-does not provide the same per-execution log capture; read the Console when logs are needed. One warning is fine. A loop over 120 items that warns once per item returns tens of
-thousands of lines and buries the actual return value.
-
-Keep diagnostics compact instead of moving work to an untracked callback. During a cross-frame
-await other editor activity can also emit logs, so verify attribution before treating a log as a
-failure caused by the snippet.
-
-When the logs *are* the point, read them deliberately — see `references/console-reading.md`.
+A call does not return the logs its snippet emits. When the logs *are* the point, read them
+deliberately — see `references/console-reading.md`.
 
 ## Reading Compile Failures
 
@@ -110,7 +100,7 @@ Several Editor subsystems queue work rather than applying it immediately:
 
 Await a bounded readiness condition with `ctx` before reading state that settles on a later tick,
 or apply in one call and verify in the next. Prefer the actual Editor state over a fixed delay.
-Do not carry an execution context across Domain Reload; use the backend-specific reload workflow.
+Do not carry an execution context across Domain Reload. Use the reload workflow.
 
 ## Return Shape
 

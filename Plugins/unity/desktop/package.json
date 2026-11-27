@@ -4,8 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "dotcraft-plugin build .",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --test src/model.test.ts"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
     "@dotcraft/plugin": "0.8.6",

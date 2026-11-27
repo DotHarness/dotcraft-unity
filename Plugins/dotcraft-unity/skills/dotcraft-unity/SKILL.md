@@ -13,9 +13,9 @@ This skill governs Unity tool calls, especially `unity_execute_csharp`. It does 
 
 ## Choose the connection
 
-Prefer the available dotcraft-unity MCP tools. When MCP is not configured or not exposed in the current session, use `dotcraft-unity.exe` from PATH. Read `references/cli.md` for installation, project selection, command syntax, and result handling. CLI needs no MCP configuration. `--backend auto` selects Gateway when discovery or manifest state exists and Attach otherwise; explicit `gateway` and `attach` are available. Gateway requires the UPM integration; Attach requires a Windows x64 Mono Editor and can execute C# without UPM.
+Prefer the available dotcraft-unity MCP tools. When MCP is not configured or not exposed in the current session, use `dotcraft-unity.exe` from PATH. Read `references/cli.md` for installation, project selection, command syntax, and result handling. CLI needs no MCP configuration. Both connect through Attach, which requires a Windows x64 Mono Editor and installs nothing into the project.
 
-Choose the transport before issuing the call. If a dispatched MCP or CLI call fails, times out, or disconnects, do not switch transports and replay it automatically: Unity may already have executed it. Gateway exposes its enabled tool registry. Attach exposes `unity_execute_csharp` and `unity_recompile`, not custom project tools. `status` and tool listing are read-only and never attach; `--pid` selects an Editor when needed.
+If a dispatched MCP or CLI call fails, times out, or disconnects, do not replay it automatically: Unity may already have executed it. The tools are `unity_execute_csharp` and `unity_recompile`. `status` and tool listing are read-only and never attach. `--pid` selects an Editor when needed.
 
 ## Inline code or a saved script
 
@@ -42,8 +42,8 @@ Load only the reference needed for the current task:
 - **Editor window screenshots**: Read `references/gameview-screenshot.md` when the user asks to capture, compare, inspect, or save what a Unity Editor window looks like — GameView, SceneView, or the whole Editor — or to render a specific camera viewpoint.
 - **Console reading**: Read `references/console-reading.md` when the user asks to inspect, summarize, search, or diagnose Unity Console logs.
 - **API helpers**: Read `references/api.md` when a `unity_execute_csharp` snippet needs loaded-type lookup or third-party component reflection.
-- **Snippet failure modes**: Read `references/snippet-craft.md` when a snippet times out, returns a wall of stack traces, fails to compile, or when the effect of a call is not visible in the same call.
-- **Compilation and Domain Reload**: Read `references/compilation-and-reload.md` before triggering script compilation, Domain Reload, or any operation that must survive Unity Tool Gateway restarts.
+- **Snippet failure modes**: Read `references/snippet-craft.md` when a snippet times out, fails to compile, or when the effect of a call is not visible in the same call.
+- **Compilation and Domain Reload**: Read `references/compilation-and-reload.md` before triggering script compilation, Domain Reload, or any operation that must survive a Domain Reload.
 
 ## Default behavior
 
@@ -51,7 +51,7 @@ Keep Unity in the background: prefer read-only inspection first, then make the s
 
 ## Waiting for Editor readiness
 
-For script compilation and Domain Reload, choose the backend-specific workflow in `references/compilation-and-reload.md`: Gateway durable operations or Attach `unity_recompile` (CLI `recompile`). Gateway uses its external PowerShell waiter; Attach's recompile waits for its own compilation and the bridge recovery after it. Then issue a fresh bounded read-only call. Do not infer readiness from window focus, progress bars, Editor log silence, a fixed delay, or `EditorApplication.isCompiling` read right after a request: it is still false before the requested compilation starts. Any wait loop stops on a field the tool or script reports as terminal, never on a guessed state name, file name or time of day.
+For script compilation and Domain Reload, follow `references/compilation-and-reload.md`: `unity_recompile` (CLI `recompile`) waits for its own compilation and the bridge recovery after it. Then issue a fresh bounded read-only call. Do not infer readiness from window focus, progress bars, Editor log silence, a fixed delay, or `EditorApplication.isCompiling` read right after a request: it is still false before the requested compilation starts. Any wait loop stops on a field the tool or script reports as terminal, never on a guessed state name, file name or time of day.
 
 For asset import or asynchronous Shader compilation that does not reload managed assemblies, use bounded external readiness probes. Require `EditorApplication.isUpdating` and `ShaderUtil.anythingCompiling` to be false in two consecutive successful probes before reporting readiness.
 
@@ -68,7 +68,7 @@ Do not call these APIs unless the user explicitly asked for the visible effect o
 - Entering or exiting Play Mode, pausing, stepping frames, or changing time scale unless the user requested runtime inspection.
 - Broad `AssetDatabase.Refresh`, `ImportAsset`, `ForceReserializeAssets`, scene saves, package changes, or project-wide rewrites.
 
-Do not block or sleep on the Unity main thread. For bounded work across editor frames, use `await ctx.WaitFrame()`, `WaitFrames`, `WaitSeconds`, or `WaitUntil`; continuations resume on the main thread. `cancellationToken` and `ctx.ThrowIfCancellationRequested()` support cooperative cancellation. MCP/CLI calls await completion without creating detached jobs. Use the backend-specific compilation and Domain Reload workflow, and bounded external readiness probes for import and Shader work. For other asynchronous actions, await a bounded readiness condition with `ctx` or return the current state and perform one bounded follow-up check.
+Do not block or sleep on the Unity main thread. For bounded work across editor frames, use `await ctx.WaitFrame()`, `WaitFrames`, `WaitSeconds`, or `WaitUntil`. Continuations resume on the main thread. `cancellationToken` and `ctx.ThrowIfCancellationRequested()` support cooperative cancellation. MCP/CLI calls await completion without creating detached jobs. Use the compilation and Domain Reload workflow, and bounded external readiness probes for import and Shader work. For other asynchronous actions, await a bounded readiness condition with `ctx` or return the current state and perform one bounded follow-up check.
 
 ## Confirmation policy
 
@@ -88,7 +88,7 @@ Keep snippets short and deterministic. Prefer one clear task per call.
 
 Place any required ordinary, alias, `static`, or `global` using directives at the beginning of the snippet. `using var` declarations and `using (...)` statements are method-body statements and can be used normally.
 
-Gateway snippets import `DotCraft.Editor`; Attach snippets import `DotCraft.Unity`. Use the shared `Dcu` API helpers for high-boilerplate inspection work. Snippets already import the appropriate namespace, so use `Dcu.Type`, `Dcu.Components`, `Dcu.Get`, and `Dcu.Call` directly when they replace substantial reflection or type-search code.
+Snippets already import `DotCraft.Unity`, so use `Dcu.Type`, `Dcu.Components`, `Dcu.Get`, and `Dcu.Call` directly when they replace substantial reflection or type-search code.
 
 Validate inputs and return early with a readable message when required objects, assets, scenes, or Unity internal APIs are missing.
 

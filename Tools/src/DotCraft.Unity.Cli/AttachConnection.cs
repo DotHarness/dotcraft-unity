@@ -16,7 +16,7 @@ internal interface IAttachConnection : IAsyncDisposable
 
 internal sealed class AttachConnection : IAttachConnection
 {
-    private readonly string _owner = "gateway-" + Guid.NewGuid().ToString("N");
+    private readonly string _owner = "cli-" + Guid.NewGuid().ToString("N");
     private UnityAttachService? _service;
     private UnityAttachService Service => _service ??= UnityAttachService.CreateDefault();
 

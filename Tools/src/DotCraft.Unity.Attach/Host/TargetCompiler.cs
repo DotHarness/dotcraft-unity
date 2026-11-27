@@ -12,15 +12,15 @@ internal static class TargetCompiler
         var source = Directory.Exists(sourcePath)
             ? string.Join("\n", Directory.GetFiles(sourcePath, "*.cs").Order().Select(File.ReadAllText))
             : File.ReadAllText(sourcePath);
-        var identity = "CSharp9|DOTCRAFT_ATTACH|Debug|" + generation + source + string.Join("\n", paths.Select(p => p + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p)))));
+        var identity = "CSharp9|Debug|" + generation + source + string.Join("\n", paths.Select(p => p + Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(p)))));
         var hash = Convert.ToHexString(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)));
         Directory.CreateDirectory(cache);
         var output = Path.Combine(cache, prefix + hash + ".dll");
         if (File.Exists(output)) return output;
         var compilation = CSharpCompilation.Create(prefix + hash,
             Directory.Exists(sourcePath)
-                ? Directory.GetFiles(sourcePath, "*.cs").Order().Select(p => CSharpSyntaxTree.ParseText(File.ReadAllText(p), new CSharpParseOptions(LanguageVersion.CSharp9, preprocessorSymbols: new[] { "DOTCRAFT_ATTACH" }), p))
-                : new[] { CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp9, preprocessorSymbols: new[] { "DOTCRAFT_ATTACH" }), sourcePath) },
+                ? Directory.GetFiles(sourcePath, "*.cs").Order().Select(p => CSharpSyntaxTree.ParseText(File.ReadAllText(p), new CSharpParseOptions(LanguageVersion.CSharp9), p))
+                : new[] { CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp9), sourcePath) },
             paths.Select(p => MetadataReference.CreateFromFile(p)),
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, optimizationLevel: OptimizationLevel.Debug));
         using var stream = new MemoryStream();

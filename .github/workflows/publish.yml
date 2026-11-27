@@ -23,11 +23,11 @@ jobs:
       - name: Verify plugin installation
         shell: pwsh
         run: ./Tools/scripts/test-plugin-host.ps1 -PluginRoot .artifacts/release/Unity
-      - name: Test Gateway and Attach
+      - name: Test CLI and Attach
         shell: pwsh
         run: |
           dotnet test Tools/tests/DotCraft.Unity.Cli.Tests/DotCraft.Unity.Cli.Tests.csproj -c Release
-          if ($LASTEXITCODE) { throw 'Gateway tests failed.' }
+          if ($LASTEXITCODE) { throw 'CLI tests failed.' }
           dotnet test Tools/tests/DotCraft.Unity.Attach.Tests/DotCraft.Unity.Attach.Tests.csproj -c Release
           if ($LASTEXITCODE) { throw 'Attach tests failed.' }
           ./Tools/tests/DotCraft.Unity.Cli.Tests/Install.Tests.ps1 -ArtifactDirectory .artifacts/release
@@ -37,7 +37,6 @@ jobs:
           path: |
             .artifacts/release/
             !.artifacts/release/cli/**
-            !.artifacts/release/upm/**
           include-hidden-files: true
   release:
     needs: build

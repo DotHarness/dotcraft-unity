@@ -5,7 +5,7 @@ description: Inspect, automate, and debug a running Unity Editor. Use for Unity 
 
 # Unity
 
-Use `unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.recompile`, `unity.wait`, and `unity.disconnect` to work with a running Unity Editor. These DotCraft-native tools use Attach on a Windows x64 Mono Editor without requiring the UPM package. They execute Editor C# on Unity's main thread and do not replace normal source-file editing. Other agents can use the standalone MCP/CLI with `--backend auto|gateway|attach`; Gateway additionally exposes enabled custom project tools.
+Use `unity.list`, `unity.connect`, `unity.status`, `unity.execute`, `unity.recompile`, `unity.wait`, and `unity.disconnect` to work with a running Unity Editor. These DotCraft-native tools use Attach on a Windows x64 Mono Editor and install nothing into the project. They execute Editor C# on Unity's main thread and do not replace normal source-file editing.
 
 Load only the reference needed for the task:
 
@@ -41,7 +41,7 @@ return new { found = target != null, name };
 
 Use inline `code` for a short one-off operation. Store recurring project-specific snippets under `.craft/scripts/` and use `path`. Bundled scripts live under this skill's `scripts/` directory and can be passed by absolute path without copying them into the Unity project.
 
-Attach snippets import `DotCraft.Unity`; UPM/Gateway snippets import `DotCraft.Editor`. Both expose the same `Dcu` helper surface, so portable scripts should use the unqualified helper name. The payload provides `Dcu.Type`, `Dcu.Components`, `Dcu.Get`, `Dcu.Set`, `Dcu.Call`, and `Dcu.Members` for loaded types and reflection-heavy inspection. Use ordinary Unity APIs directly when they are shorter.
+Snippets import `DotCraft.Unity`. The payload provides `Dcu.Type`, `Dcu.Components`, `Dcu.Get`, `Dcu.Set`, `Dcu.Call`, and `Dcu.Members` for loaded types and reflection-heavy inspection. Use ordinary Unity APIs directly when they are shorter.
 
 ### Await Editor updates
 

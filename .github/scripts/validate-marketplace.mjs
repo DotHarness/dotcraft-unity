@@ -68,7 +68,7 @@ function requireEqual(actual, expected, label) {
   if (actual !== expected) fail(`${label} must be '${expected}'`)
 }
 
-const packageManifest = readJson(resolve(repoRoot, 'Packages/com.dotcraft.unity/package.json'))
+const unityManifest = readJson(resolve(repoRoot, 'Plugins/unity/.craft-plugin/plugin.json'))
 const marketplace = readJson(resolve(repoRoot, '.craft', 'plugins', 'marketplace.json'))
 
 if (!isObject(marketplace)) {
@@ -103,7 +103,7 @@ if (pluginRoot) {
   } else {
     requireEqual(pluginManifest.schemaVersion, 1, 'plugin schemaVersion')
     requireEqual(pluginManifest.id, entry.name, 'plugin id')
-    requireEqual(pluginManifest.version, packageManifest?.version, 'plugin version')
+    requireEqual(pluginManifest.version, unityManifest?.version, 'plugin version')
     requireEqual(pluginManifest.displayName, 'DotCraft Unity', 'plugin displayName')
 
     if (!Array.isArray(pluginManifest.capabilities)
@@ -157,7 +157,7 @@ if (isObject(codexEntry)) {
       fail('Codex plugin manifest must be an object')
     } else {
       requireEqual(codexManifest.name, codexEntry.name, 'Codex plugin name')
-      requireEqual(codexManifest.version, packageManifest?.version, 'Codex plugin version')
+      requireEqual(codexManifest.version, unityManifest?.version, 'Codex plugin version')
       requireEqual(codexManifest.skills, './skills/', 'Codex plugin skills')
       requireEqual(codexManifest.interface?.displayName, 'DotCraft Unity', 'Codex plugin displayName')
       requirePath(codexPluginRoot, codexManifest.skills, 'Codex plugin skills', 'directory')

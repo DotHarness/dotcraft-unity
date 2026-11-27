@@ -6,22 +6,21 @@ internal sealed class CommandLine
         Usage: dotcraft-unity <command> [options]
 
           mcp --project-root <path>               Run the stdio MCP server
-          status                                 Inspect discovery, reachability and published Editor state
-          tools list                             List cached tool definitions
-          tools describe <name>                  Show a cached tool schema
+          status                                 List matching Editors and their published state
+          tools list                             List the tool definitions
+          tools describe <name>                  Show a tool schema
           call <name> [--arguments <json> | --arguments-file <file|->]
           exec (--code <code> | --path <script> | --stdin)
                [--args <json> | --args-file <file|->] [--mode editor|playmode]
-          recompile [--wait-ms <ms>]             Compile scripts once and wait for that compilation (Attach)
+          recompile [--wait-ms <ms>]             Compile scripts once and wait for that compilation
           version                                Print build metadata
 
-        CLI options: --project-root <path>, --backend auto|gateway|attach, --pid <id>, --json
+        CLI options: --project-root <path>, --pid <id>, --json
         CLI commands discover the nearest Assets + ProjectSettings directory when
         --project-root is omitted. JSON file paths are relative to the shell's
         current directory; script paths are relative to the Unity project.
-        auto prefers the project's Gateway; otherwise Attach requires one matching
-        Windows x64 Mono Editor. status/tools never inject. Use --pid to select
-        between multiple Editors. Once selected, calls stay on the same backend.
+        Calls attach to the one Windows x64 Mono Editor that has the project open.
+        Use --pid to select between multiple Editors. status and tools never inject.
         '-' reads JSON from stdin. Only one input may consume stdin.
         Exit codes: 0 success, 1 tool/connection failure, 2 input error, 130 cancelled.
         Calls are never retried. Cancelling does not undo Unity changes.
@@ -31,7 +30,6 @@ internal sealed class CommandLine
     public string Name { get; private set; } = "help";
     public string? ToolName { get; private set; }
     public bool Json => _options.ContainsKey("--json");
-    public string Backend => Get("--backend") ?? "auto";
     public int? ProcessId => Get("--pid") is { } value ? int.Parse(value) : null;
     public string? Get(string option) => _options.GetValueOrDefault(option);
     public bool Has(string option) => _options.ContainsKey(option);
@@ -51,13 +49,12 @@ internal sealed class CommandLine
         }
         string[] allowed = command.Name switch
         {
-            "compiler" => [],
-            "mcp" => ["--project-root", "--backend", "--pid"],
+            "mcp" => ["--project-root", "--pid"],
             "version" => ["--json"],
-            "status" or "tools list" or "tools describe" => ["--project-root", "--json", "--backend", "--pid"],
-            "call" => ["--project-root", "--json", "--arguments", "--arguments-file", "--backend", "--pid"],
-            "exec" => ["--project-root", "--json", "--code", "--path", "--stdin", "--args", "--args-file", "--mode", "--backend", "--pid"],
-            "recompile" => ["--project-root", "--json", "--wait-ms", "--backend", "--pid"],
+            "status" or "tools list" or "tools describe" => ["--project-root", "--json", "--pid"],
+            "call" => ["--project-root", "--json", "--arguments", "--arguments-file", "--pid"],
+            "exec" => ["--project-root", "--json", "--code", "--path", "--stdin", "--args", "--args-file", "--mode", "--pid"],
+            "recompile" => ["--project-root", "--json", "--wait-ms", "--pid"],
             _ => throw new ArgumentException($"Unknown command '{command.Name}'. Run dotcraft-unity --help.")
         };
         if (index < args.Length && args[index] is "--help" or "-h")
@@ -90,15 +87,13 @@ internal sealed class CommandLine
         }
         command.Exclusive("--arguments", "--arguments-file");
         command.Exclusive("--args", "--args-file");
-        if (command.Backend is not ("auto" or "gateway" or "attach"))
-            throw new ArgumentException("--backend must be auto, gateway or attach.");
         if (command.Get("--pid") is { } pid && (!int.TryParse(pid, out var processId) || processId <= 0))
             throw new ArgumentException("--pid must be a positive process ID.");
         if (command.Name == "mcp" && !command.Has("--project-root"))
             throw new ArgumentException("mcp requires --project-root <path>.");
         if (command.Get("--wait-ms") is { } waitMs && (!int.TryParse(waitMs, out var wait) || wait < 0
-            || wait > GatewayConstants.MaxRecompileYieldMs))
-            throw new ArgumentException($"--wait-ms must be an integer from 0 to {GatewayConstants.MaxRecompileYieldMs}.");
+            || wait > UnityTools.MaxRecompileYieldMs))
+            throw new ArgumentException($"--wait-ms must be an integer from 0 to {UnityTools.MaxRecompileYieldMs}.");
         if (command.Name == "exec")
         {
             if (new[] { "--code", "--path", "--stdin" }.Count(command.Has) != 1)

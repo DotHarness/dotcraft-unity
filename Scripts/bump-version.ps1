@@ -17,7 +17,6 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
 
 $root = [IO.Path]::GetFullPath("$PSScriptRoot/..")
 $targets = @(
-    'Packages/com.dotcraft.unity/package.json'
     'Plugins/unity/.craft-plugin/plugin.json'
     'Plugins/dotcraft-unity/.craft-plugin/plugin.json'
     'Plugins/dotcraft-unity/.codex-plugin/plugin.json'

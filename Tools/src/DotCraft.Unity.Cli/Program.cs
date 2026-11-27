@@ -18,9 +18,7 @@ internal static class Program
                 return 0;
             }
             if (command.Name == "mcp")
-                return await McpHost.RunAsync(command.ResolveProjectRoot(), command.Backend, command.ProcessId);
-            if (command.Name == "compiler")
-                return await CompilerRunner.RunAsync();
+                return await McpHost.RunAsync(command.ResolveProjectRoot(), command.ProcessId);
 
             using var cancellation = new CancellationTokenSource();
             ConsoleCancelEventHandler cancel = (_, e) => { e.Cancel = true; cancellation.Cancel(); };
